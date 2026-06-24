@@ -117,7 +117,7 @@ export default function ContasReceberPage() {
                   {c.status !== 'pago' && c.status !== 'cancelado' && (
                     <Dialog open={dialogOpen && contaPagar?.id === c.id}
                       onOpenChange={open => { setDialogOpen(open); if (!open) setContaPagar(null) }}>
-                      <DialogTrigger asChild>
+                      <DialogTrigger>
                         <Button size="sm" variant="outline" onClick={() => { setContaPagar(c); setValorPagamento(String((c.valor - (c.valor_pago ?? 0)).toFixed(2))); setDialogOpen(true) }}>
                           Receber
                         </Button>

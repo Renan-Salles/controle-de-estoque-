@@ -99,7 +99,7 @@ export default function EstoquePage() {
                 <td className="p-3">
                   <Sheet open={sheetOpen && produtoSelecionado?.id === p.id}
                     onOpenChange={open => { setSheetOpen(open); if (!open) setProdutoSelecionado(null) }}>
-                    <SheetTrigger asChild>
+                    <SheetTrigger>
                       <Button size="sm" variant="outline" onClick={() => { setProdutoSelecionado(p); setSheetOpen(true) }}>
                         <Plus size={12} className="mr-1" />Entrada
                       </Button>
