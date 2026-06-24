@@ -11,7 +11,7 @@ export default async function RomaneioPage({ params }: { params: Promise<{ id: s
   const supabase = await createClient()
   const { data: pedido } = await supabase
     .from('pedidos')
-    .select(`*, clientes(nome, telefone, endereco), pedido_itens(quantidade_pedida, preco_unitario, total, produtos(nome, embalagem))`)
+    .select(`*, locais(nome), clientes(nome, telefone, endereco), pedido_itens(quantidade_pedida, preco_unitario, total, produtos(nome, embalagem))`)
     .eq('id', id)
     .single()
 

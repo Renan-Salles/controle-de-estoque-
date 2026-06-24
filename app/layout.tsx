@@ -22,7 +22,7 @@ const display = Space_Grotesk({
 })
 
 export const metadata: Metadata = {
-  title: 'R$ DEPÓSITO · Sistema',
+  title: 'Gestão de Bebidas',
   description: 'Controle de estoque e gestão financeira de depósito de bebidas',
 }
 

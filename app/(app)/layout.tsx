@@ -16,7 +16,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar />
+      <Sidebar localNome={localAtivo.nome} />
       <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
         <Topbar
           email={user.email ?? 'usuário'}

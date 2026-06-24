@@ -45,11 +45,11 @@ export default function LoginPage() {
       <div className="relative w-full max-w-sm">
         {/* Logo */}
         <div className="mb-7 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight text-text">
-            <span className="text-accent-gold">R$</span> DEPÓSITO
+          <h1 className="font-display text-2xl font-bold tracking-tight text-text">
+            Gestão de Bebidas
           </h1>
           <p className="mt-1.5 text-sm text-text-muted">
-            Acesse o painel de gestão
+            <span className="text-accent-gold">R$ Depósito</span> · Império Salles
           </p>
         </div>
 
@@ -107,7 +107,7 @@ export default function LoginPage() {
         </div>
 
         <p className="mt-6 text-center text-[11px] text-text-muted">
-          R$ Depósito · Sistema de gestão de bebidas
+          Estoque, vendas e financeiro dos seus pontos de venda
         </p>
       </div>
     </div>

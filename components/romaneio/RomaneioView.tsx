@@ -9,6 +9,7 @@ interface Props {
     forma_pagamento: string
     prazo_pagamento_dias?: number
     observacoes: string | null
+    locais: { nome: string } | null
     clientes: {
       nome: string
       telefone: string | null
@@ -69,10 +70,10 @@ export function RomaneioView({ pedido }: Props) {
       >
         <div>
           <p style={{ fontSize: '26px', fontWeight: 800, letterSpacing: '-0.02em' }}>
-            R$ DEPÓSITO
+            {pedido.locais?.nome ?? 'R$ DEPÓSITO'}
           </p>
           <p style={{ color: cinza, marginTop: '2px' }}>
-            Depósito de Bebidas · Comprovante de pedido
+            Comprovante de venda
           </p>
         </div>
         <div className="text-right">

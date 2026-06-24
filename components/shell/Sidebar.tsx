@@ -80,9 +80,25 @@ function LinkItem({ item, ativo }: { item: Item; ativo: boolean }) {
   )
 }
 
-export function Sidebar() {
+// Monta o logo a partir do nome do local: selo dourado + texto.
+// "R$ DEPÓSITO" => selo "R$" + "DEPÓSITO"; "Império Salles" => selo "IS" + nome.
+function logoPartes(nome: string) {
+  if (nome.toUpperCase().startsWith('R$')) {
+    return { selo: 'R$', texto: nome.replace(/^R\$\s*/i, '') }
+  }
+  const iniciais = nome
+    .split(/\s+/)
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+  return { selo: iniciais, texto: nome }
+}
+
+export function Sidebar({ localNome }: { localNome: string }) {
   const pathname = usePathname()
   const novoAtivo = pathname === '/movimentacoes/nova'
+  const logo = logoPartes(localNome)
 
   return (
     <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-sidebar lg:flex">
@@ -90,12 +106,12 @@ export function Sidebar() {
       <div className="flex h-14 items-center border-b border-border px-5">
         <Link
           href="/dashboard"
-          className="font-display flex items-center gap-2 text-[17px] font-bold tracking-tight text-text"
+          className="font-display flex min-w-0 items-center gap-2 text-[16px] font-bold tracking-tight text-text"
         >
-          <span className="flex size-7 items-center justify-center rounded-md bg-accent-gold/15 text-sm font-bold text-accent-gold">
-            R$
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-accent-gold/15 text-[13px] font-bold text-accent-gold">
+            {logo.selo}
           </span>
-          DEPÓSITO
+          <span className="truncate">{logo.texto}</span>
         </Link>
       </div>
 

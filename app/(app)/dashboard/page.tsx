@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { getLocalAtivoId } from '@/lib/local'
+import { getLocalAtivo } from '@/lib/local'
 import {
   Package,
   ShoppingCart,
@@ -15,11 +15,10 @@ import Link from 'next/link'
 import { Money } from '@/components/ui-kit/Money'
 import { GraficoVendas, type PontoVenda } from '@/components/dashboard/GraficoVendas'
 
-const NOME_DEPOSITO = 'R$ DEPÓSITO'
-
 export default async function DashboardPage() {
   const supabase = await createClient()
-  const localId = await getLocalAtivoId()
+  const local = await getLocalAtivo()
+  const localId = local.id
 
   const hoje = new Date().toISOString().split('T')[0]
   const inicioMes = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`
@@ -159,7 +158,7 @@ export default async function DashboardPage() {
             Painel
           </p>
           <h1 className="mt-1 text-xl font-semibold tracking-tight text-text">
-            {NOME_DEPOSITO}
+            {local.nome}
           </h1>
         </div>
         <Link
