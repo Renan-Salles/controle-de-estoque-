@@ -1,50 +1,119 @@
 'use client'
 import { useState, useTransition } from 'react'
-import { Command, CommandInput, CommandList, CommandItem, CommandEmpty } from '@/components/ui/command'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { User } from 'lucide-react'
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandItem,
+  CommandEmpty,
+} from '@/components/ui/command'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { User, ChevronsUpDown } from 'lucide-react'
 import { buscarClientes } from '@/lib/actions/clientes'
+import { rotuloPagamento } from '@/lib/pedido-labels'
 
-interface Props {
-  onSelecionar: (clienteId: string) => void
+export interface ClienteResumo {
+  id: string
+  nome: string
+  telefone: string | null
+  forma_pagamento_padrao: string
 }
 
-export function BuscaCliente({ onSelecionar }: Props) {
+interface Props {
+  selecionado: ClienteResumo | null
+  onSelecionar: (cliente: ClienteResumo) => void
+}
+
+export function BuscaCliente({ selecionado, onSelecionar }: Props) {
   const [open, setOpen] = useState(false)
   const [termo, setTermo] = useState('')
-  const [clientes, setClientes] = useState<{ id: string; nome: string; telefone: string | null; forma_pagamento_padrao: string }[]>([])
-  const [selecionado, setSelecionado] = useState('')
-  const [, startTransition] = useTransition()
+  const [clientes, setClientes] = useState<ClienteResumo[]>([])
+  const [pendente, startTransition] = useTransition()
 
   function pesquisar(valor: string) {
     setTermo(valor)
     startTransition(async () => {
       const resultado = await buscarClientes(valor)
-      setClientes(resultado as typeof clientes)
+      setClientes(resultado as unknown as ClienteResumo[])
     })
   }
 
-  function selecionar(cliente: typeof clientes[0]) {
-    setSelecionado(cliente.nome)
-    onSelecionar(cliente.id)
+  function selecionar(cliente: ClienteResumo) {
+    onSelecionar(cliente)
     setOpen(false)
+    setTermo('')
   }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className="inline-flex w-full items-center justify-start gap-2 rounded-lg border border-border bg-background px-2.5 h-8 text-sm text-muted-foreground hover:bg-muted transition-colors">
-        <User size={14} />
-        {selecionado || 'Selecionar cliente...'}
+      <PopoverTrigger
+        className="u-motion u-press-sm group flex w-full items-center gap-3 rounded-lg border border-border bg-surface px-3.5 py-3 text-left hover:border-brand/50 hover:bg-surface-2 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none aria-expanded:border-brand/60"
+      >
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-brand-soft text-brand">
+          <User className="size-4" strokeWidth={1.5} />
+        </span>
+        {selecionado ? (
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium text-text">
+              {selecionado.nome}
+            </span>
+            <span className="mt-0.5 flex items-center gap-2 text-xs text-text-muted">
+              <span className="font-mono tabular-nums">
+                {selecionado.telefone || 'sem telefone'}
+              </span>
+              <span className="size-0.5 rounded-full bg-text-muted/60" />
+              <span>{rotuloPagamento(selecionado.forma_pagamento_padrao)}</span>
+            </span>
+          </span>
+        ) : (
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium text-text">
+              Selecionar cliente
+            </span>
+            <span className="mt-0.5 block text-xs text-text-muted">
+              Busque pelo nome para começar
+            </span>
+          </span>
+        )}
+        <ChevronsUpDown
+          className="size-4 shrink-0 text-text-muted transition-colors group-hover:text-text"
+          strokeWidth={1.5}
+        />
       </PopoverTrigger>
-      <PopoverContent className="w-[400px] p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Nome do cliente..." value={termo} onValueChange={pesquisar} />
+      <PopoverContent className="w-(--anchor-width) min-w-[var(--anchor-width)] p-0" align="start">
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder="Nome do cliente..."
+            value={termo}
+            onValueChange={pesquisar}
+            autoFocus
+          />
           <CommandList>
-            <CommandEmpty>Nenhum cliente encontrado</CommandEmpty>
-            {clientes.map(c => (
-              <CommandItem key={c.id} onSelect={() => selecionar(c)} className="flex justify-between">
-                <span>{c.nome}</span>
-                <span className="text-xs text-muted-foreground">{c.telefone} | {c.forma_pagamento_padrao}</span>
+            <CommandEmpty>
+              {pendente
+                ? 'Buscando...'
+                : termo
+                  ? 'Nenhum cliente encontrado'
+                  : 'Digite para buscar'}
+            </CommandEmpty>
+            {clientes.map((c) => (
+              <CommandItem
+                key={c.id}
+                value={c.id}
+                onSelect={() => selecionar(c)}
+                className="flex items-center justify-between gap-3"
+              >
+                <span className="min-w-0 truncate font-medium">{c.nome}</span>
+                <span className="flex shrink-0 items-center gap-2 text-xs text-text-muted">
+                  <span className="font-mono tabular-nums">{c.telefone || '—'}</span>
+                  <span className="rounded bg-surface-2 px-1.5 py-0.5">
+                    {rotuloPagamento(c.forma_pagamento_padrao)}
+                  </span>
+                </span>
               </CommandItem>
             ))}
           </CommandList>

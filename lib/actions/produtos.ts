@@ -42,10 +42,53 @@ export async function buscarProdutos(termo?: string) {
   return data ?? []
 }
 
+export async function buscarPosicaoProdutos(termo?: string) {
+  const supabase = await createClient()
+  let query = supabase
+    .from('v_posicao_estoque')
+    .select('*')
+    .order('categoria')
+    .order('nome')
+
+  if (termo) query = query.ilike('nome', `%${termo}%`)
+  const { data, error } = await query as {
+    data: import('@/types/database.types').Database['public']['Views']['v_posicao_estoque']['Row'][] | null
+    error: { message: string } | null
+  }
+  if (error) throw new Error(error.message)
+  return data ?? []
+}
+
 export async function listarCategorias() {
   const supabase = await createClient()
   const { data } = await supabase.from('categorias').select('id, nome').eq('ativo', true).order('ordem')
   return data ?? []
+}
+
+export async function buscarProdutoPorId(id: string) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('produtos')
+    .select(
+      'id, nome, marca, codigo_barras, categoria_id, embalagem, volume_ml, preco_venda_padrao, custo_atual, estoque_minimo, ativo',
+    )
+    .eq('id', id)
+    .single() as {
+    data: {
+      id: string
+      nome: string
+      marca: string | null
+      codigo_barras: string | null
+      categoria_id: string
+      embalagem: string
+      volume_ml: number | null
+      preco_venda_padrao: number
+      custo_atual: number
+      estoque_minimo: number
+      ativo: boolean
+    } | null
+  }
+  return data
 }
 
 export async function atualizarProduto(id: string, data: Record<string, unknown>) {

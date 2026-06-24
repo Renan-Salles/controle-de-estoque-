@@ -1,7 +1,7 @@
 'use client'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Trash2 } from 'lucide-react'
+import { Minus, Plus, Trash2 } from 'lucide-react'
+import { Money } from '@/components/ui-kit/Money'
+import { cn } from '@/lib/utils'
 import type { ItemPedido } from '@/types'
 
 interface Props {
@@ -11,37 +11,82 @@ interface Props {
 }
 
 export function ListaItensPedido({ itens, onAlterarQtde, onRemover }: Props) {
-  if (!itens.length) {
-    return <p className="text-center text-muted-foreground py-8 text-sm">Adicione produtos ao pedido</p>
-  }
-
-  const total = itens.reduce((acc, i) => acc + i.total, 0)
-
   return (
-    <div className="space-y-2">
-      {itens.map(item => (
-        <div key={item.produto_id} className="flex items-center gap-2 p-2 rounded bg-muted">
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{item.nome}</p>
-            <p className="text-xs text-muted-foreground">R$ {item.preco_unitario.toFixed(2)}/un</p>
-          </div>
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon" className="h-7 w-7"
-              onClick={() => onAlterarQtde(item.produto_id, Math.max(1, item.quantidade - 1))}>-</Button>
-            <Input type="number" className="h-7 w-14 text-center text-sm" value={item.quantidade}
-              onChange={e => onAlterarQtde(item.produto_id, Math.max(1, Number(e.target.value)))} />
-            <Button variant="outline" size="icon" className="h-7 w-7"
-              onClick={() => onAlterarQtde(item.produto_id, item.quantidade + 1)}>+</Button>
-          </div>
-          <span className="w-20 text-right text-sm font-medium">R$ {item.total.toFixed(2)}</span>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"
-            onClick={() => onRemover(item.produto_id)}><Trash2 size={14} /></Button>
-        </div>
-      ))}
-      <div className="border-t border-border pt-2 flex justify-between font-bold">
-        <span>Total</span>
-        <span className="text-[#D4A520]">R$ {total.toFixed(2)}</span>
-      </div>
-    </div>
+    <ul className="divide-y divide-border/60">
+      {itens.map((item) => {
+        const semEstoque = item.saldo_atual <= 0
+        const acimaDoSaldo = item.quantidade > item.saldo_atual
+        return (
+          <li
+            key={item.produto_id}
+            className="u-fade-in flex items-start gap-3 px-4 py-3"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-text">
+                {item.nome}
+              </p>
+              <p className="mt-0.5 flex items-center gap-1.5 text-xs text-text-muted">
+                <Money valor={item.preco_unitario} className="text-xs" />
+                <span>/un</span>
+                {(semEstoque || acimaDoSaldo) && (
+                  <span className="ml-1 rounded bg-err/10 px-1.5 py-0.5 font-medium text-err">
+                    {semEstoque ? 'sem estoque' : `só ${item.saldo_atual} em estoque`}
+                  </span>
+                )}
+              </p>
+
+              <div className="mt-2.5 inline-flex items-center rounded-lg border border-border bg-bg">
+                <button
+                  type="button"
+                  onClick={() =>
+                    onAlterarQtde(item.produto_id, Math.max(1, item.quantidade - 1))
+                  }
+                  className="u-motion flex size-8 items-center justify-center rounded-l-lg text-text-muted hover:bg-surface-2 hover:text-text active:scale-95 disabled:opacity-40"
+                  disabled={item.quantidade <= 1}
+                  aria-label="Diminuir quantidade"
+                >
+                  <Minus className="size-3.5" strokeWidth={2} />
+                </button>
+                <input
+                  type="number"
+                  min={1}
+                  value={item.quantidade}
+                  onChange={(e) =>
+                    onAlterarQtde(
+                      item.produto_id,
+                      Math.max(1, Number(e.target.value) || 1),
+                    )
+                  }
+                  className="h-8 w-12 border-x border-border bg-transparent text-center font-mono text-sm tabular-nums text-text outline-none focus-visible:bg-surface-2 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  aria-label="Quantidade"
+                />
+                <button
+                  type="button"
+                  onClick={() => onAlterarQtde(item.produto_id, item.quantidade + 1)}
+                  className="u-motion flex size-8 items-center justify-center rounded-r-lg text-text-muted hover:bg-surface-2 hover:text-text active:scale-95"
+                  aria-label="Aumentar quantidade"
+                >
+                  <Plus className="size-3.5" strokeWidth={2} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-end gap-2">
+              <Money valor={item.total} className="text-sm font-medium" />
+              <button
+                type="button"
+                onClick={() => onRemover(item.produto_id)}
+                className={cn(
+                  'u-motion flex size-7 items-center justify-center rounded-md text-text-muted hover:bg-err/10 hover:text-err active:scale-95',
+                )}
+                aria-label="Remover item"
+              >
+                <Trash2 className="size-3.5" strokeWidth={1.5} />
+              </button>
+            </div>
+          </li>
+        )
+      })}
+    </ul>
   )
 }

@@ -1,67 +1,158 @@
-import { createClient } from '@/lib/supabase/server'
-import type { Database } from '@/types/database.types'
+'use client'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Badge } from '@/components/ui/badge'
-import { Plus } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Package, Plus, Search } from 'lucide-react'
+import { PageHeader } from '@/components/ui-kit/PageHeader'
+import {
+  Tabela,
+  TabelaHead,
+  TabelaHeadCell,
+  TabelaBody,
+  TabelaRow,
+  TabelaCell,
+} from '@/components/ui-kit/tabela'
+import { StatusPill } from '@/components/ui-kit/StatusPill'
+import { Money } from '@/components/ui-kit/Money'
+import { EstadoVazio } from '@/components/ui-kit/EstadoVazio'
+import { SkeletonLinhas } from '@/components/ui-kit/SkeletonLinhas'
+import { btnClass } from '@/components/ui-kit/Button'
+import { formatarNumero } from '@/lib/formatos'
+import { buscarPosicaoProdutos } from '@/lib/actions/produtos'
+import type { Database } from '@/types/database.types'
 
-type PosicaoEstoque = Database['public']['Views']['v_posicao_estoque']['Row']
+type Produto = Database['public']['Views']['v_posicao_estoque']['Row']
 
-export default async function ProdutosPage() {
-  const supabase = await createClient()
-  const { data: produtos } = await supabase
-    .from('v_posicao_estoque')
-    .select('*')
-    .order('categoria')
-    .order('nome') as { data: PosicaoEstoque[] | null }
+export default function ProdutosPage() {
+  const router = useRouter()
+  const [produtos, setProdutos] = useState<Produto[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busca, setBusca] = useState('')
+
+  useEffect(() => {
+    let ativo = true
+    buscarPosicaoProdutos()
+      .then((d) => ativo && setProdutos(d as Produto[]))
+      .finally(() => ativo && setLoading(false))
+    return () => {
+      ativo = false
+    }
+  }, [])
+
+  const filtrados = useMemo(() => {
+    const t = busca.trim().toLowerCase()
+    if (!t) return produtos
+    return produtos.filter(
+      (p) =>
+        p.nome.toLowerCase().includes(t) ||
+        (p.marca ?? '').toLowerCase().includes(t) ||
+        (p.categoria ?? '').toLowerCase().includes(t),
+    )
+  }, [produtos, busca])
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Produtos</h1>
-        <Link href="/produtos/novo"
-          className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium bg-[#2B7A78] text-white hover:bg-[#1e5654] transition-colors">
-          <Plus size={16} />Novo Produto
+    <div className="px-6 py-5">
+      <PageHeader
+        titulo="Produtos"
+        subtitulo="Catálogo de bebidas com posição de estoque e preço de venda."
+      >
+        <Link href="/produtos/novo" className={btnClass('primary')}>
+          <Plus className="size-4" strokeWidth={1.5} />
+          Novo produto
         </Link>
+      </PageHeader>
+
+      <div className="mb-4 flex items-center gap-3">
+        <div className="relative w-full max-w-sm">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted"
+            strokeWidth={1.5}
+          />
+          <input
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar por nome, marca ou categoria"
+            className="h-9 w-full rounded-md border border-border bg-surface pl-9 pr-3 text-sm text-text outline-none transition-colors placeholder:text-text-muted focus-visible:border-brand focus-visible:ring-3 focus-visible:ring-brand/30"
+          />
+        </div>
+        {!loading && (
+          <span className="shrink-0 font-mono text-xs tabular-nums text-text-muted">
+            {filtrados.length} {filtrados.length === 1 ? 'item' : 'itens'}
+          </span>
+        )}
       </div>
-      <div className="rounded-lg border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-card border-b border-border">
+
+      {loading ? (
+        <SkeletonLinhas colunas={6} linhas={8} />
+      ) : filtrados.length === 0 ? (
+        busca ? (
+          <EstadoVazio
+            icone={Search}
+            titulo="Nenhum produto encontrado"
+            descricao={`Nada corresponde a "${busca}". Tente outro termo.`}
+          />
+        ) : (
+          <EstadoVazio
+            icone={Package}
+            titulo="Nenhum produto cadastrado"
+            descricao="Cadastre o primeiro para começar a vender."
+            acao={
+              <Link href="/produtos/novo" className={btnClass('primary')}>
+                <Plus className="size-4" strokeWidth={1.5} />
+                Novo produto
+              </Link>
+            }
+          />
+        )
+      ) : (
+        <Tabela>
+          <TabelaHead>
             <tr>
-              <th className="text-left p-3 font-medium">Produto</th>
-              <th className="text-left p-3 font-medium">Categoria</th>
-              <th className="text-center p-3 font-medium">Embalagem</th>
-              <th className="text-right p-3 font-medium">Estoque</th>
-              <th className="text-right p-3 font-medium">Preco</th>
-              <th className="text-center p-3 font-medium">Status</th>
+              <TabelaHeadCell>Produto</TabelaHeadCell>
+              <TabelaHeadCell>Categoria</TabelaHeadCell>
+              <TabelaHeadCell>Embalagem</TabelaHeadCell>
+              <TabelaHeadCell alinhar="direita">Estoque</TabelaHeadCell>
+              <TabelaHeadCell alinhar="direita">Preço</TabelaHeadCell>
+              <TabelaHeadCell alinhar="centro">Status</TabelaHeadCell>
             </tr>
-          </thead>
-          <tbody>
-            {(produtos ?? []).map((p) => (
-              <tr key={p.id} className="border-b border-border hover:bg-card transition-colors">
-                <td className="p-3">
-                  <p className="font-medium">{p.nome}</p>
-                  {p.marca && <p className="text-xs text-muted-foreground">{p.marca}</p>}
-                </td>
-                <td className="p-3 text-muted-foreground">{p.categoria}</td>
-                <td className="p-3 text-center text-muted-foreground">{p.embalagem}</td>
-                <td className="p-3 text-right font-mono">{p.saldo_atual}</td>
-                <td className="p-3 text-right font-mono">R$ {Number(p.preco_venda_padrao).toFixed(2)}</td>
-                <td className="p-3 text-center">
-                  <Badge variant={
-                    p.status_estoque === 'ok' ? 'default' :
-                    p.status_estoque === 'alerta' ? 'secondary' : 'destructive'
-                  }>
-                    {p.status_estoque}
-                  </Badge>
-                </td>
-              </tr>
+          </TabelaHead>
+          <TabelaBody>
+            {filtrados.map((p) => (
+              <TabelaRow
+                key={p.id}
+                onClick={() => router.push(`/produtos/${p.id}/editar`)}
+              >
+                <TabelaCell>
+                  <p className="font-medium text-text">{p.nome}</p>
+                  {p.marca && (
+                    <p className="text-xs text-text-muted">{p.marca}</p>
+                  )}
+                </TabelaCell>
+                <TabelaCell className="text-text-muted">
+                  {p.categoria}
+                </TabelaCell>
+                <TabelaCell className="text-text-muted capitalize">
+                  {p.embalagem}
+                  {p.volume_ml ? (
+                    <span className="ml-1 text-text-muted/70">
+                      {p.volume_ml}ml
+                    </span>
+                  ) : null}
+                </TabelaCell>
+                <TabelaCell alinhar="direita">
+                  {formatarNumero(p.saldo_atual)}
+                </TabelaCell>
+                <TabelaCell alinhar="direita">
+                  <Money valor={p.preco_venda_padrao} />
+                </TabelaCell>
+                <TabelaCell alinhar="centro">
+                  <StatusPill status={p.status_estoque} />
+                </TabelaCell>
+              </TabelaRow>
             ))}
-            {!produtos?.length && (
-              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Nenhum produto cadastrado</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+          </TabelaBody>
+        </Tabela>
+      )}
     </div>
   )
 }

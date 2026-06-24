@@ -1,11 +1,19 @@
+import { formatarReal, formatarData } from '@/lib/formatos'
+import { rotuloPagamento } from '@/lib/pedido-labels'
+
 interface Props {
   pedido: {
     numero_pedido: number
     data_pedido: string
     total: number
     forma_pagamento: string
+    prazo_pagamento_dias?: number
     observacoes: string | null
-    clientes: { nome: string; telefone: string | null; endereco: Record<string, string> | null }
+    clientes: {
+      nome: string
+      telefone: string | null
+      endereco: Record<string, string> | null
+    }
     pedido_itens: Array<{
       quantidade_pedida: number
       preco_unitario: number
@@ -17,66 +25,195 @@ interface Props {
 
 export function RomaneioView({ pedido }: Props) {
   const end = pedido.clientes.endereco
-  const endStr = end ? `${end.rua || ''}, ${end.numero || ''} - ${end.bairro || ''} - ${end.cidade || ''}` : ''
-  const dataFmt = new Date(pedido.data_pedido).toLocaleString('pt-BR')
+  const partes = [
+    [end?.rua, end?.numero].filter(Boolean).join(', '),
+    end?.bairro,
+    end?.cidade,
+  ].filter(Boolean)
+  const endStr = partes.join(' - ')
+
+  const numeroFmt = String(pedido.numero_pedido).padStart(4, '0')
+  const totalItens = pedido.pedido_itens.reduce(
+    (acc, i) => acc + i.quantidade_pedida,
+    0,
+  )
+  const prazoFmt =
+    pedido.prazo_pagamento_dias && pedido.prazo_pagamento_dias > 0
+      ? `${pedido.prazo_pagamento_dias} dias`
+      : 'À vista'
+
+  const cinza = '#666'
+  const tdBase: React.CSSProperties = {
+    border: '1px solid #333',
+    padding: '6px 8px',
+  }
+  const thBase: React.CSSProperties = {
+    border: '1px solid #333',
+    padding: '6px 8px',
+    fontSize: '10px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+    color: cinza,
+    fontWeight: 600,
+  }
 
   return (
-    <div className="romaneio bg-white text-black p-8 max-w-[210mm] mx-auto" style={{ fontFamily: 'Arial, sans-serif', fontSize: '11px' }}>
-      <div className="border-b-2 border-black pb-4 mb-4 flex justify-between">
+    <div
+      className="romaneio mx-auto max-w-[210mm] bg-white p-10 text-black"
+      style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '12px' }}
+    >
+      {/* Cabeçalho */}
+      <div
+        className="mb-6 flex items-end justify-between pb-4"
+        style={{ borderBottom: '2px solid #111' }}
+      >
         <div>
-          <p className="font-bold text-lg">R$ DEPOSITO</p>
-          <p>Deposito de Bebidas</p>
+          <p style={{ fontSize: '26px', fontWeight: 800, letterSpacing: '-0.02em' }}>
+            R$ DEPÓSITO
+          </p>
+          <p style={{ color: cinza, marginTop: '2px' }}>
+            Depósito de Bebidas · Comprovante de pedido
+          </p>
         </div>
         <div className="text-right">
-          <p className="font-bold text-lg">ROMANEIO #{String(pedido.numero_pedido).padStart(4, '0')}</p>
-          <p>{dataFmt}</p>
+          <p style={{ fontSize: '11px', color: cinza, letterSpacing: '0.08em' }}>
+            ROMANEIO Nº
+          </p>
+          <p style={{ fontSize: '22px', fontWeight: 800 }}>{numeroFmt}</p>
+          <p style={{ color: cinza, marginTop: '2px' }}>
+            {formatarData(pedido.data_pedido)}
+          </p>
         </div>
       </div>
-      <div className="border border-black p-3 mb-4">
-        <p className="font-bold mb-1">DADOS DO CLIENTE</p>
-        <p><strong>Nome:</strong> {pedido.clientes.nome}</p>
-        {pedido.clientes.telefone && <p><strong>Telefone:</strong> {pedido.clientes.telefone}</p>}
-        {endStr.trim() !== ',  -  -' && <p><strong>Endereco de entrega:</strong> {endStr}</p>}
+
+      {/* Cliente */}
+      <div className="mb-5">
+        <p
+          style={{
+            fontSize: '10px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            color: cinza,
+            fontWeight: 700,
+            marginBottom: '6px',
+          }}
+        >
+          Dados do cliente
+        </p>
+        <div
+          style={{
+            border: '1px solid #333',
+            borderRadius: '4px',
+            padding: '12px 14px',
+          }}
+        >
+          <p style={{ fontSize: '15px', fontWeight: 700 }}>
+            {pedido.clientes.nome}
+          </p>
+          <div
+            className="mt-1 flex flex-wrap gap-x-8 gap-y-1"
+            style={{ color: '#222' }}
+          >
+            {pedido.clientes.telefone && (
+              <span>
+                <strong style={{ color: cinza, fontWeight: 600 }}>Telefone: </strong>
+                {pedido.clientes.telefone}
+              </span>
+            )}
+            {endStr && (
+              <span>
+                <strong style={{ color: cinza, fontWeight: 600 }}>Entrega: </strong>
+                {endStr}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
-      <table className="w-full border-collapse mb-4" style={{ border: '1px solid black' }}>
+
+      {/* Itens */}
+      <table
+        className="mb-5 w-full"
+        style={{ borderCollapse: 'collapse' }}
+      >
         <thead>
-          <tr style={{ background: '#f0f0f0' }}>
-            <th className="border border-black p-1 text-left">#</th>
-            <th className="border border-black p-1 text-left">Produto</th>
-            <th className="border border-black p-1 text-center">Unid</th>
-            <th className="border border-black p-1 text-center">Qtde</th>
-            <th className="border border-black p-1 text-right">Preco un.</th>
-            <th className="border border-black p-1 text-right">Total</th>
+          <tr>
+            <th style={{ ...thBase, textAlign: 'left', width: '36px' }}>#</th>
+            <th style={{ ...thBase, textAlign: 'left' }}>Produto</th>
+            <th style={{ ...thBase, textAlign: 'center' }}>Unid.</th>
+            <th style={{ ...thBase, textAlign: 'center' }}>Qtde</th>
+            <th style={{ ...thBase, textAlign: 'right' }}>Preço un.</th>
+            <th style={{ ...thBase, textAlign: 'right' }}>Total</th>
           </tr>
         </thead>
         <tbody>
           {pedido.pedido_itens.map((item, i) => (
             <tr key={i}>
-              <td className="border border-black p-1">{i + 1}</td>
-              <td className="border border-black p-1">{(item.produtos as { nome: string; embalagem: string }).nome}</td>
-              <td className="border border-black p-1 text-center">{(item.produtos as { nome: string; embalagem: string }).embalagem.toUpperCase()}</td>
-              <td className="border border-black p-1 text-center">{item.quantidade_pedida}</td>
-              <td className="border border-black p-1 text-right">R$ {item.preco_unitario.toFixed(2)}</td>
-              <td className="border border-black p-1 text-right font-medium">R$ {item.total.toFixed(2)}</td>
+              <td style={{ ...tdBase, color: cinza }}>{i + 1}</td>
+              <td style={{ ...tdBase, fontWeight: 600 }}>{item.produtos.nome}</td>
+              <td style={{ ...tdBase, textAlign: 'center', textTransform: 'uppercase' }}>
+                {item.produtos.embalagem}
+              </td>
+              <td style={{ ...tdBase, textAlign: 'center' }}>
+                {item.quantidade_pedida}
+              </td>
+              <td style={{ ...tdBase, textAlign: 'right' }}>
+                {formatarReal(item.preco_unitario)}
+              </td>
+              <td style={{ ...tdBase, textAlign: 'right', fontWeight: 600 }}>
+                {formatarReal(item.total)}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
-      <div className="flex justify-between mb-6">
-        <div>
-          <p><strong>Forma de pagamento:</strong> {pedido.forma_pagamento.replace(/_/g, ' ').toUpperCase()}</p>
-          {pedido.observacoes && <p><strong>Obs:</strong> {pedido.observacoes}</p>}
+
+      {/* Rodapé: pagamento + total */}
+      <div className="mb-8 flex items-start justify-between gap-6">
+        <div style={{ color: '#222' }}>
+          <p>
+            <strong style={{ color: cinza, fontWeight: 600 }}>Pagamento: </strong>
+            {rotuloPagamento(pedido.forma_pagamento)} ({prazoFmt})
+          </p>
+          <p style={{ marginTop: '2px' }}>
+            <strong style={{ color: cinza, fontWeight: 600 }}>Itens: </strong>
+            {totalItens} {totalItens === 1 ? 'unidade' : 'unidades'}
+          </p>
+          {pedido.observacoes && (
+            <p style={{ marginTop: '6px', maxWidth: '90mm' }}>
+              <strong style={{ color: cinza, fontWeight: 600 }}>Obs.: </strong>
+              {pedido.observacoes}
+            </p>
+          )}
         </div>
-        <div className="text-right">
-          <p className="text-lg font-bold">TOTAL: R$ {pedido.total.toFixed(2)}</p>
+        <div
+          className="text-right"
+          style={{
+            border: '1px solid #111',
+            borderRadius: '4px',
+            padding: '10px 16px',
+            minWidth: '64mm',
+          }}
+        >
+          <p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: cinza, fontWeight: 700 }}>
+            Total do pedido
+          </p>
+          <p style={{ fontSize: '22px', fontWeight: 800, marginTop: '2px' }}>
+            {formatarReal(pedido.total)}
+          </p>
         </div>
       </div>
-      <div className="flex justify-between mt-8 pt-4 border-t border-black">
-        <div className="text-center w-5/12">
-          <div className="border-t border-black mt-8 pt-1">Assinatura do Entregador</div>
+
+      {/* Assinaturas */}
+      <div className="mt-10 flex justify-between" style={{ gap: '8mm' }}>
+        <div className="w-5/12 text-center">
+          <div style={{ borderTop: '1px solid #111', paddingTop: '6px', marginTop: '24px', color: cinza }}>
+            Assinatura do entregador
+          </div>
         </div>
-        <div className="text-center w-5/12">
-          <div className="border-t border-black mt-8 pt-1">Assinatura do Cliente</div>
+        <div className="w-5/12 text-center">
+          <div style={{ borderTop: '1px solid #111', paddingTop: '6px', marginTop: '24px', color: cinza }}>
+            Assinatura do cliente
+          </div>
         </div>
       </div>
     </div>

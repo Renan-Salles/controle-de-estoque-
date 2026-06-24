@@ -1,76 +1,202 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { Badge } from '@/components/ui/badge'
-import { Printer } from 'lucide-react'
+import { ArrowLeft, Printer, User, CalendarDays, CreditCard, StickyNote } from 'lucide-react'
+import { PageHeader } from '@/components/ui-kit/PageHeader'
+import { StatusPill } from '@/components/ui-kit/StatusPill'
+import {
+  Tabela,
+  TabelaHead,
+  TabelaHeadCell,
+  TabelaBody,
+  TabelaRow,
+  TabelaCell,
+} from '@/components/ui-kit/tabela'
+import { Money } from '@/components/ui-kit/Money'
+import { AvancarStatus } from '@/components/pedido/AvancarStatus'
+import { formatarData } from '@/lib/formatos'
+import {
+  STATUS_PEDIDO_PILL,
+  rotuloStatusPedido,
+  rotuloPagamento,
+} from '@/lib/pedido-labels'
 
 type PedidoComRelacoes = {
   id: string
   numero_pedido: number
   status: string
   total: number
+  subtotal: number
   data_pedido: string
   forma_pagamento: string
+  prazo_pagamento_dias: number
   observacoes: string | null
   clientes: { nome: string; telefone: string | null } | null
-  pedido_itens: { quantidade_pedida: number; preco_unitario: number; total: number; produtos: { nome: string; embalagem: string } }[]
+  pedido_itens: {
+    quantidade_pedida: number
+    preco_unitario: number
+    total: number
+    produtos: { nome: string; embalagem: string }
+  }[]
 }
 
-export default async function PedidoDetailPage({ params }: { params: { id: string } }) {
+function LinhaDado({
+  icone: Icone,
+  rotulo,
+  valor,
+}: {
+  icone: typeof User
+  rotulo: string
+  valor: React.ReactNode
+}) {
+  return (
+    <div className="flex items-start gap-3 px-4 py-3">
+      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-surface-2 text-text-muted">
+        <Icone className="size-3.5" strokeWidth={1.5} />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+          {rotulo}
+        </p>
+        <p className="mt-0.5 text-sm text-text">{valor}</p>
+      </div>
+    </div>
+  )
+}
+
+export default async function PedidoDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
   const supabase = await createClient()
   const { data: pedidoRaw } = await supabase
     .from('pedidos')
-    .select(`id, numero_pedido, status, total, data_pedido, forma_pagamento, observacoes, clientes(nome, telefone), pedido_itens(quantidade_pedida, preco_unitario, total, produtos(nome, embalagem))`)
-    .eq('id', params.id)
+    .select(
+      `id, numero_pedido, status, total, subtotal, data_pedido, forma_pagamento, prazo_pagamento_dias, observacoes, clientes(nome, telefone), pedido_itens(quantidade_pedida, preco_unitario, total, produtos(nome, embalagem))`,
+    )
+    .eq('id', id)
     .single()
 
   if (!pedidoRaw) notFound()
   const pedido = pedidoRaw as unknown as PedidoComRelacoes
 
+  const numeroFmt = `#${String(pedido.numero_pedido).padStart(4, '0')}`
+  const prazoFmt =
+    pedido.prazo_pagamento_dias > 0
+      ? `${pedido.prazo_pagamento_dias} dias`
+      : 'À vista'
+
   return (
-    <div className="p-6 max-w-3xl space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Pedido #{String(pedido.numero_pedido).padStart(4, '0')}</h1>
-        <div className="flex gap-2">
-          <Badge>{pedido.status}</Badge>
-          <Link href={`/pedidos/${pedido.id}/romaneio`} className="inline-flex items-center gap-1 rounded-lg px-2.5 h-7 text-[0.8rem] font-medium border border-border bg-background hover:bg-muted transition-colors">
-            <Printer size={14} />Romaneio
-          </Link>
-        </div>
+    <div className="mx-auto max-w-3xl">
+      <Link
+        href="/pedidos"
+        className="u-motion mb-3 inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text"
+      >
+        <ArrowLeft className="size-4" strokeWidth={1.5} />
+        Pedidos
+      </Link>
+
+      <PageHeader titulo={`Pedido ${numeroFmt}`}>
+        <StatusPill
+          status={STATUS_PEDIDO_PILL[pedido.status] ?? 'inativo'}
+          label={rotuloStatusPedido(pedido.status)}
+        />
+        <Link
+          href={`/pedidos/${pedido.id}/romaneio`}
+          className="u-motion inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-text hover:bg-surface-2 active:scale-[0.98]"
+        >
+          <Printer className="size-4" strokeWidth={1.5} />
+          Romaneio
+        </Link>
+      </PageHeader>
+
+      {/* Dados do cliente / pagamento */}
+      <div className="grid grid-cols-1 divide-y divide-border/60 overflow-clip rounded-lg border border-border bg-surface sm:grid-cols-2 sm:divide-y-0 sm:[&>*:nth-child(odd)]:border-r sm:[&>*]:border-border/60 sm:[&>*:nth-child(n+3)]:border-t">
+        <LinhaDado
+          icone={User}
+          rotulo="Cliente"
+          valor={
+            <>
+              {pedido.clientes?.nome ?? 'Cliente removido'}
+              {pedido.clientes?.telefone && (
+                <span className="ml-2 font-mono text-xs tabular-nums text-text-muted">
+                  {pedido.clientes.telefone}
+                </span>
+              )}
+            </>
+          }
+        />
+        <LinhaDado
+          icone={CalendarDays}
+          rotulo="Data"
+          valor={formatarData(pedido.data_pedido)}
+        />
+        <LinhaDado
+          icone={CreditCard}
+          rotulo="Pagamento"
+          valor={`${rotuloPagamento(pedido.forma_pagamento)} · ${prazoFmt}`}
+        />
+        <LinhaDado
+          icone={StickyNote}
+          rotulo="Observações"
+          valor={
+            pedido.observacoes ? (
+              pedido.observacoes
+            ) : (
+              <span className="text-text-muted">Nenhuma</span>
+            )
+          }
+        />
       </div>
-      <div className="bg-card border border-border rounded-lg p-4 space-y-2 text-sm">
-        <p><span className="text-muted-foreground">Cliente:</span> {pedido.clientes?.nome}</p>
-        <p><span className="text-muted-foreground">Data:</span> {new Date(pedido.data_pedido).toLocaleString('pt-BR')}</p>
-        <p><span className="text-muted-foreground">Pagamento:</span> {pedido.forma_pagamento}</p>
-        {pedido.observacoes && <p><span className="text-muted-foreground">Obs:</span> {pedido.observacoes}</p>}
-      </div>
-      <div className="rounded-lg border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-card border-b border-border">
+
+      {/* Itens */}
+      <div className="mt-5">
+        <Tabela>
+          <TabelaHead>
             <tr>
-              <th className="text-left p-3">Produto</th>
-              <th className="text-center p-3">Qtde</th>
-              <th className="text-right p-3">Preco un.</th>
-              <th className="text-right p-3">Total</th>
+              <TabelaHeadCell>Produto</TabelaHeadCell>
+              <TabelaHeadCell alinhar="centro">Qtde</TabelaHeadCell>
+              <TabelaHeadCell alinhar="direita">Preço un.</TabelaHeadCell>
+              <TabelaHeadCell alinhar="direita">Total</TabelaHeadCell>
             </tr>
-          </thead>
-          <tbody>
+          </TabelaHead>
+          <TabelaBody>
             {pedido.pedido_itens.map((item, i) => (
-              <tr key={i} className="border-b border-border">
-                <td className="p-3">{item.produtos.nome}</td>
-                <td className="p-3 text-center">{item.quantidade_pedida} {item.produtos.embalagem}</td>
-                <td className="p-3 text-right">R$ {item.preco_unitario.toFixed(2)}</td>
-                <td className="p-3 text-right font-medium">R$ {item.total.toFixed(2)}</td>
-              </tr>
+              <TabelaRow key={i}>
+                <TabelaCell className="font-medium">
+                  {item.produtos.nome}
+                </TabelaCell>
+                <TabelaCell alinhar="centro">
+                  {item.quantidade_pedida}{' '}
+                  <span className="text-text-muted">{item.produtos.embalagem}</span>
+                </TabelaCell>
+                <TabelaCell alinhar="direita">
+                  <Money valor={item.preco_unitario} />
+                </TabelaCell>
+                <TabelaCell alinhar="direita">
+                  <Money valor={item.total} className="font-medium" />
+                </TabelaCell>
+              </TabelaRow>
             ))}
-          </tbody>
+          </TabelaBody>
           <tfoot>
             <tr className="border-t-2 border-border">
-              <td colSpan={3} className="p-3 text-right font-semibold">Total</td>
-              <td className="p-3 text-right font-bold text-[#D4A520]">R$ {pedido.total.toFixed(2)}</td>
+              <td colSpan={3} className="h-12 px-4 text-right text-sm font-semibold text-text">
+                Total
+              </td>
+              <td className="h-12 px-4 text-right">
+                <Money valor={pedido.total} destaque className="text-lg font-semibold" />
+              </td>
             </tr>
           </tfoot>
-        </table>
+        </Tabela>
+      </div>
+
+      {/* Ação de fluxo */}
+      <div className="mt-5 flex justify-end">
+        <AvancarStatus pedidoId={pedido.id} status={pedido.status} />
       </div>
     </div>
   )

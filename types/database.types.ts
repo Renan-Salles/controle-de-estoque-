@@ -74,6 +74,27 @@ export interface Database {
         Insert: Omit<Database['public']['Tables']['clientes']['Row'], 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Database['public']['Tables']['clientes']['Insert']>
       }
+      fornecedores: {
+        Row: {
+          id: string
+          nome: string
+          razao_social: string | null
+          cnpj: string | null
+          telefone: string | null
+          whatsapp: string | null
+          contato_nome: string | null
+          email: string | null
+          endereco: Json
+          produtos_fornecidos: string | null
+          prazo_entrega_dias: number
+          observacoes: string | null
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['fornecedores']['Row'], 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Database['public']['Tables']['fornecedores']['Insert']>
+      }
       pedidos: {
         Row: {
           id: string

@@ -1,66 +1,175 @@
-import { createClient } from '@/lib/supabase/server'
-import type { Database } from '@/types/database.types'
+'use client'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Badge } from '@/components/ui/badge'
-import { Plus } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Plus, Search, Store } from 'lucide-react'
+import { PageHeader } from '@/components/ui-kit/PageHeader'
+import {
+  Tabela,
+  TabelaHead,
+  TabelaHeadCell,
+  TabelaBody,
+  TabelaRow,
+  TabelaCell,
+} from '@/components/ui-kit/tabela'
+import { StatusPill } from '@/components/ui-kit/StatusPill'
+import { EstadoVazio } from '@/components/ui-kit/EstadoVazio'
+import { SkeletonLinhas } from '@/components/ui-kit/SkeletonLinhas'
+import { btnClass } from '@/components/ui-kit/Button'
+import { buscarClientes } from '@/lib/actions/clientes'
 
-type ClienteRow = Pick<
-  Database['public']['Tables']['clientes']['Row'],
-  'id' | 'nome' | 'telefone' | 'tipo' | 'status' | 'forma_pagamento_padrao' | 'prazo_pagamento_dias'
->
+type Cliente = {
+  id: string
+  nome: string
+  telefone: string | null
+  whatsapp: string | null
+  tipo: string
+  status: string
+  forma_pagamento_padrao: string
+  prazo_pagamento_dias: number
+}
 
-export default async function ClientesPage() {
-  const supabase = await createClient()
-  const { data: clientes } = await supabase
-    .from('clientes')
-    .select('id, nome, telefone, tipo, status, forma_pagamento_padrao, prazo_pagamento_dias')
-    .order('nome') as { data: ClienteRow[] | null }
+const TIPO_LABEL: Record<string, string> = {
+  bar: 'Bar',
+  comercio: 'Comércio',
+  consumidor_final: 'Consumidor final',
+  revendedor: 'Revendedor',
+}
+
+const PGTO_LABEL: Record<string, string> = {
+  dinheiro: 'Dinheiro',
+  pix: 'Pix',
+  fiado: 'Fiado',
+  cartao_debito: 'Cartão débito',
+  cartao_credito: 'Cartão crédito',
+}
+
+export default function ClientesPage() {
+  const router = useRouter()
+  const [clientes, setClientes] = useState<Cliente[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busca, setBusca] = useState('')
+
+  useEffect(() => {
+    let ativo = true
+    buscarClientes()
+      .then((d) => ativo && setClientes(d as Cliente[]))
+      .finally(() => ativo && setLoading(false))
+    return () => {
+      ativo = false
+    }
+  }, [])
+
+  const filtrados = useMemo(() => {
+    const t = busca.trim().toLowerCase()
+    if (!t) return clientes
+    return clientes.filter(
+      (c) =>
+        c.nome.toLowerCase().includes(t) ||
+        (c.telefone ?? '').includes(t) ||
+        (c.whatsapp ?? '').includes(t),
+    )
+  }, [clientes, busca])
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Clientes</h1>
-        <Link href="/clientes/novo"
-          className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium bg-[#2B7A78] text-white hover:bg-[#1e5654] transition-colors">
-          <Plus size={16} />Novo Cliente
+    <div className="px-6 py-5">
+      <PageHeader
+        titulo="Clientes"
+        subtitulo="Bares, comércios e revendedores que compram no depósito."
+      >
+        <Link href="/clientes/novo" className={btnClass('primary')}>
+          <Plus className="size-4" strokeWidth={1.5} />
+          Novo cliente
         </Link>
+      </PageHeader>
+
+      <div className="mb-4 flex items-center gap-3">
+        <div className="relative w-full max-w-sm">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted"
+            strokeWidth={1.5}
+          />
+          <input
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar por nome ou telefone"
+            className="h-9 w-full rounded-md border border-border bg-surface pl-9 pr-3 text-sm text-text outline-none transition-colors placeholder:text-text-muted focus-visible:border-brand focus-visible:ring-3 focus-visible:ring-brand/30"
+          />
+        </div>
+        {!loading && (
+          <span className="shrink-0 font-mono text-xs tabular-nums text-text-muted">
+            {filtrados.length} {filtrados.length === 1 ? 'cliente' : 'clientes'}
+          </span>
+        )}
       </div>
-      <div className="rounded-lg border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-card border-b border-border">
+
+      {loading ? (
+        <SkeletonLinhas colunas={5} linhas={8} />
+      ) : filtrados.length === 0 ? (
+        busca ? (
+          <EstadoVazio
+            icone={Search}
+            titulo="Nenhum cliente encontrado"
+            descricao={`Nada corresponde a "${busca}". Tente outro termo.`}
+          />
+        ) : (
+          <EstadoVazio
+            icone={Store}
+            titulo="Nenhum cliente cadastrado"
+            descricao="Cadastre o primeiro cliente para registrar pedidos e fiado."
+            acao={
+              <Link href="/clientes/novo" className={btnClass('primary')}>
+                <Plus className="size-4" strokeWidth={1.5} />
+                Novo cliente
+              </Link>
+            }
+          />
+        )
+      ) : (
+        <Tabela>
+          <TabelaHead>
             <tr>
-              <th className="text-left p-3 font-medium">Nome</th>
-              <th className="text-left p-3 font-medium">Tipo</th>
-              <th className="text-left p-3 font-medium">Telefone</th>
-              <th className="text-left p-3 font-medium">Pagamento</th>
-              <th className="text-center p-3 font-medium">Status</th>
-              <th className="p-3"></th>
+              <TabelaHeadCell>Nome</TabelaHeadCell>
+              <TabelaHeadCell>Tipo</TabelaHeadCell>
+              <TabelaHeadCell>Telefone</TabelaHeadCell>
+              <TabelaHeadCell>Pagamento</TabelaHeadCell>
+              <TabelaHeadCell alinhar="centro">Status</TabelaHeadCell>
             </tr>
-          </thead>
-          <tbody>
-            {(clientes ?? []).map((c) => (
-              <tr key={c.id} className="border-b border-border hover:bg-card transition-colors">
-                <td className="p-3 font-medium">{c.nome}</td>
-                <td className="p-3 text-muted-foreground capitalize">{c.tipo}</td>
-                <td className="p-3 text-muted-foreground">{c.telefone ?? '-'}</td>
-                <td className="p-3 text-muted-foreground">
-                  {c.forma_pagamento_padrao}
-                  {c.prazo_pagamento_dias > 0 && ` (${c.prazo_pagamento_dias}d)`}
-                </td>
-                <td className="p-3 text-center">
-                  <Badge variant={c.status === 'ativo' ? 'default' : 'secondary'}>{c.status}</Badge>
-                </td>
-                <td className="p-3">
-                  <Link href={`/clientes/${c.id}`} className="text-xs text-[#2B7A78] hover:underline">Ver</Link>
-                </td>
-              </tr>
+          </TabelaHead>
+          <TabelaBody>
+            {filtrados.map((c) => (
+              <TabelaRow
+                key={c.id}
+                onClick={() => router.push(`/clientes/${c.id}`)}
+              >
+                <TabelaCell className="font-medium text-text">
+                  {c.nome}
+                </TabelaCell>
+                <TabelaCell className="text-text-muted">
+                  {TIPO_LABEL[c.tipo] ?? c.tipo}
+                </TabelaCell>
+                <TabelaCell className="text-text-muted">
+                  {c.telefone ?? (
+                    <span className="text-text-muted/50">sem telefone</span>
+                  )}
+                </TabelaCell>
+                <TabelaCell className="text-text-muted">
+                  {PGTO_LABEL[c.forma_pagamento_padrao] ??
+                    c.forma_pagamento_padrao}
+                  {c.prazo_pagamento_dias > 0 && (
+                    <span className="ml-1 font-mono text-xs text-text-muted/70">
+                      {c.prazo_pagamento_dias}d
+                    </span>
+                  )}
+                </TabelaCell>
+                <TabelaCell alinhar="centro">
+                  <StatusPill status={c.status === 'ativo' ? 'ativo' : 'inativo'} />
+                </TabelaCell>
+              </TabelaRow>
             ))}
-            {!clientes?.length && (
-              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Nenhum cliente cadastrado</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+          </TabelaBody>
+        </Tabela>
+      )}
     </div>
   )
 }

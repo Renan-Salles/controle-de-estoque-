@@ -6,12 +6,13 @@ function AutoPrint() {
   return <script dangerouslySetInnerHTML={{ __html: 'window.onload=function(){setTimeout(function(){window.print()},500)}' }} />
 }
 
-export default async function RomaneioPage({ params }: { params: { id: string } }) {
+export default async function RomaneioPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const supabase = await createClient()
   const { data: pedido } = await supabase
     .from('pedidos')
     .select(`*, clientes(nome, telefone, endereco), pedido_itens(quantidade_pedida, preco_unitario, total, produtos(nome, embalagem))`)
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (!pedido) notFound()

@@ -34,6 +34,18 @@ export async function buscarContasReceber(status?: string) {
   return data ?? []
 }
 
+export async function buscarContasPagar(status?: string) {
+  const supabase = await createClient()
+  let query = supabase
+    .from('contas_pagar')
+    .select('*')
+    .order('data_vencimento')
+  if (status && status !== 'todas') query = query.eq('status', status)
+  const { data, error } = await query
+  if (error) throw error
+  return data ?? []
+}
+
 export async function criarContaPagar(data: {
   categoria: string
   descricao: string
