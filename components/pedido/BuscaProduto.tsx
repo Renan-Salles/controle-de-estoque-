@@ -18,21 +18,29 @@ import { formatarReal } from '@/lib/formatos'
 import { cn } from '@/lib/utils'
 import type { ItemPedido } from '@/types'
 
+type Rel<T> = T | T[] | null
+
 interface ProdutoBusca {
   id: string
   nome: string
   marca: string | null
   preco_venda_padrao: number
-  categorias: { nome: string } | null
-  estoque: { saldo_atual: number }[]
+  categorias: Rel<{ nome: string }>
+  estoque: Rel<{ saldo_atual: number }>
 }
 
 interface Props {
   onAdicionar: (item: Omit<ItemPedido, 'quantidade' | 'total'>) => void
 }
 
+// A relação 1:1 do Supabase pode chegar como objeto ou array; normaliza os dois.
+function umaRel<T>(rel: Rel<T>): T | null {
+  if (!rel) return null
+  return Array.isArray(rel) ? (rel[0] ?? null) : rel
+}
+
 function saldoDe(p: ProdutoBusca): number {
-  return p.estoque?.[0]?.saldo_atual ?? 0
+  return umaRel(p.estoque)?.saldo_atual ?? 0
 }
 
 export function BuscaProduto({ onAdicionar }: Props) {
@@ -53,7 +61,7 @@ export function BuscaProduto({ onAdicionar }: Props) {
     onAdicionar({
       produto_id: produto.id,
       nome: produto.nome,
-      categoria: produto.categorias?.nome ?? '',
+      categoria: umaRel(produto.categorias)?.nome ?? '',
       preco_unitario: produto.preco_venda_padrao,
       saldo_atual: saldoDe(produto),
     })

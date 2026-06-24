@@ -66,8 +66,9 @@ export default async function RelatoriosPage() {
     return {
       mes: MES_CURTO.format(data).replace('.', ''),
       rotulo: capitalizar(MES_LONGO.format(data)),
-      receita: f.receita_bruta ?? 0,
-      pedidos: f.total_pedidos ?? 0,
+      // sum() do Postgres chega como string via PostgREST; recharts exige number.
+      receita: Number(f.receita_bruta ?? 0),
+      pedidos: Number(f.total_pedidos ?? 0),
     }
   })
 

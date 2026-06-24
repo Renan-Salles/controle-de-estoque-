@@ -22,7 +22,7 @@ export async function gerarAlertas() {
   const { data: vencidas } = await supabase
     .from('contas_receber')
     .select('id, valor, clientes(nome)')
-    .eq('status', 'aberto')
+    .in('status', ['aberto', 'vencido', 'parcial'])
     .lt('data_vencimento', new Date().toISOString().split('T')[0])
     .limit(50)
 
@@ -31,7 +31,7 @@ export async function gerarAlertas() {
       tipo: 'inadimplencia',
       severidade: 'aviso',
       titulo: `Cobranca pendente: ${(cr.clientes as { nome: string } | null)?.nome}`,
-      mensagem: `Valor: R$ ${cr.valor.toFixed(2)} - vencido`,
+      mensagem: `Valor: R$ ${Number(cr.valor).toFixed(2)} - vencido`,
       referencia_tipo: 'conta_receber',
       referencia_id: cr.id,
     }, { onConflict: 'tipo,referencia_id' })
