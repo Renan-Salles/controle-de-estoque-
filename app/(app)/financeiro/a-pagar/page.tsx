@@ -250,7 +250,7 @@ export default function ContasPagarPage() {
                     {ROTULO_CATEGORIA[c.categoria] ?? c.categoria}
                   </TabelaCell>
                   <TabelaCell className="text-text-muted">
-                    {c.descricao || '—'}
+                    {c.descricao || '-'}
                   </TabelaCell>
                   <TabelaCell alinhar="direita">
                     <Money valor={c.valor} />

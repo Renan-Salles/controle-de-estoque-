@@ -217,10 +217,10 @@ export default function ContasReceberPage() {
                   className={vencida ? 'bg-err/5 hover:bg-err/10' : undefined}
                 >
                   <TabelaCell className="font-medium">
-                    {c.clientes?.nome ?? '—'}
+                    {c.clientes?.nome ?? '-'}
                   </TabelaCell>
                   <TabelaCell className="text-text-muted">
-                    {c.descricao ?? '—'}
+                    {c.descricao ?? '-'}
                   </TabelaCell>
                   <TabelaCell alinhar="direita">
                     <Money valor={c.valor} />

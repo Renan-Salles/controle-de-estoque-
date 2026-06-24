@@ -109,7 +109,7 @@ export function BuscaCliente({ selecionado, onSelecionar }: Props) {
               >
                 <span className="min-w-0 truncate font-medium">{c.nome}</span>
                 <span className="flex shrink-0 items-center gap-2 text-xs text-text-muted">
-                  <span className="font-mono tabular-nums">{c.telefone || '—'}</span>
+                  <span className="font-mono tabular-nums">{c.telefone || '-'}</span>
                   <span className="rounded bg-surface-2 px-1.5 py-0.5">
                     {rotuloPagamento(c.forma_pagamento_padrao)}
                   </span>

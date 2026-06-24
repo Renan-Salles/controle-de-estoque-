@@ -4,7 +4,7 @@ import { GeistMono } from 'geist/font/mono'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'R$ DEPÓSITO — Sistema',
+  title: 'R$ DEPÓSITO · Sistema',
   description: 'Controle de estoque e gestão financeira de depósito de bebidas',
 }
 

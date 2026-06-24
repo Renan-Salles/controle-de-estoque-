@@ -75,7 +75,7 @@ export function BuscaProduto({ onAdicionar }: Props) {
             Buscar produto
           </span>
           <span className="mt-0.5 block text-sm text-text-muted">
-            Nome ou código — clique para abrir
+            Nome ou código, clique para abrir
           </span>
         </span>
         <kbd className="hidden shrink-0 items-center gap-1 rounded-md border border-border bg-surface-2 px-2 py-1 font-mono text-[11px] text-text-muted sm:inline-flex">
