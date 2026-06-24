@@ -1,14 +1,26 @@
+import { formatarReal } from '@/lib/formatos'
+import { cn } from '@/lib/utils'
+
+// Valor monetário em R$ X.XXX,XX (pt-BR), sempre em mono tabular para alinhar
+// colunas. `destaque` pinta de dourado (dinheiro em evidência — DESIGN_SPEC).
 export function Money({
-  value,
-  className = '',
+  valor,
+  destaque = false,
+  className,
 }: {
-  value: number | null | undefined
+  valor: number | null | undefined
+  destaque?: boolean
   className?: string
 }) {
-  const v = value ?? 0
   return (
-    <span className={`num ${className}`}>
-      {v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+    <span
+      className={cn(
+        'font-mono tabular-nums tracking-tight',
+        destaque ? 'text-accent-gold' : 'text-text',
+        className,
+      )}
+    >
+      {formatarReal(valor)}
     </span>
   )
 }

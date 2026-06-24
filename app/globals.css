@@ -1,116 +1,326 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
+/* ------------------------------------------------------------------ *
+ * R$ DEPÓSITO — fundação de tokens (Tailwind v4 @theme)
+ * Fonte da verdade: DESIGN_SPEC.md. App é sempre dark teal.
+ * ------------------------------------------------------------------ */
 @theme inline {
+  /* Fontes (Geist via pacote `geist`) */
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-geist-sans);
+
+  /* Mapas semânticos shadcn */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Tokens próprios do R$ DEPÓSITO — usados pelo ui-kit e telas */
+  --color-bg: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-text: var(--foreground);
+  --color-text-muted: var(--text-muted);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-accent-gold: var(--accent);
+
+  /* Status semânticos */
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-err: var(--err);
+  --color-info: var(--info);
+
+  /* Charts */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Sidebar */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Raio */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
   --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 :root {
-  /* Design system R$ DEPÓSITO — dark teal */
-  --background: #07151a;
-  --foreground: #e8dfc8;
+  /* Marca — não inventar outras cores (DESIGN_SPEC.md) */
+  --background: #07151a; /* fundo base, NUNCA #000 */
+  --foreground: #e8dfc8; /* texto primário off-white quente */
+
+  --surface: #0e1e24;    /* card/painel */
+  --surface-2: #132028;  /* hover/elevado */
+  --text-muted: #8aa0a8; /* texto secundário */
+
   --card: #0e1e24;
   --card-foreground: #e8dfc8;
   --popover: #0e1e24;
   --popover-foreground: #e8dfc8;
-  --primary: #2B7A78;
+
+  /* Accent único: teal */
+  --brand: #2b7a78;
+  --brand-strong: #1e5654; /* hover de botão primário */
+  --brand-soft: #2b7a781f; /* tint suave (~12%) p/ pills e selos */
+  --primary: #2b7a78;
   --primary-foreground: #ffffff;
+
   --secondary: #132028;
   --secondary-foreground: #e8dfc8;
   --muted: #132028;
-  --muted-foreground: #7a9ba5;
-  --accent: #D4A520;
+  --muted-foreground: #8aa0a8;
+
+  /* Dourado: só dinheiro em destaque / badge premium */
+  --accent: #d4a520;
   --accent-foreground: #07151a;
-  --destructive: oklch(0.577 0.245 27.325);
+
+  /* Status */
+  --ok: #3fbf8f;
+  --warn: #d4a520;
+  --err: #e0524d;
+  --info: #4aa3c7;
+  --destructive: #e0524d;
+
   --border: #1e3040;
   --input: #1e3040;
-  --ring: #2B7A78;
-  --chart-1: #2B7A78;
-  --chart-2: #D4A520;
-  --chart-3: #3ea89f;
-  --chart-4: #1e5654;
+  --ring: #2b7a78;
+
+  --chart-1: #2b7a78;
+  --chart-2: #d4a520;
+  --chart-3: #3fbf8f;
+  --chart-4: #4aa3c7;
   --chart-5: #8fb8b5;
+
   --radius: 0.5rem;
-  --surface: #0e1e24;
-  --surface-2: #132028;
+
+  /* Sidebar */
   --sidebar: #0a1820;
   --sidebar-foreground: #e8dfc8;
-  --sidebar-primary: #2B7A78;
+  --sidebar-primary: #2b7a78;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #132028;
   --sidebar-accent-foreground: #e8dfc8;
   --sidebar-border: #1e3040;
-  --sidebar-ring: #2B7A78;
+  --sidebar-ring: #2b7a78;
+
+  /* Ritmo de motion (sutil e rápido — MOTION_INTENSITY 4) */
+  --dur: 0.15s;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --press: 0.98;
 }
 
-/* App é sempre dark — sem .dark alternativo */
+/* App é sempre dark — sem variante .dark separada. */
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Montserrat', sans-serif;
+    font-feature-settings: "cv11", "ss01";
   }
-  html {
-    font-family: 'Montserrat', sans-serif;
+  /* Números/códigos sempre tabulares por padrão em mono */
+  .font-mono {
+    font-variant-numeric: tabular-nums;
   }
 }
 
-.u-motion { transition: all 0.15s ease; }
-.u-press:active { transform: scale(0.98); }
-.u-card { @apply rounded-lg border border-border bg-card; }
-.u-fade-in { animation: fadeIn 0.2s ease; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
+/* ------------------------------------------------------------------ *
+ * Utilitários do sistema
+ * ------------------------------------------------------------------ */
 
+/* Números: mono + tabular para alinhar colunas de valores */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+.num {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Ritmo de transição padrão */
+.u-motion {
+  transition: color var(--dur) var(--ease-out),
+    background-color var(--dur) var(--ease-out),
+    border-color var(--dur) var(--ease-out),
+    box-shadow var(--dur) var(--ease-out),
+    transform var(--dur) var(--ease-out),
+    opacity var(--dur) var(--ease-out);
+}
+
+/* Press tátil */
+.u-press:active {
+  transform: scale(var(--press));
+}
+.u-press-sm:active {
+  transform: scale(0.985);
+}
+
+/* Card base */
+.u-card {
+  @apply rounded-lg border border-border bg-surface;
+}
+
+/* Fade-in de entrada */
+.u-fade-in {
+  animation: u-fade-in 0.2s var(--ease-out);
+}
+@keyframes u-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Stagger de blocos/listas — assenta de leve ao montar */
+.u-stagger {
+  animation: u-fade-in 0.24s var(--ease-out) both;
+}
+
+/* Live dot pulsante (status em andamento) */
+.u-pulse-dot {
+  position: relative;
+}
+.u-pulse-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.55;
+  animation: u-ping 1.6s var(--ease-out) infinite;
+}
+@keyframes u-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  75%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+/* Skeleton shimmer — varredura de luz nos placeholders */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--surface-2);
+  border-radius: 0.375rem;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--foreground) 7%, transparent),
+    transparent
+  );
+  animation: u-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes u-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u-stagger,
+  .u-fade-in,
+  .skeleton::after,
+  .u-pulse-dot::after {
+    animation: none;
+  }
+  .u-motion {
+    transition: none;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Scrollbar discreta (tema escuro)
+ * ------------------------------------------------------------------ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 9999px;
+  border: 2px solid var(--background);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #2a4256;
+}
+
+/* ------------------------------------------------------------------ *
+ * Impressão A4 — romaneio (NÃO alterar)
+ * ------------------------------------------------------------------ */
 @media print {
-  .no-print { display: none !important; }
-  body { background: white !important; color: black !important; font-family: Arial, sans-serif !important; }
-  .romaneio { margin: 0; padding: 8mm; }
-  @page { size: A4; margin: 10mm; }
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white !important;
+    color: black !important;
+    font-family: Arial, sans-serif !important;
+  }
+  .romaneio {
+    margin: 0;
+    padding: 8mm;
+  }
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
 }
