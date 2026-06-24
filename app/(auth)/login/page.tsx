@@ -38,7 +38,7 @@ export default function LoginPage() {
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            'radial-gradient(60rem 40rem at 50% -10%, rgba(43,122,120,0.16), transparent 60%), radial-gradient(40rem 30rem at 110% 110%, rgba(43,122,120,0.08), transparent 55%)',
+            'radial-gradient(60rem 40rem at 50% -10%, rgba(46,181,195,0.14), transparent 60%), radial-gradient(40rem 30rem at 110% 110%, rgba(46,181,195,0.07), transparent 55%)',
         }}
       />
 

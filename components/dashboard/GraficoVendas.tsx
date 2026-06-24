@@ -69,49 +69,43 @@ export function GraficoVendas({ dados }: { dados: PontoVenda[] }) {
         >
           <defs>
             <linearGradient id="grad-vendas" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#2b7a78" stopOpacity={0.35} />
-              <stop offset="100%" stopColor="#2b7a78" stopOpacity={0.02} />
+              <stop offset="0%" stopColor="#2eb5c3" stopOpacity={0.32} />
+              <stop offset="100%" stopColor="#2eb5c3" stopOpacity={0.02} />
             </linearGradient>
           </defs>
           <CartesianGrid
             vertical={false}
-            stroke="#1e3040"
+            stroke="rgba(148,163,184,0.28)"
             strokeDasharray="3 3"
-            opacity={0.6}
           />
           <XAxis
             dataKey="dia"
             tickLine={false}
             axisLine={false}
-            tick={{ fill: '#8aa0a8', fontSize: 11 }}
+            tick={{ fill: '#94a3b8', fontSize: 11 }}
             dy={6}
           />
           <YAxis
             tickLine={false}
             axisLine={false}
             width={56}
-            tick={{ fill: '#8aa0a8', fontSize: 11 }}
+            tick={{ fill: '#94a3b8', fontSize: 11 }}
             tickFormatter={(v: number) =>
               v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v)
             }
           />
           <Tooltip
             content={<TooltipVendas />}
-            cursor={{ stroke: '#2b7a78', strokeWidth: 1, strokeOpacity: 0.4 }}
+            cursor={{ stroke: '#2eb5c3', strokeWidth: 1, strokeOpacity: 0.4 }}
           />
           <Area
             type="monotone"
             dataKey="total"
-            stroke="#2b7a78"
+            stroke="#2eb5c3"
             strokeWidth={2}
             fill="url(#grad-vendas)"
             dot={{ r: 0 }}
-            activeDot={{
-              r: 4,
-              fill: '#2b7a78',
-              stroke: '#07151a',
-              strokeWidth: 2,
-            }}
+            activeDot={{ r: 4, fill: '#2eb5c3', strokeWidth: 0 }}
             animationDuration={500}
           />
         </AreaChart>

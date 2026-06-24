@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ChevronDown, LogOut } from 'lucide-react'
+import { ThemeToggle } from '@/components/shell/ThemeToggle'
 
 // Título legível da rota atual. Casa o início do pathname com o rótulo.
 const TITULOS: { prefixo: string; titulo: string }[] = [
@@ -45,6 +46,8 @@ export function Topbar({ email }: { email: string }) {
     <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-bg/80 px-6 backdrop-blur-sm">
       <h2 className="text-sm font-medium tracking-tight text-text">{titulo}</h2>
 
+      <div className="flex items-center gap-1.5">
+      <ThemeToggle />
       <div className="relative">
         <button
           type="button"
@@ -84,6 +87,7 @@ export function Topbar({ email }: { email: string }) {
             </div>
           </>
         )}
+      </div>
       </div>
     </header>
   )

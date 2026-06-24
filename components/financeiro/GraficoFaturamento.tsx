@@ -75,29 +75,28 @@ export function GraficoFaturamento({ dados }: { dados: PontoFaturamento[] }) {
         <BarChart data={dados} margin={{ top: 8, right: 4, left: -12, bottom: 0 }}>
           <CartesianGrid
             vertical={false}
-            stroke="#1e3040"
+            stroke="rgba(148,163,184,0.28)"
             strokeDasharray="3 3"
-            opacity={0.6}
           />
           <XAxis
             dataKey="mes"
             tickLine={false}
             axisLine={false}
-            tick={{ fill: '#8aa0a8', fontSize: 11 }}
+            tick={{ fill: '#94a3b8', fontSize: 11 }}
             dy={6}
           />
           <YAxis
             tickLine={false}
             axisLine={false}
             width={56}
-            tick={{ fill: '#8aa0a8', fontSize: 11 }}
+            tick={{ fill: '#94a3b8', fontSize: 11 }}
             tickFormatter={(v: number) =>
               v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)
             }
           />
           <Tooltip
             content={<TooltipFaturamento />}
-            cursor={{ fill: '#2b7a78', fillOpacity: 0.08 }}
+            cursor={{ fill: '#2eb5c3', fillOpacity: 0.08 }}
           />
           <Bar
             dataKey="receita"
@@ -106,7 +105,7 @@ export function GraficoFaturamento({ dados }: { dados: PontoFaturamento[] }) {
             animationDuration={500}
           >
             {dados.map((_, i) => (
-              <Cell key={i} fill={i === ultimo ? '#d4a520' : '#2b7a78'} />
+              <Cell key={i} fill={i === ultimo ? '#d4a520' : '#2eb5c3'} />
             ))}
           </Bar>
         </BarChart>
