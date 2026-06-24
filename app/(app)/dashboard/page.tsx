@@ -9,6 +9,11 @@ export default async function DashboardPage() {
   const hoje = new Date().toISOString().split('T')[0]
   const inicioMes = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`
 
+  type RowTotal = { total: number }
+  type RowId = { id: string }
+  type RowCR = { valor: number; valor_pago: number }
+  type RowPedidoMes = { data_pedido: string; total: number }
+
   const [
     { data: pedidosHoje },
     { data: pedidosPendentes },
@@ -16,11 +21,11 @@ export default async function DashboardPage() {
     { data: contasVencendo },
     { data: pedidosMes },
   ] = await Promise.all([
-    supabase.from('pedidos').select('total').gte('data_pedido', `${hoje}T00:00:00`).not('status', 'in', '(cancelado,rascunho)'),
-    supabase.from('pedidos').select('id').in('status', ['confirmado', 'em_separacao']),
-    supabase.from('v_posicao_estoque').select('id').in('status_estoque', ['critico', 'ruptura']),
-    supabase.from('contas_receber').select('valor, valor_pago').eq('data_vencimento', hoje).in('status', ['aberto', 'parcial']),
-    supabase.from('pedidos').select('data_pedido, total').gte('data_pedido', `${inicioMes}T00:00:00`).not('status', 'in', '(cancelado,rascunho)').order('data_pedido'),
+    supabase.from('pedidos').select('total').gte('data_pedido', `${hoje}T00:00:00`).not('status', 'in', '(cancelado,rascunho)') as unknown as Promise<{ data: RowTotal[] }>,
+    supabase.from('pedidos').select('id').in('status', ['confirmado', 'em_separacao']) as unknown as Promise<{ data: RowId[] }>,
+    supabase.from('v_posicao_estoque').select('id').in('status_estoque', ['critico', 'ruptura']) as unknown as Promise<{ data: RowId[] }>,
+    supabase.from('contas_receber').select('valor, valor_pago').eq('data_vencimento', hoje).in('status', ['aberto', 'parcial']) as unknown as Promise<{ data: RowCR[] }>,
+    supabase.from('pedidos').select('data_pedido, total').gte('data_pedido', `${inicioMes}T00:00:00`).not('status', 'in', '(cancelado,rascunho)').order('data_pedido') as unknown as Promise<{ data: RowPedidoMes[] }>,
   ])
 
   const receitaHoje = (pedidosHoje ?? []).reduce((acc, p) => acc + (p.total ?? 0), 0)
@@ -51,9 +56,9 @@ export default async function DashboardPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <Button asChild className="bg-[#2B7A78] hover:bg-[#1e5654]">
-          <Link href="/pedidos/novo"><ShoppingCart size={14} className="mr-2" />Novo Pedido</Link>
-        </Button>
+        <Link href="/pedidos/novo" className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium bg-[#2B7A78] hover:bg-[#1e5654] text-white transition-colors">
+          <ShoppingCart size={14} />Novo Pedido
+        </Link>
       </div>
 
       {(estoquesCriticos?.length ?? 0) > 0 && (
