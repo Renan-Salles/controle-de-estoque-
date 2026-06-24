@@ -96,7 +96,7 @@ export function GraficoFaturamento({ dados }: { dados: PontoFaturamento[] }) {
           />
           <Tooltip
             content={<TooltipFaturamento />}
-            cursor={{ fill: '#2eb5c3', fillOpacity: 0.08 }}
+            cursor={{ fill: '#14a9b8', fillOpacity: 0.08 }}
           />
           <Bar
             dataKey="receita"
@@ -105,7 +105,7 @@ export function GraficoFaturamento({ dados }: { dados: PontoFaturamento[] }) {
             animationDuration={500}
           >
             {dados.map((_, i) => (
-              <Cell key={i} fill={i === ultimo ? '#d4a520' : '#2eb5c3'} />
+              <Cell key={i} fill={i === ultimo ? '#d4a520' : '#14a9b8'} />
             ))}
           </Bar>
         </BarChart>

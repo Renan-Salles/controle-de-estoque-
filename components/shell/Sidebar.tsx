@@ -87,8 +87,14 @@ export function Sidebar() {
     <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-sidebar lg:flex">
       {/* Logo */}
       <div className="flex h-14 items-center border-b border-border px-5">
-        <Link href="/dashboard" className="text-base font-semibold tracking-tight text-text">
-          <span className="text-accent-gold">R$</span> DEPÓSITO
+        <Link
+          href="/dashboard"
+          className="font-display flex items-center gap-2 text-[17px] font-bold tracking-tight text-text"
+        >
+          <span className="flex size-7 items-center justify-center rounded-md bg-accent-gold/15 text-sm font-bold text-accent-gold">
+            R$
+          </span>
+          DEPÓSITO
         </Link>
       </div>
 

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google'
+import { Plus_Jakarta_Sans, JetBrains_Mono, Space_Grotesk } from 'next/font/google'
 import './globals.css'
 
 const sans = Plus_Jakarta_Sans({
@@ -14,20 +14,27 @@ const mono = JetBrains_Mono({
   weight: ['400', '500', '600'],
 })
 
+// Fonte de titulo/identidade: Space Grotesk (geometrica com personalidade).
+const display = Space_Grotesk({
+  variable: '--font-display-src',
+  subsets: ['latin'],
+  weight: ['500', '600', '700'],
+})
+
 export const metadata: Metadata = {
   title: 'R$ DEPÓSITO · Sistema',
   description: 'Controle de estoque e gestão financeira de depósito de bebidas',
 }
 
 export const viewport: Viewport = {
-  themeColor: '#2eb5c3',
+  themeColor: '#0e9aa7',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="pt-BR"
-      className={`${sans.variable} ${mono.variable} h-full`}
+      className={`${sans.variable} ${mono.variable} ${display.variable} h-full`}
       suppressHydrationWarning
     >
       <head>

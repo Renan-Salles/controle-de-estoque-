@@ -69,8 +69,8 @@ export function GraficoVendas({ dados }: { dados: PontoVenda[] }) {
         >
           <defs>
             <linearGradient id="grad-vendas" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#2eb5c3" stopOpacity={0.32} />
-              <stop offset="100%" stopColor="#2eb5c3" stopOpacity={0.02} />
+              <stop offset="0%" stopColor="#14a9b8" stopOpacity={0.32} />
+              <stop offset="100%" stopColor="#14a9b8" stopOpacity={0.02} />
             </linearGradient>
           </defs>
           <CartesianGrid
@@ -96,16 +96,16 @@ export function GraficoVendas({ dados }: { dados: PontoVenda[] }) {
           />
           <Tooltip
             content={<TooltipVendas />}
-            cursor={{ stroke: '#2eb5c3', strokeWidth: 1, strokeOpacity: 0.4 }}
+            cursor={{ stroke: '#14a9b8', strokeWidth: 1, strokeOpacity: 0.4 }}
           />
           <Area
             type="monotone"
             dataKey="total"
-            stroke="#2eb5c3"
+            stroke="#14a9b8"
             strokeWidth={2}
             fill="url(#grad-vendas)"
             dot={{ r: 0 }}
-            activeDot={{ r: 4, fill: '#2eb5c3', strokeWidth: 0 }}
+            activeDot={{ r: 4, fill: '#14a9b8', strokeWidth: 0 }}
             animationDuration={500}
           />
         </AreaChart>
