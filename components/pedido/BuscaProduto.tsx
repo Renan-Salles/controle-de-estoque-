@@ -2,7 +2,6 @@
 import { useState, useTransition } from 'react'
 import { Command, CommandInput, CommandList, CommandItem, CommandEmpty } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Button } from '@/components/ui/button'
 import { Search } from 'lucide-react'
 import { buscarProdutos } from '@/lib/actions/produtos'
 import type { ItemPedido } from '@/types'
@@ -40,12 +39,10 @@ export function BuscaProduto({ onAdicionar }: Props) {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" className="w-full justify-start gap-2 text-muted-foreground">
-          <Search size={14} />
-          Buscar produto (nome ou codigo)...
-          <span className="ml-auto text-xs opacity-50">Ctrl+Space</span>
-        </Button>
+      <PopoverTrigger className="inline-flex w-full items-center justify-start gap-2 rounded-lg border border-border bg-background px-2.5 h-8 text-sm text-muted-foreground hover:bg-muted transition-colors">
+        <Search size={14} />
+        Buscar produto (nome ou codigo)...
+        <span className="ml-auto text-xs opacity-50">Ctrl+Space</span>
       </PopoverTrigger>
       <PopoverContent className="w-[500px] p-0" align="start">
         <Command>
