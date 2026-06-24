@@ -1,0 +1,8 @@
+export default function ConfiguracoesPage() {
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Configuracoes</h1>
+      <p className="text-muted-foreground">Em desenvolvimento.</p>
+    </div>
+  )
+}
