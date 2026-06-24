@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getLocalAtivoId } from '@/lib/local'
 import {
   Package,
   ShoppingCart,
@@ -18,6 +19,7 @@ const NOME_DEPOSITO = 'R$ DEPÓSITO'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
+  const localId = await getLocalAtivoId()
 
   const hoje = new Date().toISOString().split('T')[0]
   const inicioMes = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`
@@ -31,9 +33,9 @@ export default async function DashboardPage() {
     { data: estoquesCriticos },
     { data: pedidosMes },
   ] = await Promise.all([
-    supabase.from('pedidos').select('total').gte('data_pedido', `${hoje}T00:00:00`).eq('status', 'concluida') as unknown as Promise<{ data: RowTotal[] }>,
-    supabase.from('v_posicao_estoque').select('id').in('status_estoque', ['critico', 'ruptura']) as unknown as Promise<{ data: RowId[] }>,
-    supabase.from('pedidos').select('data_pedido, total').gte('data_pedido', `${inicioMes}T00:00:00`).eq('status', 'concluida').order('data_pedido') as unknown as Promise<{ data: RowPedidoMes[] }>,
+    supabase.from('pedidos').select('total').gte('data_pedido', `${hoje}T00:00:00`).eq('status', 'concluida').eq('local_id', localId) as unknown as Promise<{ data: RowTotal[] }>,
+    supabase.from('v_posicao_estoque').select('id').in('status_estoque', ['critico', 'ruptura']).eq('local_id', localId) as unknown as Promise<{ data: RowId[] }>,
+    supabase.from('pedidos').select('data_pedido, total').gte('data_pedido', `${inicioMes}T00:00:00`).eq('status', 'concluida').eq('local_id', localId).order('data_pedido') as unknown as Promise<{ data: RowPedidoMes[] }>,
   ])
 
   const receitaHoje = (pedidosHoje ?? []).reduce((acc, p) => acc + (p.total ?? 0), 0)

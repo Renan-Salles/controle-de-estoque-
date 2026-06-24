@@ -1,5 +1,6 @@
 'use server'
 import { createClient } from '@/lib/supabase/server'
+import { getLocalAtivoId } from '@/lib/local'
 import type { Database } from '@/types/database.types'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -47,11 +48,12 @@ export async function criarFornecedor(data: Record<string, unknown>) {
   const parsed = FornecedorSchema.safeParse(data)
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
+  const localId = await getLocalAtivoId()
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await supabase
     .from('fornecedores')
-    .insert(montar(parsed.data) as any)
+    .insert({ ...montar(parsed.data), local_id: localId } as any)
   if (error) return { error: error.message }
 
   revalidatePath('/fornecedores')
@@ -80,12 +82,14 @@ export async function atualizarFornecedor(
 }
 
 export async function buscarFornecedores(termo?: string) {
+  const localId = await getLocalAtivoId()
   const supabase = await createClient()
   let query = supabase
     .from('fornecedores')
     .select(
       'id, nome, razao_social, cnpj, telefone, whatsapp, contato_nome, email, status, prazo_entrega_dias, endereco',
     )
+    .eq('local_id', localId)
     .order('nome')
 
   if (termo) query = query.ilike('nome', `%${termo}%`)

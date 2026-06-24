@@ -5,6 +5,8 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ChevronDown, LogOut } from 'lucide-react'
 import { ThemeToggle } from '@/components/shell/ThemeToggle'
+import { SeletorLocal } from '@/components/shell/SeletorLocal'
+import type { Local } from '@/lib/local'
 
 // Título legível da rota atual. Casa o início do pathname com o rótulo.
 const TITULOS: { prefixo: string; titulo: string }[] = [
@@ -27,7 +29,15 @@ function tituloDaRota(pathname: string): string {
   return m?.titulo ?? 'R$ Depósito'
 }
 
-export function Topbar({ email }: { email: string }) {
+export function Topbar({
+  email,
+  locais,
+  localSlug,
+}: {
+  email: string
+  locais: Local[]
+  localSlug: string
+}) {
   const pathname = usePathname()
   const router = useRouter()
   const [aberto, setAberto] = useState(false)
@@ -46,7 +56,13 @@ export function Topbar({ email }: { email: string }) {
 
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-bg/80 px-6 backdrop-blur-sm">
-      <h2 className="text-sm font-medium tracking-tight text-text">{titulo}</h2>
+      <div className="flex items-center gap-3">
+        <SeletorLocal locais={locais} ativoSlug={localSlug} />
+        <span className="hidden h-4 w-px bg-border sm:block" />
+        <h2 className="hidden text-sm font-medium tracking-tight text-text sm:block">
+          {titulo}
+        </h2>
+      </div>
 
       <div className="flex items-center gap-1.5">
       <ThemeToggle />

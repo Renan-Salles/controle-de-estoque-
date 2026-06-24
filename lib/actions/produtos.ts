@@ -1,5 +1,6 @@
 'use server'
 import { createClient } from '@/lib/supabase/server'
+import { getLocalAtivoId } from '@/lib/local'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -19,9 +20,10 @@ export async function criarProduto(data: Record<string, unknown>) {
   const parsed = ProdutoSchema.safeParse(data)
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
+  const localId = await getLocalAtivoId()
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await supabase.from('produtos').insert(parsed.data as any)
+  const { error } = await supabase.from('produtos').insert({ ...parsed.data, local_id: localId } as any)
   if (error) return { error: error.message }
 
   revalidatePath('/produtos')
@@ -29,11 +31,13 @@ export async function criarProduto(data: Record<string, unknown>) {
 }
 
 export async function buscarProdutos(termo?: string) {
+  const localId = await getLocalAtivoId()
   const supabase = await createClient()
   let query = supabase
     .from('produtos')
     .select('id, nome, marca, preco_venda_padrao, embalagem, categorias(nome), estoque(saldo_atual)')
     .eq('ativo', true)
+    .eq('local_id', localId)
     .order('nome')
 
   if (termo) query = query.ilike('nome', `%${termo}%`)
@@ -43,10 +47,12 @@ export async function buscarProdutos(termo?: string) {
 }
 
 export async function buscarPosicaoProdutos(termo?: string) {
+  const localId = await getLocalAtivoId()
   const supabase = await createClient()
   let query = supabase
     .from('v_posicao_estoque')
     .select('*')
+    .eq('local_id', localId)
     .order('categoria')
     .order('nome')
 

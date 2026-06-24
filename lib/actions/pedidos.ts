@@ -1,5 +1,6 @@
 'use server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { getLocalAtivoId } from '@/lib/local'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -29,6 +30,7 @@ export async function registrarVenda(data: unknown) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Nao autenticado' }
 
+  const localId = await getLocalAtivoId()
   const serviceClient = await createServiceClient()
   const { itens, forma_pagamento } = parsed.data
   const total = itens.reduce((acc, i) => acc + i.total, 0)
@@ -41,6 +43,7 @@ export async function registrarVenda(data: unknown) {
     .insert({
       cliente_id: parsed.data.cliente_id ?? null,
       atendente_id: user.id,
+      local_id: localId,
       status: 'concluida',
       forma_pagamento,
       prazo_pagamento_dias: 0,
@@ -107,10 +110,12 @@ export async function registrarVenda(data: unknown) {
 }
 
 export async function listarVendas() {
+  const localId = await getLocalAtivoId()
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('pedidos')
     .select(`id, numero_pedido, status, total, data_pedido, forma_pagamento, clientes(nome, telefone)`)
+    .eq('local_id', localId)
     .order('created_at', { ascending: false })
     .limit(100)
   if (error) throw error

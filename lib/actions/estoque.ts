@@ -1,10 +1,12 @@
 'use server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { getLocalAtivoId } from '@/lib/local'
 import { revalidatePath } from 'next/cache'
 
 export async function buscarPosicaoEstoque(filtro?: 'todos' | 'critico' | 'ruptura') {
+  const localId = await getLocalAtivoId()
   const supabase = await createClient()
-  let query = supabase.from('v_posicao_estoque').select('*').order('categoria').order('nome')
+  let query = supabase.from('v_posicao_estoque').select('*').eq('local_id', localId).order('categoria').order('nome')
 
   if (filtro === 'critico') query = query.in('status_estoque', ['critico', 'ruptura'])
   if (filtro === 'ruptura') query = query.eq('status_estoque', 'ruptura')
@@ -62,10 +64,12 @@ export async function darEntrada(data: {
 }
 
 export async function buscarMovimentacoes(produtoId?: string) {
+  const localId = await getLocalAtivoId()
   const supabase = await createClient()
   let query = supabase
     .from('movimentacoes_estoque')
-    .select('*, produtos(nome)')
+    .select('*, produtos!inner(nome, local_id)')
+    .eq('produtos.local_id', localId)
     .order('created_at', { ascending: false })
     .limit(200)
 

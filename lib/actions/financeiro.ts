@@ -1,5 +1,6 @@
 'use server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { getLocalAtivoId } from '@/lib/local'
 import { revalidatePath } from 'next/cache'
 
 export async function registrarPagamento(contaId: string, valor: number, formaPagamento: string) {
@@ -35,10 +36,12 @@ export async function buscarContasReceber(status?: string) {
 }
 
 export async function buscarContasPagar(status?: string) {
+  const localId = await getLocalAtivoId()
   const supabase = await createClient()
   let query = supabase
     .from('contas_pagar')
     .select('*')
+    .eq('local_id', localId)
     .order('data_vencimento')
   if (status && status !== 'todas') query = query.eq('status', status)
   const { data, error } = await query
@@ -53,8 +56,10 @@ export async function criarContaPagar(data: {
   data_vencimento: string
   observacoes?: string
 }) {
+  const localId = await getLocalAtivoId()
   const supabase = await createClient()
-  const { error } = await supabase.from('contas_pagar').insert(data)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await supabase.from('contas_pagar').insert({ ...data, local_id: localId } as any)
   if (error) return { error: error.message }
   revalidatePath('/financeiro')
   return { success: true }
@@ -63,11 +68,13 @@ export async function criarContaPagar(data: {
 // Recebimentos por forma de pagamento (todas as vendas sao a vista).
 // Mostra quanto entrou em cada forma e quais o cliente mais usa.
 export async function buscarFormasPagamento(periodo: 'mes' | 'tudo' = 'mes') {
+  const localId = await getLocalAtivoId()
   const supabase = await createClient()
   let query = supabase
     .from('pedidos')
     .select('forma_pagamento, total, data_pedido')
     .eq('status', 'concluida')
+    .eq('local_id', localId)
 
   if (periodo === 'mes') {
     const inicioMes = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`
@@ -98,12 +105,13 @@ export async function buscarFormasPagamento(periodo: 'mes' | 'tudo' = 'mes') {
 }
 
 export async function buscarResumoFinanceiro() {
+  const localId = await getLocalAtivoId()
   const supabase = await createClient()
   const inicioMes = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`
 
   const [{ data: receber }, { data: pagar }] = await Promise.all([
     supabase.from('contas_receber').select('valor, valor_pago, status').gte('data_emissao', inicioMes),
-    supabase.from('contas_pagar').select('valor, valor_pago, status').gte('data_emissao', inicioMes),
+    supabase.from('contas_pagar').select('valor, valor_pago, status').eq('local_id', localId).gte('data_emissao', inicioMes),
   ])
 
   const totalReceber = (receber ?? []).reduce((a, c) => a + c.valor, 0)

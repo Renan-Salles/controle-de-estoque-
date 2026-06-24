@@ -1,5 +1,6 @@
 'use server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { getLocalAtivoId } from '@/lib/local'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -74,17 +75,20 @@ export async function registrarEntrada(data: unknown) {
 
 // Histórico unificado: vendas (saidas) + entradas (compras de estoque).
 export async function listarMovimentacoes() {
+  const localId = await getLocalAtivoId()
   const supabase = await createClient()
   const [{ data: vendas }, { data: entradas }] = await Promise.all([
     supabase
       .from('pedidos')
       .select('id, numero_pedido, total, data_pedido, forma_pagamento, status, clientes(nome)')
+      .eq('local_id', localId)
       .order('data_pedido', { ascending: false })
       .limit(150),
     supabase
       .from('movimentacoes_estoque')
-      .select('id, quantidade, custo_unitario, created_at, observacao, produtos(nome)')
+      .select('id, quantidade, custo_unitario, created_at, observacao, produtos!inner(nome, local_id)')
       .eq('tipo', 'entrada_compra')
+      .eq('produtos.local_id', localId)
       .order('created_at', { ascending: false })
       .limit(150),
   ])

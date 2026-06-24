@@ -1,6 +1,7 @@
 import { TrendingUp } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
+import { getLocalAtivoId } from '@/lib/local'
 import type { Database } from '@/types/database.types'
 
 import { PageHeader } from '@/components/ui-kit/PageHeader'
@@ -46,10 +47,11 @@ const CLASSE_PILL: Record<string, string> = {
 
 export default async function RelatoriosPage() {
   const supabase = await createClient()
+  const localId = await getLocalAtivoId()
 
   const [{ data: faturamentoRaw }, { data: curvaRaw }] = await Promise.all([
-    supabase.from('v_faturamento_mensal').select('*').limit(12),
-    supabase.from('v_curva_abc').select('*').limit(40),
+    supabase.from('v_faturamento_mensal').select('*').eq('local_id', localId).limit(12),
+    supabase.from('v_curva_abc').select('*').eq('local_id', localId).limit(40),
   ])
 
   // Casts explícitos: as Views vêm como `never` sem o cast (padrão do projeto).

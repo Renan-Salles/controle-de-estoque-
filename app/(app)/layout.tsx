@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { Sidebar } from '@/components/shell/Sidebar'
 import { Topbar } from '@/components/shell/Topbar'
 import { Toaster } from 'sonner'
+import { listarLocais, getLocalAtivo } from '@/lib/local'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -11,11 +12,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const [locais, localAtivo] = await Promise.all([listarLocais(), getLocalAtivo()])
+
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
-        <Topbar email={user.email ?? 'usuário'} />
+        <Topbar
+          email={user.email ?? 'usuário'}
+          locais={locais}
+          localSlug={localAtivo.slug}
+        />
         <main className="min-w-0 flex-1 px-6 py-5">{children}</main>
       </div>
       <Toaster position="top-right" theme="dark" richColors />

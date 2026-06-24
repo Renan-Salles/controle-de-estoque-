@@ -1,5 +1,6 @@
 'use server'
 import { createClient } from '@/lib/supabase/server'
+import { getLocalAtivoId } from '@/lib/local'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -24,10 +25,12 @@ export async function criarCliente(data: Record<string, unknown>) {
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
   const { endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, ...resto } = parsed.data
+  const localId = await getLocalAtivoId()
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await supabase.from('clientes').insert({
     ...resto,
+    local_id: localId,
     endereco: { rua: endereco_rua, numero: endereco_numero, bairro: endereco_bairro, cidade: endereco_cidade },
   } as any)
   if (error) return { error: error.message }
@@ -36,11 +39,13 @@ export async function criarCliente(data: Record<string, unknown>) {
 }
 
 export async function buscarClientes(termo?: string) {
+  const localId = await getLocalAtivoId()
   const supabase = await createClient()
   let query = supabase
     .from('clientes')
     .select('id, nome, telefone, whatsapp, tipo, status, forma_pagamento_padrao, prazo_pagamento_dias, endereco')
     .eq('status', 'ativo')
+    .eq('local_id', localId)
     .order('nome')
   if (termo) query = query.ilike('nome', `%${termo}%`)
   const { data, error } = await query
