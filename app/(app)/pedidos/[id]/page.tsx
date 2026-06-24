@@ -13,15 +13,10 @@ import {
   TabelaCell,
 } from '@/components/ui-kit/tabela'
 import { Money } from '@/components/ui-kit/Money'
-import { AvancarStatus } from '@/components/pedido/AvancarStatus'
 import { formatarData } from '@/lib/formatos'
-import {
-  STATUS_PEDIDO_PILL,
-  rotuloStatusPedido,
-  rotuloPagamento,
-} from '@/lib/pedido-labels'
+import { rotuloPagamento } from '@/lib/pedido-labels'
 
-type PedidoComRelacoes = {
+type VendaComRelacoes = {
   id: string
   numero_pedido: number
   status: string
@@ -29,7 +24,6 @@ type PedidoComRelacoes = {
   subtotal: number
   data_pedido: string
   forma_pagamento: string
-  prazo_pagamento_dias: number
   observacoes: string | null
   clientes: { nome: string; telefone: string | null } | null
   pedido_itens: {
@@ -64,47 +58,44 @@ function LinhaDado({
   )
 }
 
-export default async function PedidoDetailPage({
+export default async function VendaDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
   const supabase = await createClient()
-  const { data: pedidoRaw } = await supabase
+  const { data: vendaRaw } = await supabase
     .from('pedidos')
     .select(
-      `id, numero_pedido, status, total, subtotal, data_pedido, forma_pagamento, prazo_pagamento_dias, observacoes, clientes(nome, telefone), pedido_itens(quantidade_pedida, preco_unitario, total, produtos(nome, embalagem))`,
+      `id, numero_pedido, status, total, subtotal, data_pedido, forma_pagamento, observacoes, clientes(nome, telefone), pedido_itens(quantidade_pedida, preco_unitario, total, produtos(nome, embalagem))`,
     )
     .eq('id', id)
     .single()
 
-  if (!pedidoRaw) notFound()
-  const pedido = pedidoRaw as unknown as PedidoComRelacoes
+  if (!vendaRaw) notFound()
+  const venda = vendaRaw as unknown as VendaComRelacoes
 
-  const numeroFmt = `#${String(pedido.numero_pedido).padStart(4, '0')}`
-  const prazoFmt =
-    pedido.prazo_pagamento_dias > 0
-      ? `${pedido.prazo_pagamento_dias} dias`
-      : 'À vista'
+  const numeroFmt = `#${String(venda.numero_pedido).padStart(4, '0')}`
+  const cancelada = venda.status === 'cancelado'
 
   return (
     <div className="mx-auto max-w-3xl">
       <Link
-        href="/pedidos"
+        href="/movimentacoes"
         className="u-motion mb-3 inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text"
       >
         <ArrowLeft className="size-4" strokeWidth={1.5} />
-        Pedidos
+        Movimentações
       </Link>
 
-      <PageHeader titulo={`Pedido ${numeroFmt}`}>
+      <PageHeader titulo={`Venda ${numeroFmt}`}>
         <StatusPill
-          status={STATUS_PEDIDO_PILL[pedido.status] ?? 'inativo'}
-          label={rotuloStatusPedido(pedido.status)}
+          status={cancelada ? 'cancelado' : 'ok'}
+          label={cancelada ? 'Cancelada' : 'Concluída'}
         />
         <Link
-          href={`/pedidos/${pedido.id}/romaneio`}
+          href={`/pedidos/${venda.id}/romaneio`}
           className="u-motion inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-text hover:bg-surface-2 active:scale-[0.98]"
         >
           <Printer className="size-4" strokeWidth={1.5} />
@@ -118,32 +109,36 @@ export default async function PedidoDetailPage({
           icone={User}
           rotulo="Cliente"
           valor={
-            <>
-              {pedido.clientes?.nome ?? 'Cliente removido'}
-              {pedido.clientes?.telefone && (
-                <span className="ml-2 font-mono text-xs tabular-nums text-text-muted">
-                  {pedido.clientes.telefone}
-                </span>
-              )}
-            </>
+            venda.clientes?.nome ? (
+              <>
+                {venda.clientes.nome}
+                {venda.clientes.telefone && (
+                  <span className="ml-2 font-mono text-xs tabular-nums text-text-muted">
+                    {venda.clientes.telefone}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="text-text-muted">Venda de balcão</span>
+            )
           }
         />
         <LinhaDado
           icone={CalendarDays}
           rotulo="Data"
-          valor={formatarData(pedido.data_pedido)}
+          valor={formatarData(venda.data_pedido)}
         />
         <LinhaDado
           icone={CreditCard}
           rotulo="Pagamento"
-          valor={`${rotuloPagamento(pedido.forma_pagamento)} · ${prazoFmt}`}
+          valor={rotuloPagamento(venda.forma_pagamento)}
         />
         <LinhaDado
           icone={StickyNote}
           rotulo="Observações"
           valor={
-            pedido.observacoes ? (
-              pedido.observacoes
+            venda.observacoes ? (
+              venda.observacoes
             ) : (
               <span className="text-text-muted">Nenhuma</span>
             )
@@ -163,7 +158,7 @@ export default async function PedidoDetailPage({
             </tr>
           </TabelaHead>
           <TabelaBody>
-            {pedido.pedido_itens.map((item, i) => (
+            {venda.pedido_itens.map((item, i) => (
               <TabelaRow key={i}>
                 <TabelaCell className="font-medium">
                   {item.produtos.nome}
@@ -187,16 +182,11 @@ export default async function PedidoDetailPage({
                 Total
               </td>
               <td className="h-12 px-4 text-right">
-                <Money valor={pedido.total} destaque className="text-lg font-semibold" />
+                <Money valor={venda.total} destaque className="text-lg font-semibold" />
               </td>
             </tr>
           </tfoot>
         </Tabela>
-      </div>
-
-      {/* Ação de fluxo */}
-      <div className="mt-5 flex justify-end">
-        <AvancarStatus pedidoId={pedido.id} status={pedido.status} />
       </div>
     </div>
   )

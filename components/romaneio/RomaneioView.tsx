@@ -13,7 +13,7 @@ interface Props {
       nome: string
       telefone: string | null
       endereco: Record<string, string> | null
-    }
+    } | null
     pedido_itens: Array<{
       quantidade_pedida: number
       preco_unitario: number
@@ -24,7 +24,7 @@ interface Props {
 }
 
 export function RomaneioView({ pedido }: Props) {
-  const end = pedido.clientes.endereco
+  const end = pedido.clientes?.endereco ?? null
   const partes = [
     [end?.rua, end?.numero].filter(Boolean).join(', '),
     end?.bairro,
@@ -108,13 +108,13 @@ export function RomaneioView({ pedido }: Props) {
           }}
         >
           <p style={{ fontSize: '15px', fontWeight: 700 }}>
-            {pedido.clientes.nome}
+            {pedido.clientes?.nome ?? 'Consumidor não identificado (venda de balcão)'}
           </p>
           <div
             className="mt-1 flex flex-wrap gap-x-8 gap-y-1"
             style={{ color: '#222' }}
           >
-            {pedido.clientes.telefone && (
+            {pedido.clientes?.telefone && (
               <span>
                 <strong style={{ color: cinza, fontWeight: 600 }}>Telefone: </strong>
                 {pedido.clientes.telefone}

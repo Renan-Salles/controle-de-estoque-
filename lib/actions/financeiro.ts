@@ -60,6 +60,43 @@ export async function criarContaPagar(data: {
   return { success: true }
 }
 
+// Recebimentos por forma de pagamento (todas as vendas sao a vista).
+// Mostra quanto entrou em cada forma e quais o cliente mais usa.
+export async function buscarFormasPagamento(periodo: 'mes' | 'tudo' = 'mes') {
+  const supabase = await createClient()
+  let query = supabase
+    .from('pedidos')
+    .select('forma_pagamento, total, data_pedido')
+    .eq('status', 'concluida')
+
+  if (periodo === 'mes') {
+    const inicioMes = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`
+    query = query.gte('data_pedido', `${inicioMes}T00:00:00`)
+  }
+
+  const { data, error } = await query
+  if (error) throw error
+
+  const rows = (data ?? []) as { forma_pagamento: string; total: number }[]
+  const formas = ['dinheiro', 'pix', 'cartao_debito', 'cartao_credito'] as const
+  const resumo = formas.map((f) => {
+    const dela = rows.filter((r) => r.forma_pagamento === f)
+    const valor = dela.reduce((a, r) => a + Number(r.total ?? 0), 0)
+    return { forma: f, valor, quantidade: dela.length }
+  })
+  const totalGeral = resumo.reduce((a, r) => a + r.valor, 0)
+  const totalVendas = rows.length
+
+  return {
+    resumo: resumo.map((r) => ({
+      ...r,
+      pct: totalGeral > 0 ? (r.valor / totalGeral) * 100 : 0,
+    })),
+    totalGeral,
+    totalVendas,
+  }
+}
+
 export async function buscarResumoFinanceiro() {
   const supabase = await createClient()
   const inicioMes = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`

@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   Plus,
-  ShoppingCart,
+  ArrowRightLeft,
   Package,
   Users,
   Truck,
@@ -25,7 +25,7 @@ const GRUPOS: Grupo[] = [
     titulo: 'Operação',
     itens: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { href: '/pedidos', label: 'Pedidos', icon: ShoppingCart },
+      { href: '/movimentacoes', label: 'Movimentações', icon: ArrowRightLeft },
     ],
   },
   {
@@ -40,17 +40,18 @@ const GRUPOS: Grupo[] = [
     titulo: 'Gestão',
     itens: [
       { href: '/estoque', label: 'Estoque', icon: Boxes },
-      { href: '/financeiro/a-receber', label: 'Financeiro', icon: DollarSign },
+      { href: '/financeiro/formas-pagamento', label: 'Financeiro', icon: DollarSign },
       { href: '/financeiro/relatorios', label: 'Relatórios', icon: BarChart3 },
     ],
   },
 ]
 
-// Marca uma rota como ativa. Para "/pedidos", evita ativar quando estamos em
-// "/pedidos/novo" (que tem item próprio destacado).
+// Marca uma rota como ativa. Para "/movimentacoes", evita ativar quando estamos
+// em "/movimentacoes/nova" (que tem item próprio destacado).
 function rotaAtiva(pathname: string, href: string) {
   if (href === '/dashboard') return pathname === '/dashboard'
-  if (href === '/pedidos') return pathname === '/pedidos' || /^\/pedidos\/(?!novo)/.test(pathname)
+  if (href === '/movimentacoes')
+    return pathname === '/movimentacoes' || /^\/movimentacoes\/(?!nova)/.test(pathname)
   return pathname === href || pathname.startsWith(href + '/')
 }
 
@@ -81,7 +82,7 @@ function LinkItem({ item, ativo }: { item: Item; ativo: boolean }) {
 
 export function Sidebar() {
   const pathname = usePathname()
-  const novoAtivo = pathname === '/pedidos/novo'
+  const novoAtivo = pathname === '/movimentacoes/nova'
 
   return (
     <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-sidebar lg:flex">
@@ -100,9 +101,9 @@ export function Sidebar() {
 
       {/* Navegação */}
       <nav className="flex-1 overflow-y-auto px-3 py-4">
-        {/* Novo Pedido — destaque (botão teal cheio) */}
+        {/* Nova Movimentação — destaque (botão teal cheio) */}
         <Link
-          href="/pedidos/novo"
+          href="/movimentacoes/nova"
           aria-current={novoAtivo ? 'page' : undefined}
           className={cn(
             'mb-4 flex items-center gap-2.5 rounded-md bg-brand px-3 py-2 text-sm font-medium text-white u-motion u-press shadow-sm hover:bg-brand-strong',
@@ -110,7 +111,7 @@ export function Sidebar() {
           )}
         >
           <Plus className="size-[18px]" strokeWidth={1.5} />
-          Novo Pedido
+          Nova Movimentação
         </Link>
 
         {GRUPOS.map((grupo) => (

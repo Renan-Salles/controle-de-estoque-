@@ -10,18 +10,19 @@ const ItemSchema = z.object({
   total: z.number().positive(),
 })
 
-const PedidoSchema = z.object({
-  cliente_id: z.string().uuid(),
-  forma_pagamento: z.enum(['dinheiro', 'pix', 'fiado', 'cartao_debito', 'cartao_credito', 'boleto']),
-  prazo_pagamento_dias: z.number().default(0),
-  data_entrega_prevista: z.string().optional(),
+const VendaSchema = z.object({
+  // Cliente opcional: venda de balcao pode nao ter cliente identificado.
+  cliente_id: z.string().uuid().nullable().optional(),
+  forma_pagamento: z.enum(['dinheiro', 'pix', 'cartao_debito', 'cartao_credito']),
   observacoes: z.string().optional(),
-  canal: z.enum(['telefone', 'whatsapp', 'balcao']).default('telefone'),
+  canal: z.enum(['telefone', 'whatsapp', 'balcao']).default('balcao'),
   itens: z.array(ItemSchema).min(1, 'Adicione pelo menos 1 item'),
 })
 
-export async function confirmarPedido(data: unknown) {
-  const parsed = PedidoSchema.safeParse(data)
+// Registra uma SAIDA (venda) a vista: baixa estoque atomico e gera comprovante.
+// Sem fiado, sem ciclo de status de entrega, sem conta a receber.
+export async function registrarVenda(data: unknown) {
+  const parsed = VendaSchema.safeParse(data)
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
   const supabase = await createClient()
@@ -29,23 +30,21 @@ export async function confirmarPedido(data: unknown) {
   if (!user) return { error: 'Nao autenticado' }
 
   const serviceClient = await createServiceClient()
-  const { itens, forma_pagamento, prazo_pagamento_dias } = parsed.data
-
+  const { itens, forma_pagamento } = parsed.data
   const total = itens.reduce((acc, i) => acc + i.total, 0)
-  const data_vencimento = prazo_pagamento_dias > 0
-    ? new Date(Date.now() + prazo_pagamento_dias * 86400000).toISOString().split('T')[0]
-    : new Date().toISOString().split('T')[0]
+  const hoje = new Date().toISOString().split('T')[0]
 
-  const { data: novoPedido, error: errPedido } = await serviceClient
-    .from('pedidos')
+  const { data: vendaRaw, error: errVenda } = await (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    serviceClient.from('pedidos') as any
+  )
     .insert({
-      cliente_id: parsed.data.cliente_id,
+      cliente_id: parsed.data.cliente_id ?? null,
       atendente_id: user.id,
-      status: 'confirmado',
+      status: 'concluida',
       forma_pagamento,
-      prazo_pagamento_dias,
-      data_vencimento,
-      data_entrega_prevista: parsed.data.data_entrega_prevista || null,
+      prazo_pagamento_dias: 0,
+      data_vencimento: hoje,
       observacoes: parsed.data.observacoes || null,
       canal: parsed.data.canal,
       subtotal: total,
@@ -54,11 +53,13 @@ export async function confirmarPedido(data: unknown) {
     .select('id, numero_pedido')
     .single()
 
-  if (errPedido || !novoPedido) return { error: errPedido?.message ?? 'Erro ao criar pedido' }
+  const venda = vendaRaw as { id: string; numero_pedido: number } | null
+  if (errVenda || !venda) return { error: errVenda?.message ?? 'Erro ao registrar venda' }
 
-  const { error: errItens } = await serviceClient.from('pedido_itens').insert(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: errItens } = await (serviceClient.from('pedido_itens') as any).insert(
     itens.map(i => ({
-      pedido_id: novoPedido.id,
+      pedido_id: venda.id,
       produto_id: i.produto_id,
       quantidade_pedida: i.quantidade,
       preco_unitario: i.preco_unitario,
@@ -74,59 +75,44 @@ export async function confirmarPedido(data: unknown) {
       .eq('produto_id', item.produto_id)
       .single()
 
-    const novoSaldo = (estoqueAtual?.saldo_atual ?? 0) - item.quantidade
+    const saldoAtual = (estoqueAtual as { saldo_atual: number } | null)?.saldo_atual ?? 0
+    const custoMedio = (estoqueAtual as { custo_medio: number } | null)?.custo_medio ?? 0
+    const novoSaldo = saldoAtual - item.quantidade
 
-    await serviceClient.from('estoque').update({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (serviceClient.from('estoque') as any).update({
       saldo_atual: novoSaldo,
       updated_at: new Date().toISOString(),
     }).eq('produto_id', item.produto_id)
 
-    await serviceClient.from('movimentacoes_estoque').insert({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (serviceClient.from('movimentacoes_estoque') as any).insert({
       produto_id: item.produto_id,
       tipo: 'saida_venda',
       quantidade: -item.quantidade,
-      custo_unitario: estoqueAtual?.custo_medio ?? 0,
+      custo_unitario: custoMedio,
       saldo_apos: novoSaldo,
       referencia_tipo: 'pedido',
-      referencia_id: novoPedido.id,
+      referencia_id: venda.id,
       usuario_id: user.id,
     })
   }
 
-  if (forma_pagamento !== 'dinheiro') {
-    await serviceClient.from('contas_receber').insert({
-      pedido_id: novoPedido.id,
-      cliente_id: parsed.data.cliente_id,
-      descricao: `Pedido #${novoPedido.numero_pedido}`,
-      valor: total,
-      data_vencimento,
-    })
-  }
-
-  revalidatePath('/pedidos')
+  revalidatePath('/movimentacoes')
   revalidatePath('/estoque')
   revalidatePath('/dashboard')
+  revalidatePath('/financeiro')
 
-  return { success: true, pedidoId: novoPedido.id, numeroPedido: novoPedido.numero_pedido }
+  return { success: true, pedidoId: venda.id, numeroPedido: venda.numero_pedido }
 }
 
-export async function listarPedidos(filtros?: { status?: string }) {
+export async function listarVendas() {
   const supabase = await createClient()
-  let query = supabase
+  const { data, error } = await supabase
     .from('pedidos')
-    .select(`id, numero_pedido, status, total, data_pedido, forma_pagamento, observacoes, clientes(nome, telefone)`)
+    .select(`id, numero_pedido, status, total, data_pedido, forma_pagamento, clientes(nome, telefone)`)
     .order('created_at', { ascending: false })
-
-  if (filtros?.status) query = query.eq('status', filtros.status)
-  const { data, error } = await query.limit(100)
+    .limit(100)
   if (error) throw error
   return data ?? []
-}
-
-export async function atualizarStatusPedido(pedidoId: string, status: string) {
-  const supabase = await createClient()
-  const { error } = await supabase.from('pedidos').update({ status }).eq('id', pedidoId)
-  if (error) return { error: error.message }
-  revalidatePath('/pedidos')
-  return { success: true }
 }

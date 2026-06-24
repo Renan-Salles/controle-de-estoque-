@@ -10,8 +10,8 @@ import { cn } from '@/lib/utils'
 // determinada pelo pathname atual.
 
 const TABS = [
-  { href: '/financeiro/a-receber', label: 'A Receber' },
-  { href: '/financeiro/a-pagar', label: 'A Pagar' },
+  { href: '/financeiro/formas-pagamento', label: 'Formas de pagamento' },
+  { href: '/financeiro/a-pagar', label: 'A pagar' },
   { href: '/financeiro/relatorios', label: 'Relatórios' },
 ] as const
 

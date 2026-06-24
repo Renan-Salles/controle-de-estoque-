@@ -2,12 +2,12 @@ import { createClient } from '@/lib/supabase/server'
 import {
   Package,
   ShoppingCart,
-  Wallet,
-  Clock,
+  Receipt,
+  CalendarRange,
   TriangleAlert,
   ArrowUpRight,
   PackagePlus,
-  HandCoins,
+  CreditCard,
   type LucideIcon,
 } from 'lucide-react'
 import Link from 'next/link'
@@ -24,29 +24,24 @@ export default async function DashboardPage() {
 
   type RowTotal = { total: number }
   type RowId = { id: string }
-  type RowCR = { valor: number; valor_pago: number }
   type RowPedidoMes = { data_pedido: string; total: number }
 
   const [
     { data: pedidosHoje },
-    { data: pedidosPendentes },
     { data: estoquesCriticos },
-    { data: contasVencendo },
     { data: pedidosMes },
   ] = await Promise.all([
-    supabase.from('pedidos').select('total').gte('data_pedido', `${hoje}T00:00:00`).not('status', 'in', '(cancelado,rascunho)') as unknown as Promise<{ data: RowTotal[] }>,
-    supabase.from('pedidos').select('id').in('status', ['confirmado', 'em_separacao']) as unknown as Promise<{ data: RowId[] }>,
+    supabase.from('pedidos').select('total').gte('data_pedido', `${hoje}T00:00:00`).eq('status', 'concluida') as unknown as Promise<{ data: RowTotal[] }>,
     supabase.from('v_posicao_estoque').select('id').in('status_estoque', ['critico', 'ruptura']) as unknown as Promise<{ data: RowId[] }>,
-    supabase.from('contas_receber').select('valor, valor_pago').eq('data_vencimento', hoje).in('status', ['aberto', 'parcial']) as unknown as Promise<{ data: RowCR[] }>,
-    supabase.from('pedidos').select('data_pedido, total').gte('data_pedido', `${inicioMes}T00:00:00`).not('status', 'in', '(cancelado,rascunho)').order('data_pedido') as unknown as Promise<{ data: RowPedidoMes[] }>,
+    supabase.from('pedidos').select('data_pedido, total').gte('data_pedido', `${inicioMes}T00:00:00`).eq('status', 'concluida').order('data_pedido') as unknown as Promise<{ data: RowPedidoMes[] }>,
   ])
 
   const receitaHoje = (pedidosHoje ?? []).reduce((acc, p) => acc + (p.total ?? 0), 0)
   const receitaMes = (pedidosMes ?? []).reduce((acc, p) => acc + (p.total ?? 0), 0)
-  const aReceberHoje = (contasVencendo ?? []).reduce((acc, c) => acc + ((c.valor ?? 0) - (c.valor_pago ?? 0)), 0)
   const qtdCriticos = estoquesCriticos?.length ?? 0
-  const qtdPendentes = pedidosPendentes?.length ?? 0
   const qtdPedidosHoje = pedidosHoje?.length ?? 0
+  // Ticket médio do dia: receita do dia / nº de vendas concluídas no dia.
+  const ticketMedioHoje = qtdPedidosHoje > 0 ? receitaHoje / qtdPedidosHoje : 0
 
   // Série dos últimos 7 dias para o gráfico (recharts no client).
   const dadosGrafico: PontoVenda[] = Array.from({ length: 7 }, (_, i) => {
@@ -79,7 +74,7 @@ export default async function DashboardPage() {
 
   const kpis: Kpi[] = [
     {
-      label: 'Pedidos hoje',
+      label: 'Vendas hoje',
       valor: String(qtdPedidosHoje),
       sub: 'receita do dia',
       money: receitaHoje,
@@ -88,10 +83,12 @@ export default async function DashboardPage() {
       tom: 'brand',
     },
     {
-      label: 'Pendentes',
-      valor: String(qtdPendentes),
-      sub: 'confirmados ou em separação',
-      icon: Clock,
+      label: 'Receita do mês',
+      valor: '',
+      money: receitaMes,
+      moneyDestaque: true,
+      sub: 'vendas concluídas no mês',
+      icon: CalendarRange,
       tom: 'gold',
     },
     {
@@ -102,12 +99,12 @@ export default async function DashboardPage() {
       tom: qtdCriticos > 0 ? 'critico' : 'brand',
     },
     {
-      label: 'A receber hoje',
+      label: 'Ticket médio do dia',
       valor: '',
-      money: aReceberHoje,
+      money: ticketMedioHoje,
       moneyDestaque: true,
-      sub: 'vencimentos do dia',
-      icon: Wallet,
+      sub: qtdPedidosHoje > 0 ? 'por venda concluída hoje' : 'sem vendas hoje',
+      icon: Receipt,
       tom: 'brand',
     },
   ]
@@ -131,22 +128,22 @@ export default async function DashboardPage() {
     dourado?: boolean
   }> = [
     {
-      href: '/pedidos/novo',
-      titulo: 'Novo pedido',
-      desc: 'Registrar venda ou entrega',
+      href: '/movimentacoes/nova',
+      titulo: 'Nova venda',
+      desc: 'Registrar venda à vista',
       icon: ShoppingCart,
     },
     {
-      href: '/estoque',
-      titulo: 'Entrada de estoque',
+      href: '/movimentacoes/nova',
+      titulo: 'Nova entrada',
       desc: 'Lançar mercadoria recebida',
       icon: PackagePlus,
     },
     {
-      href: '/financeiro/a-receber',
-      titulo: 'Contas a receber',
-      desc: 'Fiados e pagamentos do dia',
-      icon: HandCoins,
+      href: '/financeiro/formas-pagamento',
+      titulo: 'Formas de pagamento',
+      desc: 'Quanto entrou em cada forma',
+      icon: CreditCard,
       dourado: true,
     },
   ]
@@ -164,11 +161,11 @@ export default async function DashboardPage() {
           </h1>
         </div>
         <Link
-          href="/pedidos/novo"
+          href="/movimentacoes/nova"
           className="u-motion u-press inline-flex h-9 shrink-0 items-center gap-2 self-start rounded-lg bg-brand px-4 text-sm font-medium text-white hover:bg-brand-strong sm:self-auto"
         >
           <ShoppingCart className="size-4" strokeWidth={1.5} />
-          Novo pedido
+          Nova movimentação
         </Link>
       </div>
 

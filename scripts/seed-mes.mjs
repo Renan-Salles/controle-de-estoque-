@@ -57,19 +57,20 @@ const PRODUTOS = [
   ['Carvao Vegetal 3kg', 'Bruxa', 'Outros', 'unidade', 3000, 16.0, 9.0, 12],
 ]
 
+// forma_pagamento_padrao agora e so a forma a vista preferida do cliente (sem fiado).
 const CLIENTES = [
-  ['Bar do Tiao', 'bar', '(71) 98821-4455', 'fiado', 7],
-  ['Mercadinho Santa Rita', 'comercio', '(71) 99634-2018', 'pix', 0],
-  ["Distribuidora Olho d'Agua", 'revendedor', '(75) 99812-4087', 'fiado', 15],
-  ['Boteco da Esquina', 'bar', '(71) 98155-7723', 'fiado', 7],
-  ['Adega Central', 'comercio', '(71) 99201-6644', 'dinheiro', 0],
-  ['Bar e Petiscaria do Nego', 'bar', '(71) 98477-1290', 'fiado', 7],
-  ['Lanchonete Sabor e Cia', 'comercio', '(71) 99388-5512', 'pix', 0],
-  ['Conveniencia 24h Parada', 'comercio', '(71) 98712-9931', 'dinheiro', 0],
-  ['Espetinho do Carlao', 'bar', '(71) 99055-3377', 'fiado', 7],
-  ['Mercearia Dona Lucia', 'comercio', '(71) 98260-4419', 'pix', 0],
-  ['Bar do Portugues', 'bar', '(71) 99744-8800', 'fiado', 15],
-  ['Festas e Eventos Premium', 'revendedor', '(71) 98933-1267', 'fiado', 30],
+  ['Bar do Tiao', 'bar', '(71) 98821-4455', 'pix'],
+  ['Mercadinho Santa Rita', 'comercio', '(71) 99634-2018', 'pix'],
+  ["Distribuidora Olho d'Agua", 'revendedor', '(75) 99812-4087', 'cartao_debito'],
+  ['Boteco da Esquina', 'bar', '(71) 98155-7723', 'dinheiro'],
+  ['Adega Central', 'comercio', '(71) 99201-6644', 'dinheiro'],
+  ['Bar e Petiscaria do Nego', 'bar', '(71) 98477-1290', 'pix'],
+  ['Lanchonete Sabor e Cia', 'comercio', '(71) 99388-5512', 'pix'],
+  ['Conveniencia 24h Parada', 'comercio', '(71) 98712-9931', 'dinheiro'],
+  ['Espetinho do Carlao', 'bar', '(71) 99055-3377', 'cartao_credito'],
+  ['Mercearia Dona Lucia', 'comercio', '(71) 98260-4419', 'pix'],
+  ['Bar do Portugues', 'bar', '(71) 99744-8800', 'cartao_debito'],
+  ['Festas e Eventos Premium', 'revendedor', '(71) 98933-1267', 'cartao_credito'],
 ]
 
 const FORNECEDORES = [
@@ -135,14 +136,14 @@ async function main() {
   // ----- clientes -----
   console.log('Inserindo clientes...')
   const cli = []
-  for (const [nome, tipo, tel, forma, prazo] of CLIENTES) {
+  for (const [nome, tipo, tel, forma] of CLIENTES) {
     const r = await client.query(
       `insert into clientes (nome, tipo, telefone, whatsapp, forma_pagamento_padrao,
         prazo_pagamento_dias, status, endereco)
-       values ($1,$2,$3,$3,$4,$5,'ativo','{}') returning id`,
-      [nome, tipo, tel, forma, prazo],
+       values ($1,$2,$3,$3,$4,0,'ativo','{}') returning id`,
+      [nome, tipo, tel, forma],
     )
-    cli.push({ id: r.rows[0].id, nome, forma, prazo })
+    cli.push({ id: r.rows[0].id, nome, forma })
   }
 
   // ----- fornecedores -----
@@ -179,7 +180,7 @@ async function main() {
 
   // ----- simulação cronológica do mês -----
   console.log('Simulando vendas e reposições do mês...')
-  let totalPedidos = 0, totalItens = 0, totalReceber = 0, totalEntradas = prod.length
+  let totalPedidos = 0, totalItens = 0, totalEntradas = prod.length
 
   for (let off = DIAS - 1; off >= 0; off--) {
     const base = diaISO(off, 0)
@@ -195,9 +196,10 @@ async function main() {
     }
 
     // nº de pedidos: mais no fim de semana (qui-sab)
-    const nPedidos = dow >= 4 || dow === 0 ? rnd(8, 14) : rnd(4, 9)
-    for (let i = 0; i < nPedidos; i++) {
-      const c = pick(cli)
+    const nVendas = dow >= 4 || dow === 0 ? rnd(8, 14) : rnd(4, 9)
+    for (let i = 0; i < nVendas; i++) {
+      // cliente opcional: ~25% das vendas sao de balcao sem cliente identificado
+      const c = chance(0.25) ? null : pick(cli)
       const dataPed = diaISO(off)
       // monta itens
       const nItens = rnd(2, 5)
@@ -218,25 +220,25 @@ async function main() {
       }
       if (!itens.length) continue
 
-      // forma de pagamento (com leve variação sobre o padrão do cliente)
-      let forma = c.forma
-      if (forma === 'fiado' && chance(0.25)) forma = pick(['dinheiro', 'pix'])
-      if (forma !== 'fiado' && chance(0.1)) forma = 'fiado'
-      const prazo = forma === 'fiado' ? (c.prazo || 7) : 0
-      const venc = new Date(dataPed); venc.setDate(venc.getDate() + prazo)
-
-      // status: recentes podem estar em andamento; resto entregue
-      let status = 'entregue'
-      if (off <= 1) status = pick(['confirmado', 'em_separacao', 'saiu_entrega', 'entregue'])
+      // forma de pagamento a vista, com distribuicao realista (pix lidera).
+      // Vies leve para a preferencia do cliente quando ha cliente.
+      const FORMAS = [
+        'pix', 'pix', 'pix', 'pix',
+        'dinheiro', 'dinheiro', 'dinheiro',
+        'cartao_debito', 'cartao_debito',
+        'cartao_credito',
+      ]
+      let forma = pick(FORMAS)
+      if (c && chance(0.45)) forma = c.forma
       const total = +subtotal.toFixed(2)
 
       const ped = await client.query(
         `insert into pedidos (cliente_id, atendente_id, status, data_pedido,
           forma_pagamento, prazo_pagamento_dias, data_vencimento, subtotal, total,
           canal, created_at)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$8,$9,$4) returning id, numero_pedido`,
-        [c.id, ATENDENTE, status, dataPed.toISOString(), forma, prazo,
-          dataYMD(venc), total, pick(['telefone', 'whatsapp', 'balcao'])],
+         values ($1,$2,'concluida',$3,$4,0,$5,$6,$6,$7,$3) returning id, numero_pedido`,
+        [c?.id ?? null, ATENDENTE, dataPed.toISOString(), forma,
+          dataYMD(dataPed), total, pick(['telefone', 'whatsapp', 'balcao'])],
       )
       const pedidoId = ped.rows[0].id
       totalPedidos++
@@ -256,28 +258,6 @@ async function main() {
             ATENDENTE, dataPed.toISOString()],
         )
         totalItens++
-      }
-
-      // conta a receber para vendas a prazo
-      if (forma === 'fiado') {
-        const vencido = venc < HOJE
-        let valorPago = 0, st = 'aberto', dataPag = null
-        if (vencido) {
-          // metade dos vencidos foram pagos; outros viram inadimplência
-          if (chance(0.55)) { valorPago = total; st = 'pago'; dataPag = dataYMD(venc) }
-          else st = 'vencido'
-        } else if (chance(0.2)) {
-          // alguns a vencer já pagaram parcial
-          valorPago = +(total * 0.5).toFixed(2); st = 'parcial'
-        }
-        await client.query(
-          `insert into contas_receber (pedido_id, cliente_id, descricao, valor,
-            valor_pago, status, data_emissao, data_vencimento, data_pagamento, forma_pagamento)
-           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-          [pedidoId, c.id, `Pedido #${ped.rows[0].numero_pedido}`, total, valorPago,
-            st, dataYMD(dataPed), dataYMD(venc), dataPag, st === 'pago' ? 'pix' : null],
-        )
-        totalReceber++
       }
     }
   }
@@ -322,9 +302,8 @@ async function main() {
   console.log(`Clientes:        ${cli.length}`)
   console.log(`Fornecedores:    ${FORNECEDORES.length}`)
   console.log(`Entradas:        ${totalEntradas}`)
-  console.log(`Pedidos:         ${totalPedidos}`)
+  console.log(`Vendas:          ${totalPedidos}`)
   console.log(`Itens vendidos:  ${totalItens}`)
-  console.log(`Contas a receber:${totalReceber}`)
   console.log(`Contas a pagar:  ${pagar.length}`)
   console.log(`Estoque critico: ${criticos} | ruptura: ${rupturas}`)
 

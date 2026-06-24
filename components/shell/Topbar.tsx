@@ -9,13 +9,15 @@ import { ThemeToggle } from '@/components/shell/ThemeToggle'
 // Título legível da rota atual. Casa o início do pathname com o rótulo.
 const TITULOS: { prefixo: string; titulo: string }[] = [
   { prefixo: '/dashboard', titulo: 'Dashboard' },
-  { prefixo: '/pedidos/novo', titulo: 'Novo Pedido' },
-  { prefixo: '/pedidos', titulo: 'Pedidos' },
+  { prefixo: '/movimentacoes/nova', titulo: 'Nova Movimentação' },
+  { prefixo: '/movimentacoes', titulo: 'Movimentações' },
   { prefixo: '/produtos', titulo: 'Produtos' },
   { prefixo: '/clientes', titulo: 'Clientes' },
   { prefixo: '/fornecedores', titulo: 'Fornecedores' },
   { prefixo: '/estoque', titulo: 'Estoque' },
   { prefixo: '/financeiro/relatorios', titulo: 'Relatórios' },
+  { prefixo: '/financeiro/formas-pagamento', titulo: 'Financeiro' },
+  { prefixo: '/financeiro/a-pagar', titulo: 'Financeiro' },
   { prefixo: '/financeiro', titulo: 'Financeiro' },
   { prefixo: '/configuracoes', titulo: 'Configurações' },
 ]
