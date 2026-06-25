@@ -12,8 +12,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { User, ChevronsUpDown } from 'lucide-react'
-import { buscarClientes } from '@/lib/actions/clientes'
+import { User, ChevronsUpDown, UserPlus } from 'lucide-react'
+import { toast } from 'sonner'
+import { buscarClientes, cadastrarClienteRapido } from '@/lib/actions/clientes'
 import { rotuloPagamento } from '@/lib/pedido-labels'
 
 export interface ClienteResumo {
@@ -47,6 +48,33 @@ export function BuscaCliente({ selecionado, onSelecionar }: Props) {
     setOpen(false)
     setTermo('')
   }
+
+  const [criando, setCriando] = useState(false)
+
+  // Cadastra na hora o cliente digitado (só o nome) e já seleciona.
+  async function cadastrar() {
+    const nome = termo.trim()
+    if (nome.length < 2 || criando) return
+    setCriando(true)
+    const r = await cadastrarClienteRapido(nome)
+    setCriando(false)
+    if ('error' in r) {
+      toast.error(r.error)
+      return
+    }
+    toast.success(`Cliente "${r.cliente.nome}" cadastrado`)
+    selecionar({
+      id: r.cliente.id,
+      nome: r.cliente.nome,
+      telefone: r.cliente.telefone,
+      forma_pagamento_padrao: r.cliente.forma_pagamento_padrao,
+    })
+  }
+
+  // Já existe um cliente com exatamente esse nome na lista?
+  const nomeExiste = clientes.some(
+    (c) => c.nome.toLowerCase() === termo.trim().toLowerCase(),
+  )
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -116,6 +144,17 @@ export function BuscaCliente({ selecionado, onSelecionar }: Props) {
                 </span>
               </CommandItem>
             ))}
+            {termo.trim().length >= 2 && !nomeExiste && (
+              <CommandItem
+                value="__cadastrar_cliente__"
+                onSelect={cadastrar}
+                disabled={criando}
+                className="flex items-center gap-2 font-medium text-brand"
+              >
+                <UserPlus className="size-4" strokeWidth={1.5} />
+                {criando ? 'Cadastrando...' : `Cadastrar "${termo.trim()}"`}
+              </CommandItem>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>

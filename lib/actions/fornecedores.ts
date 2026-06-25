@@ -101,6 +101,25 @@ export async function buscarFornecedores(termo?: string) {
   return data ?? []
 }
 
+// Cadastro rápido a partir da entrada de estoque: cria com só o nome e devolve
+// o fornecedor para vincular. O resto pode ser completado depois em Fornecedores.
+export async function cadastrarFornecedorRapido(nome: string) {
+  const limpo = nome.trim()
+  if (limpo.length < 2) return { error: 'Informe um nome válido' }
+  const localId = await getLocalAtivoId()
+  const supabase = await createClient()
+  const { data, error } = await (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase.from('fornecedores') as any
+  )
+    .insert({ nome: limpo, status: 'ativo', endereco: {}, local_id: localId })
+    .select('id, nome')
+    .single()
+  if (error) return { error: error.message }
+  revalidatePath('/fornecedores')
+  return { fornecedor: data as { id: string; nome: string } }
+}
+
 export async function buscarFornecedorPorId(id: string) {
   const supabase = await createClient()
   const { data } = (await supabase

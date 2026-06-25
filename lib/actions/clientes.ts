@@ -56,3 +56,29 @@ export async function buscarClientes(termo?: string) {
 export async function listarClientes() {
   return buscarClientes()
 }
+
+// Cadastro rápido a partir da venda: cria com só o nome (resto fica em branco
+// para completar depois) e já devolve o cliente para vincular na movimentação.
+export async function cadastrarClienteRapido(nome: string) {
+  const limpo = nome.trim()
+  if (limpo.length < 2) return { error: 'Informe um nome válido' }
+  const localId = await getLocalAtivoId()
+  const supabase = await createClient()
+  const { data, error } = await (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase.from('clientes') as any
+  )
+    .insert({
+      nome: limpo,
+      tipo: 'bar',
+      forma_pagamento_padrao: 'dinheiro',
+      status: 'ativo',
+      endereco: {},
+      local_id: localId,
+    })
+    .select('id, nome, telefone, forma_pagamento_padrao')
+    .single()
+  if (error) return { error: error.message }
+  revalidatePath('/clientes')
+  return { cliente: data as { id: string; nome: string; telefone: string | null; forma_pagamento_padrao: string } }
+}

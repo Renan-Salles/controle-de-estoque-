@@ -4,13 +4,13 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { PackagePlus, Truck, Loader2 } from 'lucide-react'
 import { BuscaProduto } from '@/components/pedido/BuscaProduto'
+import { BuscaFornecedor } from '@/components/movimentacao/BuscaFornecedor'
 import {
   ListaItensEntrada,
   type ItemEntrada,
 } from '@/components/movimentacao/ListaItensEntrada'
 import { registrarEntrada } from '@/lib/actions/movimentacoes'
 import { Money } from '@/components/ui-kit/Money'
-import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import type { ItemPedido } from '@/types'
 
@@ -110,19 +110,13 @@ export function FormEntrada() {
       {/* ESQUERDA — area de trabalho */}
       <section className="flex min-w-0 flex-col gap-5">
         <div className="flex flex-col gap-2">
-          <label
-            htmlFor="fornecedor"
-            className="text-[11px] font-semibold uppercase tracking-wider text-text-muted"
-          >
+          <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
             Fornecedor (opcional)
           </label>
-          <Input
-            id="fornecedor"
-            placeholder="Ex.: Distribuidora Olho d'Água"
-            value={fornecedor}
-            onChange={(e) => setFornecedor(e.target.value)}
-            autoComplete="off"
-          />
+          <BuscaFornecedor selecionado={fornecedor} onSelecionar={setFornecedor} />
+          <p className="text-xs text-text-muted">
+            Não está na lista? Digite o nome e clique em &quot;Cadastrar&quot;.
+          </p>
         </div>
 
         <div className="flex flex-col gap-2">
