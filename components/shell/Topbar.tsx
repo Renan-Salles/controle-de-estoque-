@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ChevronDown, LogOut } from 'lucide-react'
 import { ThemeToggle } from '@/components/shell/ThemeToggle'
 import { SeletorLocal } from '@/components/shell/SeletorLocal'
+import { MobileNav } from '@/components/shell/MobileNav'
 import type { Local } from '@/lib/local'
 
 // Título legível da rota atual. Casa o início do pathname com o rótulo.
@@ -33,10 +34,12 @@ export function Topbar({
   email,
   locais,
   localSlug,
+  localNome,
 }: {
   email: string
   locais: Local[]
   localSlug: string
+  localNome: string
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -55,8 +58,9 @@ export function Topbar({
   }
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-bg/80 px-6 backdrop-blur-sm">
-      <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b border-border bg-bg/80 px-3 backdrop-blur-sm sm:px-6">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <MobileNav localNome={localNome} />
         <SeletorLocal locais={locais} ativoSlug={localSlug} />
         <span className="hidden h-4 w-px bg-border sm:block" />
         <h2 className="hidden text-sm font-medium tracking-tight text-text sm:block">
@@ -64,7 +68,7 @@ export function Topbar({
         </h2>
       </div>
 
-      <div className="flex items-center gap-1.5">
+      <div className="flex shrink-0 items-center gap-1.5">
       <ThemeToggle />
       <div className="relative">
         <button

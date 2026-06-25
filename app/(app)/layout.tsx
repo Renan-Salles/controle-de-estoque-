@@ -22,6 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           email={user.email ?? 'usuário'}
           locais={locais}
           localSlug={localAtivo.slug}
+          localNome={localAtivo.nome}
         />
         <main className="min-w-0 flex-1 px-6 py-5">{children}</main>
       </div>

@@ -34,28 +34,17 @@ const TIPO_LABEL: Record<string, string> = {
 const PGTO_LABEL: Record<string, string> = {
   dinheiro: 'Dinheiro',
   pix: 'Pix',
-  fiado: 'Fiado',
   cartao_debito: 'Cartão débito',
   cartao_credito: 'Cartão crédito',
 }
 
-// Mapeia status de pedido (domínio) -> aparência de StatusPill + rótulo legível.
+// Status da venda -> aparência de StatusPill + rótulo. Venda à vista: concluída/cancelada.
 function statusPedido(status: string): { tipo: StatusPillTipo; label: string } {
   switch (status) {
-    case 'entregue':
-      return { tipo: 'pago', label: 'Entregue' }
-    case 'confirmado':
-      return { tipo: 'aberto', label: 'Confirmado' }
-    case 'em_separacao':
-      return { tipo: 'parcial', label: 'Em separação' }
-    case 'saiu_entrega':
-      return { tipo: 'aberto', label: 'Saiu para entrega' }
-    case 'parcial':
-      return { tipo: 'parcial', label: 'Parcial' }
-    case 'cancelado':
-      return { tipo: 'cancelado', label: 'Cancelado' }
-    case 'rascunho':
-      return { tipo: 'inativo', label: 'Rascunho' }
+    case 'concluida':
+      return { tipo: 'ok', label: 'Concluída' }
+    case 'cancelada':
+      return { tipo: 'cancelado', label: 'Cancelada' }
     default:
       return { tipo: 'inativo', label: status }
   }

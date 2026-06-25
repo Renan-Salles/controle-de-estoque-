@@ -27,7 +27,6 @@ const TIPOS = [
 const PAGAMENTOS = [
   { v: 'dinheiro', l: 'Dinheiro' },
   { v: 'pix', l: 'Pix' },
-  { v: 'fiado', l: 'Fiado' },
   { v: 'cartao_debito', l: 'Cartão débito' },
   { v: 'cartao_credito', l: 'Cartão crédito' },
 ]
@@ -122,7 +121,7 @@ export default function NovoClientePage() {
 
           <FormSection
             titulo="Contato"
-            descricao="Para confirmar pedidos e cobrar fiado."
+            descricao="Telefone e WhatsApp para falar com o cliente."
           >
             <Campo label="Telefone">
               <Input
@@ -176,7 +175,7 @@ export default function NovoClientePage() {
 
           <FormSection
             titulo="Pagamento"
-            descricao="Condições padrão aplicadas aos pedidos."
+            descricao="Forma de pagamento que o cliente costuma usar."
           >
             <Campo label="Forma de pagamento padrão">
               <Select
@@ -194,25 +193,6 @@ export default function NovoClientePage() {
                   ))}
                 </SelectContent>
               </Select>
-            </Campo>
-            <Campo label="Prazo (dias)" ajuda="Para vendas fiado.">
-              <Input
-                type="number"
-                inputMode="numeric"
-                value={form.prazo_pagamento_dias}
-                onChange={(e) => set('prazo_pagamento_dias', e.target.value)}
-                placeholder="0"
-              />
-            </Campo>
-            <Campo label="Limite de crédito (R$)">
-              <Input
-                type="number"
-                step="0.01"
-                inputMode="decimal"
-                value={form.limite_credito}
-                onChange={(e) => set('limite_credito', e.target.value)}
-                placeholder="500,00"
-              />
             </Campo>
             <Campo label="Observações" full>
               <Textarea

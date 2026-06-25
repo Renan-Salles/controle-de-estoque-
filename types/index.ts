@@ -1,8 +1,8 @@
 export type Perfil = 'admin' | 'gerente'
-export type StatusPedido = 'rascunho' | 'confirmado' | 'em_separacao' | 'saiu_entrega' | 'entregue' | 'parcial' | 'cancelado'
-export type FormaPagamento = 'dinheiro' | 'pix' | 'fiado' | 'cartao_debito' | 'cartao_credito' | 'boleto'
+// Venda à vista, sem ciclo de entrega: só concluída ou cancelada.
+export type StatusPedido = 'concluida' | 'cancelada'
+export type FormaPagamento = 'dinheiro' | 'pix' | 'cartao_debito' | 'cartao_credito'
 export type StatusEstoque = 'ok' | 'alerta' | 'critico' | 'ruptura'
-export type StatusCR = 'aberto' | 'pago' | 'parcial' | 'vencido' | 'cancelado'
 export type ClasseABC = 'A' | 'B' | 'C'
 
 export interface PosicaoEstoque {

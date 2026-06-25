@@ -36,6 +36,24 @@ export async function registrarVenda(data: unknown) {
   const total = itens.reduce((acc, i) => acc + i.total, 0)
   const hoje = new Date().toISOString().split('T')[0]
 
+  // Valida o estoque de TODOS os itens antes de criar a venda: não deixa o
+  // saldo ficar negativo (vender mais do que tem deixaria o estoque mentindo).
+  for (const item of itens) {
+    const { data: est } = await serviceClient
+      .from('estoque')
+      .select('saldo_atual, produtos(nome)')
+      .eq('produto_id', item.produto_id)
+      .single()
+    const saldo = (est as { saldo_atual: number } | null)?.saldo_atual ?? 0
+    if (saldo < item.quantidade) {
+      const rel = (est as { produtos: { nome: string } | { nome: string }[] | null } | null)?.produtos
+      const nome = (Array.isArray(rel) ? rel[0] : rel)?.nome ?? 'produto'
+      return {
+        error: `Estoque insuficiente de ${nome}: tem ${saldo}, e a venda pede ${item.quantidade}.`,
+      }
+    }
+  }
+
   const { data: vendaRaw, error: errVenda } = await (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     serviceClient.from('pedidos') as any

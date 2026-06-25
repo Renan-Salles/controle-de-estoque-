@@ -1,58 +1,27 @@
-// Rótulos e fluxo de status do pedido. Fonte única para listagem, detalhe e comanda.
-// Apenas leitura/apresentação — não toca na lógica de negócio das actions.
+// Rótulos do pedido/venda. Fonte única para listagem e detalhe.
+// Venda à vista: status só concluída ou cancelada; pagamento sem fiado.
 
 import type { StatusPillTipo } from '@/components/ui-kit/StatusPill'
 
-export type StatusPedido =
-  | 'rascunho'
-  | 'confirmado'
-  | 'em_separacao'
-  | 'saiu_entrega'
-  | 'entregue'
-  | 'parcial'
-  | 'cancelado'
+export type StatusPedido = 'concluida' | 'cancelada'
 
-// Rótulo legível por status do pedido.
 export const ROTULO_STATUS_PEDIDO: Record<string, string> = {
-  rascunho: 'Rascunho',
-  confirmado: 'Confirmado',
-  em_separacao: 'Em separação',
-  saiu_entrega: 'Saiu para entrega',
-  entregue: 'Entregue',
-  parcial: 'Parcial',
-  cancelado: 'Cancelado',
+  concluida: 'Concluída',
+  cancelada: 'Cancelada',
 }
 
-// Mapeia o status do pedido para o tipo aceito pela StatusPill (cor + ponto).
+// Mapeia o status para o tipo aceito pela StatusPill (cor + ponto).
 export const STATUS_PEDIDO_PILL: Record<string, StatusPillTipo> = {
-  rascunho: 'inativo',
-  confirmado: 'aberto',
-  em_separacao: 'parcial',
-  saiu_entrega: 'aberto',
-  entregue: 'ok',
-  parcial: 'parcial',
-  cancelado: 'cancelado',
+  concluida: 'ok',
+  cancelada: 'cancelado',
 }
 
-// Próximo passo do fluxo operacional (confirmado -> separação -> entrega -> entregue).
-const PROXIMO: Record<string, StatusPedido | undefined> = {
-  confirmado: 'em_separacao',
-  em_separacao: 'saiu_entrega',
-  saiu_entrega: 'entregue',
-}
-
-export function proximoStatus(status: string): StatusPedido | undefined {
-  return PROXIMO[status]
-}
-
-// Rótulos das formas de pagamento.
+// Rótulos das formas de pagamento (todas à vista).
 export const ROTULO_PAGAMENTO: Record<string, string> = {
   dinheiro: 'Dinheiro',
   pix: 'Pix',
-  fiado: 'Fiado',
   cartao_debito: 'Cartão débito',
   cartao_credito: 'Cartão crédito',
-  boleto: 'Boleto',
 }
 
 export function rotuloPagamento(forma: string | null | undefined): string {

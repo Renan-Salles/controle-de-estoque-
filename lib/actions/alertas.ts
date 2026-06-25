@@ -19,21 +19,22 @@ export async function gerarAlertas() {
     }, { onConflict: 'tipo,referencia_id' })
   }
 
+  // Contas a pagar vencidas e ainda não quitadas (sem fiado, não há mais a receber).
   const { data: vencidas } = await supabase
-    .from('contas_receber')
-    .select('id, valor, clientes(nome)')
+    .from('contas_pagar')
+    .select('id, descricao, valor')
     .in('status', ['aberto', 'vencido', 'parcial'])
     .lt('data_vencimento', new Date().toISOString().split('T')[0])
     .limit(50)
 
-  for (const cr of vencidas ?? []) {
+  for (const cp of (vencidas ?? []) as { id: string; descricao: string; valor: number | string }[]) {
     await supabase.from('alertas').upsert({
-      tipo: 'inadimplencia',
+      tipo: 'conta_vencida',
       severidade: 'aviso',
-      titulo: `Cobranca pendente: ${(cr.clientes as { nome: string } | null)?.nome}`,
-      mensagem: `Valor: R$ ${Number(cr.valor).toFixed(2)} - vencido`,
-      referencia_tipo: 'conta_receber',
-      referencia_id: cr.id,
+      titulo: `Conta vencida: ${cp.descricao}`,
+      mensagem: `Valor: R$ ${Number(cp.valor).toFixed(2)} - pague para evitar juros`,
+      referencia_tipo: 'conta_pagar',
+      referencia_id: cp.id,
     }, { onConflict: 'tipo,referencia_id' })
   }
 

@@ -39,7 +39,6 @@ const TIPO_LABEL: Record<string, string> = {
 const PGTO_LABEL: Record<string, string> = {
   dinheiro: 'Dinheiro',
   pix: 'Pix',
-  fiado: 'Fiado',
   cartao_debito: 'Cartão débito',
   cartao_credito: 'Cartão crédito',
 }
@@ -116,7 +115,7 @@ export default function ClientesPage() {
           <EstadoVazio
             icone={Store}
             titulo="Nenhum cliente cadastrado"
-            descricao="Cadastre o primeiro cliente para registrar pedidos e fiado."
+            descricao="Cadastre o primeiro cliente para identificar quem compra."
             acao={
               <Link href="/clientes/novo" className={btnClass('primary')}>
                 <Plus className="size-4" strokeWidth={1.5} />
