@@ -1,5 +1,6 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, ArrowDownLeft, ArrowUpRight } from 'lucide-react'
 import { FormSaida } from '@/components/movimentacao/FormSaida'
@@ -29,7 +30,13 @@ const OPCOES: {
 ]
 
 export default function NovaMovimentacaoPage() {
-  const [tipo, setTipo] = useState<Tipo>('saida')
+  const params = useSearchParams()
+  const [tipo, setTipo] = useState<Tipo>(params.get('tipo') === 'entrada' ? 'entrada' : 'saida')
+
+  useEffect(() => {
+    const t = params.get('tipo')
+    if (t === 'entrada' || t === 'saida') setTipo(t)
+  }, [params])
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5">

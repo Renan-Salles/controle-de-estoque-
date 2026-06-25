@@ -129,13 +129,13 @@ export default async function DashboardPage() {
     dourado?: boolean
   }> = [
     {
-      href: '/movimentacoes/nova',
+      href: '/movimentacoes/nova?tipo=saida',
       titulo: 'Nova venda',
       desc: 'Registrar venda à vista',
       icon: ShoppingCart,
     },
     {
-      href: '/movimentacoes/nova',
+      href: '/movimentacoes/nova?tipo=entrada',
       titulo: 'Nova entrada',
       desc: 'Lançar mercadoria recebida',
       icon: PackagePlus,
