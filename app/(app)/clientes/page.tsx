@@ -47,12 +47,14 @@ export default function ClientesPage() {
   const router = useRouter()
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
+  const [erro, setErro] = useState<string | null>(null)
   const [busca, setBusca] = useState('')
 
   useEffect(() => {
     let ativo = true
     buscarClientes()
       .then((d) => ativo && setClientes(d as Cliente[]))
+      .catch((e) => ativo && setErro(String(e)))
       .finally(() => ativo && setLoading(false))
     return () => {
       ativo = false
@@ -102,6 +104,9 @@ export default function ClientesPage() {
         )}
       </div>
 
+      {erro && (
+        <p className="rounded-lg border border-err/30 bg-err/10 px-4 py-3 text-sm text-err">{erro}</p>
+      )}
       {loading ? (
         <SkeletonLinhas colunas={5} linhas={8} />
       ) : filtrados.length === 0 ? (

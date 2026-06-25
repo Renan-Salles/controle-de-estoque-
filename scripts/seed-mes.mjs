@@ -39,10 +39,10 @@ const PRODUTOS = [
   ['Guarana Antarctica Lata 350ml', 'Antarctica', 'Refrigerante', 'fardo', 350, 3.2, 1.9, 48],
   ['Fanta Laranja 2L', 'Fanta', 'Refrigerante', 'unidade', 2000, 7.2, 4.2, 18],
   ['Sprite 2L', 'Sprite', 'Refrigerante', 'unidade', 2000, 7.2, 4.2, 18],
-  // Agua
-  ['Agua Mineral Indaia 500ml', 'Indaia', 'Agua', 'fardo', 500, 2.0, 0.8, 60],
-  ['Agua com Gas 500ml', 'Indaia', 'Agua', 'fardo', 500, 2.5, 1.0, 36],
-  ['Agua Indaia 1,5L', 'Indaia', 'Agua', 'fardo', 1500, 3.5, 1.5, 24],
+  // Água
+  ['Água Mineral Indaiá 500ml', 'Indaiá', 'Água', 'fardo', 500, 2.0, 0.8, 60],
+  ['Água com Gás 500ml', 'Indaiá', 'Água', 'fardo', 500, 2.5, 1.0, 36],
+  ['Água Indaiá 1,5L', 'Indaiá', 'Água', 'fardo', 1500, 3.5, 1.5, 24],
   // Energetico (categoria Outros se nao houver)
   ['Red Bull Energy 250ml', 'Red Bull', 'Outros', 'caixa', 250, 9.9, 5.5, 24],
   ['Monster Energy 473ml', 'Monster', 'Outros', 'caixa', 473, 11.5, 6.2, 18],
@@ -59,24 +59,24 @@ const PRODUTOS = [
 
 // forma_pagamento_padrao agora e so a forma a vista preferida do cliente (sem fiado).
 const CLIENTES = [
-  ['Bar do Tiao', 'bar', '(71) 98821-4455', 'pix'],
+  ['Bar do Tião', 'bar', '(71) 98821-4455', 'pix'],
   ['Mercadinho Santa Rita', 'comercio', '(71) 99634-2018', 'pix'],
-  ["Distribuidora Olho d'Agua", 'revendedor', '(75) 99812-4087', 'cartao_debito'],
+  ["Distribuidora Olho d'Água", 'revendedor', '(75) 99812-4087', 'cartao_debito'],
   ['Boteco da Esquina', 'bar', '(71) 98155-7723', 'dinheiro'],
   ['Adega Central', 'comercio', '(71) 99201-6644', 'dinheiro'],
   ['Bar e Petiscaria do Nego', 'bar', '(71) 98477-1290', 'pix'],
   ['Lanchonete Sabor e Cia', 'comercio', '(71) 99388-5512', 'pix'],
-  ['Conveniencia 24h Parada', 'comercio', '(71) 98712-9931', 'dinheiro'],
-  ['Espetinho do Carlao', 'bar', '(71) 99055-3377', 'cartao_credito'],
-  ['Mercearia Dona Lucia', 'comercio', '(71) 98260-4419', 'pix'],
-  ['Bar do Portugues', 'bar', '(71) 99744-8800', 'cartao_debito'],
+  ['Conveniência 24h Parada', 'comercio', '(71) 98712-9931', 'dinheiro'],
+  ['Espetinho do Carlão', 'bar', '(71) 99055-3377', 'cartao_credito'],
+  ['Mercearia Dona Lúcia', 'comercio', '(71) 98260-4419', 'pix'],
+  ['Bar do Português', 'bar', '(71) 99744-8800', 'cartao_debito'],
   ['Festas e Eventos Premium', 'revendedor', '(71) 98933-1267', 'cartao_credito'],
 ]
 
 const FORNECEDORES = [
   ['Ambev Distribuidora BA', 'Companhia de Bebidas das Americas', '02.808.708/0001-07', 'Cervejas e guarana', 'Marcos Vinicius'],
   ['Coca-Cola FEMSA Bahia', 'Spal Industria Brasileira de Bebidas', '61.186.888/0001-30', 'Refrigerantes', 'Patricia Lemos'],
-  ['Aguas Indaia Nordeste', 'Indaia Brasil Aguas Minerais', '08.911.232/0001-44', 'Agua mineral', 'Joao Andrade'],
+  ['Águas Indaiá Nordeste', 'Indaiá Brasil Águas Minerais', '08.911.232/0001-44', 'Água mineral', 'João Andrade'],
   ['Distribuidora Sertaneja', 'Sertaneja Comercio de Bebidas Ltda', '12.345.678/0001-90', 'Destilados e diversos', 'Cleonice Souza'],
   ['Red Bull do Brasil', 'Red Bull Brasil Ltda', '03.951.467/0001-09', 'Energeticos', 'Rafael Tavares'],
 ]
