@@ -7,6 +7,8 @@ import {
   ShoppingCart,
   CornerDownLeft,
   Loader2,
+  Flame,
+  Plus,
 } from 'lucide-react'
 import { BuscaProduto } from '@/components/pedido/BuscaProduto'
 import {
@@ -15,6 +17,8 @@ import {
 } from '@/components/pedido/BuscaCliente'
 import { ListaItensPedido } from '@/components/pedido/ListaItensPedido'
 import { registrarVenda } from '@/lib/actions/pedidos'
+import { buscarMaisVendidos, type MaisVendido } from '@/lib/actions/produtos'
+import { formatarReal } from '@/lib/formatos'
 import { Money } from '@/components/ui-kit/Money'
 import {
   Select,
@@ -42,6 +46,8 @@ export function FormSaida() {
     useState<FormaPagamentoVenda>('dinheiro')
   const [observacoes, setObservacoes] = useState('')
   const [registrando, setRegistrando] = useState(false)
+  const [maisVendidos, setMaisVendidos] = useState<MaisVendido[]>([])
+  const [carregandoVendidos, setCarregandoVendidos] = useState(true)
 
   const total = useMemo(
     () => itens.reduce((acc, i) => acc + i.total, 0),
@@ -89,6 +95,24 @@ export function FormSaida() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [registrar])
+
+  // Atalho de balcao: carrega os mais vendidos do local na montagem.
+  useEffect(() => {
+    let ativo = true
+    buscarMaisVendidos()
+      .then((lista) => {
+        if (ativo) setMaisVendidos(lista)
+      })
+      .catch(() => {
+        if (ativo) setMaisVendidos([])
+      })
+      .finally(() => {
+        if (ativo) setCarregandoVendidos(false)
+      })
+    return () => {
+      ativo = false
+    }
+  }, [])
 
   const adicionarItem = useCallback(
     (produto: Omit<ItemPedido, 'quantidade' | 'total'>) => {
@@ -153,6 +177,44 @@ export function FormSaida() {
             Cada produto buscado entra na comanda à direita. Repetir um item soma
             a quantidade.
           </p>
+
+          {/* Atalho dos mais vendidos: toque rápido no balcão */}
+          {!carregandoVendidos && maisVendidos.length > 0 && (
+            <div className="mt-1.5 flex flex-col gap-2">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+                <Flame className="size-3.5 text-brand" strokeWidth={1.5} />
+                Mais vendidos
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {maisVendidos.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() =>
+                      adicionarItem({
+                        produto_id: p.id,
+                        nome: p.nome,
+                        categoria: p.categoria,
+                        preco_unitario: p.preco_venda_padrao,
+                        saldo_atual: p.saldo_atual,
+                      })
+                    }
+                    className="u-motion group inline-flex items-center gap-2 rounded-lg border border-border bg-surface py-1.5 pl-2.5 pr-3 text-left hover:border-brand/50 hover:bg-surface-2 active:scale-[0.98]"
+                  >
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-surface-2 text-text-muted group-hover:bg-brand group-hover:text-primary-foreground">
+                      <Plus className="size-3" strokeWidth={2} />
+                    </span>
+                    <span className="max-w-[14rem] truncate text-sm font-medium text-text">
+                      {p.nome}
+                    </span>
+                    <span className="font-mono text-xs tabular-nums text-text-muted">
+                      {formatarReal(p.preco_venda_padrao)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-2">

@@ -65,6 +65,76 @@ export async function buscarPosicaoProdutos(termo?: string) {
   return data ?? []
 }
 
+// Atalho do PDV: top ~8 produtos mais vendidos do local ativo nos ultimos 30 dias.
+// Soma quantidade_pedida dos itens de vendas concluidas, junta produto + saldo.
+export type MaisVendido = {
+  id: string
+  nome: string
+  categoria: string
+  preco_venda_padrao: number
+  saldo_atual: number
+}
+
+export async function buscarMaisVendidos(): Promise<MaisVendido[]> {
+  const localId = await getLocalAtivoId()
+  const supabase = await createClient()
+  const desde = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+
+  const { data, error } = await supabase
+    .from('pedido_itens')
+    .select(
+      'produto_id, quantidade_pedida, pedidos!inner(status, data_pedido, local_id), produtos!inner(id, nome, ativo, preco_venda_padrao, local_id, categorias(nome), estoque(saldo_atual))',
+    )
+    .eq('pedidos.status', 'concluida')
+    .eq('pedidos.local_id', localId)
+    .eq('produtos.local_id', localId)
+    .eq('produtos.ativo', true)
+    .gte('pedidos.data_pedido', desde)
+
+  if (error) throw new Error(error.message)
+
+  type Rel<T> = T | T[] | null
+  type Linha = {
+    produto_id: string
+    quantidade_pedida: number
+    produtos: Rel<{
+      id: string
+      nome: string
+      preco_venda_padrao: number
+      categorias: Rel<{ nome: string }>
+      estoque: Rel<{ saldo_atual: number }>
+    }>
+  }
+  const umaRel = <T,>(rel: Rel<T>): T | null =>
+    !rel ? null : Array.isArray(rel) ? (rel[0] ?? null) : rel
+
+  const acc = new Map<string, { qtde: number; produto: MaisVendido }>()
+  for (const linha of (data ?? []) as unknown as Linha[]) {
+    const prod = umaRel(linha.produtos)
+    if (!prod) continue
+    const atual = acc.get(linha.produto_id)
+    if (atual) {
+      atual.qtde += linha.quantidade_pedida
+    } else {
+      acc.set(linha.produto_id, {
+        qtde: linha.quantidade_pedida,
+        produto: {
+          id: prod.id,
+          nome: prod.nome,
+          categoria: umaRel(prod.categorias)?.nome ?? '',
+          preco_venda_padrao: prod.preco_venda_padrao,
+          saldo_atual: umaRel(prod.estoque)?.saldo_atual ?? 0,
+        },
+      })
+    }
+  }
+
+  return Array.from(acc.values())
+    .sort((a, b) => b.qtde - a.qtde)
+    .slice(0, 8)
+    .map((e) => e.produto)
+}
+
 export async function listarCategorias() {
   const supabase = await createClient()
   const { data } = await supabase.from('categorias').select('id, nome').eq('ativo', true).order('ordem')

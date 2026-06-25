@@ -63,6 +63,136 @@ export async function darEntrada(data: {
   return { success: true }
 }
 
+type TipoAjuste = 'perda' | 'quebra' | 'vencimento' | 'cortesia' | 'acerto'
+
+const TIPOS_AJUSTE: TipoAjuste[] = [
+  'perda',
+  'quebra',
+  'vencimento',
+  'cortesia',
+  'acerto',
+]
+
+const ROTULO_AJUSTE: Record<TipoAjuste, string> = {
+  perda: 'Perda',
+  quebra: 'Quebra',
+  vencimento: 'Vencido',
+  cortesia: 'Cortesia',
+  acerto: 'Acerto de inventário',
+}
+
+// Ajuste de estoque manual: perda/quebra/vencimento/cortesia (saída) ou
+// acerto de inventário (define o saldo correto). Lança a movimentação e
+// atualiza o saldo. Não recalcula custo médio (saída/correção usa o atual).
+export async function ajustarEstoque(data: {
+  produto_id: string
+  tipo: TipoAjuste
+  quantidade: number
+  observacao?: string
+}) {
+  if (!data.produto_id) return { error: 'Produto inválido' }
+  if (!TIPOS_AJUSTE.includes(data.tipo)) return { error: 'Tipo inválido' }
+  if (!Number.isFinite(data.quantidade) || data.quantidade < 0)
+    return { error: 'Quantidade inválida' }
+  if (data.tipo !== 'acerto' && data.quantidade <= 0)
+    return { error: 'Informe quanto saiu' }
+
+  const serviceClient = await createServiceClient()
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: 'Não autenticado' }
+
+  const { data: estoqueAtual } = await serviceClient
+    .from('estoque')
+    .select('saldo_atual, custo_medio')
+    .eq('produto_id', data.produto_id)
+    .single()
+
+  const atual = estoqueAtual as { saldo_atual: number; custo_medio: number } | null
+  const saldoAtual = atual?.saldo_atual ?? 0
+  const custoMedio = atual?.custo_medio ?? 0
+
+  // Acerto: a quantidade é o NOVO saldo absoluto. Demais: quanto SAI.
+  const delta =
+    data.tipo === 'acerto'
+      ? data.quantidade - saldoAtual
+      : -data.quantidade
+
+  if (delta === 0) return { error: 'Sem mudança no saldo' }
+
+  // Saída maior que o disponível não é permitida (não deixa negativo).
+  if (data.tipo !== 'acerto' && saldoAtual + delta < 0)
+    return { error: `Saldo insuficiente (atual: ${saldoAtual})` }
+
+  const novoSaldo = Math.max(0, saldoAtual + delta)
+
+  const tipoMov =
+    data.tipo === 'acerto' ? 'ajuste_inventario' : 'descarte'
+  const obs = data.observacao
+    ? `${ROTULO_AJUSTE[data.tipo]}: ${data.observacao}`
+    : ROTULO_AJUSTE[data.tipo]
+
+  await (serviceClient.from('estoque') as any)
+    .update({
+      saldo_atual: novoSaldo,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('produto_id', data.produto_id)
+
+  await (serviceClient.from('movimentacoes_estoque') as any).insert({
+    produto_id: data.produto_id,
+    tipo: tipoMov,
+    quantidade: delta,
+    custo_unitario: custoMedio,
+    saldo_apos: novoSaldo,
+    usuario_id: user.id,
+    observacao: obs,
+  })
+
+  revalidatePath('/estoque')
+  return { success: true, saldo: novoSaldo }
+}
+
+// Lista de reposição: produtos acabando, com sugestão de quanto comprar.
+// "Acabando" = status alerta/critico/ruptura OU saldo <= max(mínimo, 12).
+// Mesmo sem mínimo configurado, avisa quando saldo <= 12 (piso padrão).
+// Sugestão de compra simples = max(mínimo*2, 24) − saldo (mínimo 0).
+export async function buscarReposicao() {
+  const localId = await getLocalAtivoId()
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('v_posicao_estoque')
+    .select('*')
+    .eq('local_id', localId)
+
+  if (error) throw error
+
+  const PISO = 12
+  const lista = (data ?? []) as any[]
+
+  const acabando = lista
+    .filter((p) => {
+      const status = p.status_estoque as string
+      const limiar = Math.max(p.estoque_minimo ?? 0, PISO)
+      return (
+        status === 'alerta' ||
+        status === 'critico' ||
+        status === 'ruptura' ||
+        (p.saldo_atual ?? 0) <= limiar
+      )
+    })
+    .map((p) => {
+      const alvo = Math.max((p.estoque_minimo ?? 0) * 2, 24)
+      const sugestao = Math.max(0, Math.round(alvo - (p.saldo_atual ?? 0)))
+      return { ...p, sugestao_compra: sugestao }
+    })
+    .sort((a, b) => (a.saldo_atual ?? 0) - (b.saldo_atual ?? 0))
+
+  return acabando
+}
+
 export async function buscarMovimentacoes(produtoId?: string) {
   const localId = await getLocalAtivoId()
   const supabase = await createClient()

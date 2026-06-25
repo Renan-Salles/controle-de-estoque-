@@ -104,6 +104,129 @@ export async function buscarFormasPagamento(periodo: 'mes' | 'tudo' = 'mes') {
   }
 }
 
+// Helper: primeiro dia do mês corrente em ISO date (YYYY-MM-01).
+function inicioMesAtual() {
+  const agora = new Date()
+  return `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-01`
+}
+
+// Resultado do mês (DRE simplificada) do local ativo.
+// receita      = soma de pedidos.total (concluida, mês, local)
+// custoVendas  = soma de |quantidade| * custo_unitario das movimentacoes
+//                'saida_venda' do mês (join produtos!inner.local_id)
+// despesas     = soma de contas_pagar.valor emitidas no mês (local); informamos
+//                também quanto já foi pago (valor_pago).
+// lucroBruto   = receita - custoVendas ; lucroLiquido = lucroBruto - despesas.
+export async function buscarResultadoMes(_periodo: 'mes' = 'mes') {
+  void _periodo
+  const localId = await getLocalAtivoId()
+  const supabase = await createClient()
+  const inicioMes = inicioMesAtual()
+
+  const [
+    { data: pedidosRaw, error: errPedidos },
+    { data: movRaw, error: errMov },
+    { data: pagarRaw, error: errPagar },
+  ] = await Promise.all([
+    supabase
+      .from('pedidos')
+      .select('total')
+      .eq('status', 'concluida')
+      .eq('local_id', localId)
+      .gte('data_pedido', `${inicioMes}T00:00:00`),
+    // movimentacoes_estoque não tem local_id: filtra pelo local do produto.
+    supabase
+      .from('movimentacoes_estoque')
+      .select('quantidade, custo_unitario, produtos!inner(local_id)')
+      .eq('tipo', 'saida_venda')
+      .eq('produtos.local_id', localId)
+      .gte('created_at', `${inicioMes}T00:00:00`),
+    supabase
+      .from('contas_pagar')
+      .select('valor, valor_pago')
+      .eq('local_id', localId)
+      .gte('data_emissao', inicioMes),
+  ])
+
+  if (errPedidos) throw errPedidos
+  if (errMov) throw errMov
+  if (errPagar) throw errPagar
+
+  const pedidos = (pedidosRaw ?? []) as { total: number | string | null }[]
+  const movimentacoes = (movRaw ?? []) as {
+    quantidade: number | string | null
+    custo_unitario: number | string | null
+  }[]
+  const contas = (pagarRaw ?? []) as {
+    valor: number | string | null
+    valor_pago: number | string | null
+  }[]
+
+  // Valores de sum()/agregação chegam STRING via PostgREST: sempre Number().
+  const receita = pedidos.reduce((a, p) => a + Number(p.total ?? 0), 0)
+  const quantidadeVendas = pedidos.length
+  const ticketMedio = quantidadeVendas > 0 ? receita / quantidadeVendas : 0
+
+  const custoVendas = movimentacoes.reduce(
+    (a, m) => a + Math.abs(Number(m.quantidade ?? 0)) * Number(m.custo_unitario ?? 0),
+    0,
+  )
+
+  const despesas = contas.reduce((a, c) => a + Number(c.valor ?? 0), 0)
+  const despesasPagas = contas.reduce((a, c) => a + Number(c.valor_pago ?? 0), 0)
+
+  const lucroBruto = receita - custoVendas
+  const lucroLiquido = lucroBruto - despesas
+
+  const margemBruta = receita > 0 ? lucroBruto / receita : 0
+  const margemLiquida = receita > 0 ? lucroLiquido / receita : 0
+
+  return {
+    receita,
+    custoVendas,
+    despesas,
+    despesasPagas,
+    lucroBruto,
+    lucroLiquido,
+    margemBruta,
+    margemLiquida,
+    quantidadeVendas,
+    ticketMedio,
+  }
+}
+
+// Fechamento de caixa do DIA de hoje, do local: total por forma de pagamento e
+// total geral + contagem de vendas. Espelha buscarFormasPagamento, mas só hoje.
+export async function buscarCaixaDia() {
+  const localId = await getLocalAtivoId()
+  const supabase = await createClient()
+
+  const agora = new Date()
+  const hoje = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`
+
+  const { data, error } = await supabase
+    .from('pedidos')
+    .select('forma_pagamento, total')
+    .eq('status', 'concluida')
+    .eq('local_id', localId)
+    .gte('data_pedido', `${hoje}T00:00:00`)
+    .lte('data_pedido', `${hoje}T23:59:59.999`)
+
+  if (error) throw error
+
+  const rows = (data ?? []) as { forma_pagamento: string; total: number | string | null }[]
+  const formas = ['dinheiro', 'pix', 'cartao_debito', 'cartao_credito'] as const
+  const resumo = formas.map((f) => {
+    const dela = rows.filter((r) => r.forma_pagamento === f)
+    const valor = dela.reduce((a, r) => a + Number(r.total ?? 0), 0)
+    return { forma: f, valor, quantidade: dela.length }
+  })
+  const totalGeral = resumo.reduce((a, r) => a + r.valor, 0)
+  const totalVendas = rows.length
+
+  return { resumo, totalGeral, totalVendas, data: hoje }
+}
+
 export async function buscarResumoFinanceiro() {
   const localId = await getLocalAtivoId()
   const supabase = await createClient()

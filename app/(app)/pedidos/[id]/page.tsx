@@ -1,9 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Printer, User, CalendarDays, CreditCard, StickyNote } from 'lucide-react'
+import { ArrowLeft, Printer, User, CalendarDays, CreditCard, StickyNote, Ban } from 'lucide-react'
 import { PageHeader } from '@/components/ui-kit/PageHeader'
 import { StatusPill } from '@/components/ui-kit/StatusPill'
+import { BotaoCancelar } from '@/components/movimentacao/BotaoCancelar'
 import {
   Tabela,
   TabelaHead,
@@ -77,7 +78,7 @@ export default async function VendaDetailPage({
   const venda = vendaRaw as unknown as VendaComRelacoes
 
   const numeroFmt = `#${String(venda.numero_pedido).padStart(4, '0')}`
-  const cancelada = venda.status === 'cancelado'
+  const cancelada = venda.status === 'cancelada'
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -91,7 +92,7 @@ export default async function VendaDetailPage({
 
       <PageHeader titulo={`Venda ${numeroFmt}`}>
         <StatusPill
-          status={cancelada ? 'cancelado' : 'ok'}
+          status={cancelada ? 'critico' : 'ok'}
           label={cancelada ? 'Cancelada' : 'Concluída'}
         />
         <Link
@@ -101,7 +102,26 @@ export default async function VendaDetailPage({
           <Printer className="size-4" strokeWidth={1.5} />
           Romaneio
         </Link>
+        {!cancelada && (
+          <BotaoCancelar pedidoId={venda.id} numero={numeroFmt} />
+        )}
       </PageHeader>
+
+      {/* Aviso de venda cancelada */}
+      {cancelada && (
+        <div className="mb-5 flex items-start gap-3 rounded-lg border border-err/30 bg-err/10 px-4 py-3">
+          <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-err/15 text-err">
+            <Ban className="size-3.5" strokeWidth={1.5} />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-err">Venda cancelada</p>
+            <p className="mt-0.5 text-sm text-text-muted">
+              Os itens foram devolvidos ao estoque. Esta venda não conta no
+              faturamento.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Dados do cliente / pagamento */}
       <div className="grid grid-cols-1 divide-y divide-border/60 overflow-clip rounded-lg border border-border bg-surface sm:grid-cols-2 sm:divide-y-0 sm:[&>*:nth-child(odd)]:border-r sm:[&>*]:border-border/60 sm:[&>*:nth-child(n+3)]:border-t">

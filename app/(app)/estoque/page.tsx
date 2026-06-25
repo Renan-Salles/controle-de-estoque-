@@ -1,11 +1,31 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
+import Link from 'next/link'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { toast } from 'sonner'
-import { Plus, PackagePlus, Boxes } from 'lucide-react'
-import { buscarPosicaoEstoque, darEntrada } from '@/lib/actions/estoque'
+import {
+  Plus,
+  PackagePlus,
+  Boxes,
+  SlidersHorizontal,
+  ClipboardCheck,
+  ShoppingBasket,
+} from 'lucide-react'
+import {
+  buscarPosicaoEstoque,
+  darEntrada,
+  ajustarEstoque,
+  buscarReposicao,
+} from '@/lib/actions/estoque'
 import type { PosicaoEstoque } from '@/types'
 import { PageHeader } from '@/components/ui-kit/PageHeader'
 import {
@@ -21,6 +41,16 @@ import { EstadoVazio } from '@/components/ui-kit/EstadoVazio'
 import { SkeletonLinhas } from '@/components/ui-kit/SkeletonLinhas'
 import { Money } from '@/components/ui-kit/Money'
 import { formatarNumero } from '@/lib/formatos'
+
+type TipoAjuste = 'perda' | 'quebra' | 'vencimento' | 'cortesia' | 'acerto'
+
+const TIPOS_AJUSTE: Array<{ valor: TipoAjuste; label: string }> = [
+  { valor: 'perda', label: 'Perda' },
+  { valor: 'quebra', label: 'Quebra' },
+  { valor: 'vencimento', label: 'Vencido' },
+  { valor: 'cortesia', label: 'Cortesia' },
+  { valor: 'acerto', label: 'Acerto de inventário' },
+]
 
 type Filtro = 'todos' | 'critico' | 'ruptura'
 
@@ -41,6 +71,15 @@ export default function EstoquePage() {
   const [custo, setCusto] = useState('')
   const [saving, setSaving] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
+  // Ajuste de estoque (perda/quebra/vencido/cortesia/acerto)
+  const [produtoAjuste, setProdutoAjuste] = useState<PosicaoEstoque | null>(null)
+  const [tipoAjuste, setTipoAjuste] = useState<TipoAjuste>('perda')
+  const [qtdAjuste, setQtdAjuste] = useState('')
+  const [obsAjuste, setObsAjuste] = useState('')
+  const [ajustando, setAjustando] = useState(false)
+  const [ajusteOpen, setAjusteOpen] = useState(false)
+  // Contagem de itens acabando (badge no botão de reposição)
+  const [reposicaoCount, setReposicaoCount] = useState<number | null>(null)
 
   async function carregar(f: Filtro = filtro) {
     setLoading(true)
@@ -54,8 +93,18 @@ export default function EstoquePage() {
     setLoading(false)
   }
 
+  async function carregarReposicaoCount() {
+    try {
+      const itens = (await buscarReposicao()) as unknown[]
+      setReposicaoCount(itens.length)
+    } catch {
+      setReposicaoCount(null)
+    }
+  }
+
   useEffect(() => {
     carregar('todos')
+    carregarReposicaoCount()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -112,6 +161,51 @@ export default function EstoquePage() {
       ? produtoSelecionado.saldo_atual + qtdNum
       : null
 
+  function abrirAjuste(p: PosicaoEstoque) {
+    setProdutoAjuste(p)
+    setTipoAjuste('perda')
+    setQtdAjuste('')
+    setObsAjuste('')
+    setAjusteOpen(true)
+  }
+
+  const isAcerto = tipoAjuste === 'acerto'
+  const qtdAjusteNum = Number(qtdAjuste)
+  const ajusteValido =
+    qtdAjuste !== '' &&
+    Number.isFinite(qtdAjusteNum) &&
+    qtdAjusteNum >= 0 &&
+    (isAcerto || qtdAjusteNum > 0)
+
+  // Preview do novo saldo conforme o tipo selecionado.
+  const novoSaldoAjuste =
+    produtoAjuste && ajusteValido
+      ? isAcerto
+        ? qtdAjusteNum
+        : produtoAjuste.saldo_atual - qtdAjusteNum
+      : null
+
+  async function handleAjuste() {
+    if (!produtoAjuste || !ajusteValido) return
+    setAjustando(true)
+    const resultado = await ajustarEstoque({
+      produto_id: produtoAjuste.id,
+      tipo: tipoAjuste,
+      quantidade: qtdAjusteNum,
+      observacao: obsAjuste.trim() || undefined,
+    })
+    setAjustando(false)
+    if (resultado.error) {
+      toast.error(resultado.error)
+      return
+    }
+    toast.success('Ajuste registrado')
+    setAjusteOpen(false)
+    setProdutoAjuste(null)
+    carregar(filtro)
+    carregarReposicaoCount()
+  }
+
   return (
     <div className="px-6 py-5">
       <PageHeader titulo="Estoque" subtitulo="Posição atual por produto e custo médio.">
@@ -128,6 +222,18 @@ export default function EstoquePage() {
             </p>
             <Money valor={resumo.valorTotal} destaque className="text-sm font-semibold" />
           </div>
+          <Link
+            href="/estoque/reposicao"
+            className="u-motion u-press inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-text hover:border-brand/50 hover:text-brand"
+          >
+            <ShoppingBasket className="size-4" strokeWidth={1.5} />
+            Reposição
+            {reposicaoCount != null && reposicaoCount > 0 && (
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-warn/15 px-1.5 font-mono text-[11px] tabular-nums text-warn">
+                {reposicaoCount}
+              </span>
+            )}
+          </Link>
         </div>
       </PageHeader>
 
@@ -205,14 +311,25 @@ export default function EstoquePage() {
                   <StatusPill status={p.status_estoque} />
                 </TabelaCell>
                 <TabelaCell alinhar="direita">
-                  <button
-                    type="button"
-                    onClick={() => abrirEntrada(p)}
-                    className="u-motion u-press inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-surface-2 px-2.5 text-[13px] font-medium text-text hover:border-brand/50 hover:text-brand"
-                  >
-                    <Plus className="size-3.5" strokeWidth={1.5} />
-                    Entrada
-                  </button>
+                  <div className="flex items-center justify-end gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => abrirEntrada(p)}
+                      className="u-motion u-press inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-surface-2 px-2.5 text-[13px] font-medium text-text hover:border-brand/50 hover:text-brand"
+                    >
+                      <Plus className="size-3.5" strokeWidth={1.5} />
+                      Entrada
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => abrirAjuste(p)}
+                      title="Ajustar estoque (perda, quebra, acerto)"
+                      className="u-motion u-press inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-surface-2 px-2.5 text-[13px] font-medium text-text hover:border-warn/50 hover:text-warn"
+                    >
+                      <SlidersHorizontal className="size-3.5" strokeWidth={1.5} />
+                      Ajustar
+                    </button>
+                  </div>
                 </TabelaCell>
               </TabelaRow>
             ))}
@@ -320,6 +437,158 @@ export default function EstoquePage() {
                   <>
                     <PackagePlus className="size-4" strokeWidth={1.5} />
                     Confirmar entrada
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Sheet de ajuste de estoque (perda/quebra/vencido/cortesia/acerto) */}
+      <Sheet
+        open={ajusteOpen}
+        onOpenChange={(open) => {
+          setAjusteOpen(open)
+          if (!open) setProdutoAjuste(null)
+        }}
+      >
+        <SheetContent className="w-full sm:max-w-md">
+          <SheetHeader className="border-b border-border">
+            <SheetTitle>Ajustar estoque</SheetTitle>
+            <p className="text-[13px] text-text-muted">
+              Registre perda, quebra, vencido, cortesia ou um acerto de
+              inventário.
+            </p>
+          </SheetHeader>
+
+          {produtoAjuste && (
+            <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-4">
+              {/* Produto + saldo atual */}
+              <div className="rounded-lg border border-border bg-surface-2 p-3">
+                <p className="text-sm font-medium text-text">
+                  {produtoAjuste.nome}
+                </p>
+                {produtoAjuste.marca && (
+                  <p className="text-[13px] text-text-muted">
+                    {produtoAjuste.marca}
+                  </p>
+                )}
+                <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+                  <span className="text-[11px] uppercase tracking-wider text-text-muted">
+                    Saldo atual
+                  </span>
+                  <span className="font-mono text-sm tabular-nums text-text">
+                    {formatarNumero(produtoAjuste.saldo_atual)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-[11px] font-medium uppercase tracking-wider text-text-muted">
+                  Tipo de ajuste
+                </label>
+                <Select
+                  value={tipoAjuste}
+                  onValueChange={(v) => {
+                    if (v) {
+                      setTipoAjuste(v as TipoAjuste)
+                      setQtdAjuste('')
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIPOS_AJUSTE.map((t) => (
+                      <SelectItem key={t.valor} value={t.valor}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label
+                  htmlFor="qtd-ajuste"
+                  className="text-[11px] font-medium uppercase tracking-wider text-text-muted"
+                >
+                  {isAcerto ? 'Novo saldo correto' : 'Quantidade que saiu'}
+                </label>
+                <Input
+                  id="qtd-ajuste"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={qtdAjuste}
+                  onChange={(e) => setQtdAjuste(e.target.value)}
+                  placeholder={isAcerto ? '120' : '6'}
+                  autoFocus
+                />
+                <p className="text-[13px] text-text-muted">
+                  {isAcerto
+                    ? 'Informe a contagem física real. O saldo será corrigido para esse valor.'
+                    : 'Quantas unidades estão saindo do estoque.'}
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label
+                  htmlFor="obs-ajuste"
+                  className="text-[11px] font-medium uppercase tracking-wider text-text-muted"
+                >
+                  Observação (opcional)
+                </label>
+                <Input
+                  id="obs-ajuste"
+                  value={obsAjuste}
+                  onChange={(e) => setObsAjuste(e.target.value)}
+                  placeholder="Ex.: caixa amassada na descarga"
+                />
+              </div>
+
+              {/* Preview do novo saldo */}
+              {novoSaldoAjuste != null && (
+                <div
+                  className={`u-fade-in flex items-center justify-between rounded-lg border px-3 py-2.5 ${
+                    novoSaldoAjuste < 0
+                      ? 'border-err/30 bg-err/[0.07]'
+                      : 'border-brand/30 bg-brand/[0.07]'
+                  }`}
+                >
+                  <span className="text-[13px] text-text-muted">
+                    {novoSaldoAjuste < 0
+                      ? 'Saldo insuficiente'
+                      : 'Novo saldo'}
+                  </span>
+                  <span
+                    className={`font-mono text-sm font-semibold tabular-nums ${
+                      novoSaldoAjuste < 0 ? 'text-err' : 'text-brand'
+                    }`}
+                  >
+                    {formatarNumero(novoSaldoAjuste)}
+                  </span>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleAjuste}
+                disabled={
+                  ajustando ||
+                  !ajusteValido ||
+                  (novoSaldoAjuste != null && novoSaldoAjuste < 0)
+                }
+                className="u-motion u-press mt-1 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand text-sm font-medium text-white hover:bg-brand-strong disabled:pointer-events-none disabled:opacity-50"
+              >
+                {ajustando ? (
+                  'Salvando...'
+                ) : (
+                  <>
+                    <ClipboardCheck className="size-4" strokeWidth={1.5} />
+                    Registrar ajuste
                   </>
                 )}
               </button>

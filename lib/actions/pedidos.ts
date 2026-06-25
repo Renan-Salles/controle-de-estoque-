@@ -109,6 +109,80 @@ export async function registrarVenda(data: unknown) {
   return { success: true, pedidoId: venda.id, numeroPedido: venda.numero_pedido }
 }
 
+// Cancela/estorna uma venda concluida: devolve os itens ao estoque, registra
+// movimentacao de devolucao por item e marca o pedido como 'cancelada'.
+export async function cancelarVenda(pedidoId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Nao autenticado' }
+
+  const serviceClient = await createServiceClient()
+
+  const { data: pedidoRaw, error: errPedido } = await serviceClient
+    .from('pedidos')
+    .select('id, status')
+    .eq('id', pedidoId)
+    .single()
+
+  const pedido = pedidoRaw as { id: string; status: string } | null
+  if (errPedido || !pedido) return { error: errPedido?.message ?? 'Venda nao encontrada' }
+  if (pedido.status === 'cancelada') return { error: 'Venda já cancelada' }
+  if (pedido.status !== 'concluida') return { error: 'Só é possível cancelar vendas concluídas' }
+
+  const { data: itensRaw, error: errItens } = await serviceClient
+    .from('pedido_itens')
+    .select('produto_id, quantidade_pedida')
+    .eq('pedido_id', pedidoId)
+  if (errItens) return { error: errItens.message }
+
+  const itens = (itensRaw ?? []) as { produto_id: string; quantidade_pedida: number }[]
+
+  for (const item of itens) {
+    const { data: estoqueAtual } = await serviceClient
+      .from('estoque')
+      .select('saldo_atual, custo_medio')
+      .eq('produto_id', item.produto_id)
+      .single()
+
+    const saldoAtual = (estoqueAtual as { saldo_atual: number } | null)?.saldo_atual ?? 0
+    const custoMedio = (estoqueAtual as { custo_medio: number } | null)?.custo_medio ?? 0
+    const novoSaldo = saldoAtual + item.quantidade_pedida
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (serviceClient.from('estoque') as any).update({
+      saldo_atual: novoSaldo,
+      updated_at: new Date().toISOString(),
+    }).eq('produto_id', item.produto_id)
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (serviceClient.from('movimentacoes_estoque') as any).insert({
+      produto_id: item.produto_id,
+      tipo: 'devolucao_cliente',
+      quantidade: item.quantidade_pedida,
+      custo_unitario: custoMedio,
+      saldo_apos: novoSaldo,
+      referencia_tipo: 'pedido',
+      referencia_id: pedidoId,
+      usuario_id: user.id,
+      observacao: 'Cancelamento da venda',
+    })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: errStatus } = await (serviceClient.from('pedidos') as any)
+    .update({ status: 'cancelada', updated_at: new Date().toISOString() })
+    .eq('id', pedidoId)
+  if (errStatus) return { error: errStatus.message }
+
+  revalidatePath('/movimentacoes')
+  revalidatePath('/estoque')
+  revalidatePath('/dashboard')
+  revalidatePath('/financeiro')
+  revalidatePath(`/pedidos/${pedidoId}`)
+
+  return { success: true }
+}
+
 export async function listarVendas() {
   const localId = await getLocalAtivoId()
   const supabase = await createClient()

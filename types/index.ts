@@ -20,6 +20,10 @@ export interface PosicaoEstoque {
   preco_venda_padrao: number
 }
 
+export interface ItemReposicao extends PosicaoEstoque {
+  sugestao_compra: number
+}
+
 export interface ItemPedido {
   produto_id: string
   nome: string
