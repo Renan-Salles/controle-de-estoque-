@@ -24,6 +24,12 @@ const display = Space_Grotesk({
 export const metadata: Metadata = {
   title: 'Gestão de Bebidas',
   description: 'Controle de estoque e gestão financeira de depósito de bebidas',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    title: 'R$ DEPÓSITO',
+    statusBarStyle: 'default',
+  },
 }
 
 export const viewport: Viewport = {

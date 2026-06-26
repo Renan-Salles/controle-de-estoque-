@@ -49,14 +49,16 @@ export function ProdutoForm({
   modo,
   produtoId,
   inicial,
+  categoriasIniciais,
 }: {
   modo: 'novo' | 'editar'
   produtoId?: string
   inicial?: Partial<ProdutoFormValores>
+  categoriasIniciais?: { id: string; nome: string }[]
 }) {
   const router = useRouter()
   const [categorias, setCategorias] = useState<{ id: string; nome: string }[]>(
-    [],
+    categoriasIniciais ?? [],
   )
   const [form, setForm] = useState<ProdutoFormValores>({
     ...VAZIO,
@@ -66,6 +68,7 @@ export function ProdutoForm({
   const [salvando, setSalvando] = useState(false)
 
   useEffect(() => {
+    if (categoriasIniciais && categoriasIniciais.length > 0) return
     listarCategorias().then(setCategorias)
   }, [])
 
@@ -146,7 +149,9 @@ export function ProdutoForm({
               onValueChange={(v) => set('categoria_id', v)}
             >
               <SelectTrigger className="w-full" aria-invalid={!!erros.categoria_id}>
-                <SelectValue placeholder="Selecione a categoria" />
+                <SelectValue placeholder="Selecione a categoria">
+                  {categorias.find((c) => c.id === form.categoria_id)?.nome ?? 'Selecione a categoria'}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {categorias.map((c) => (

@@ -40,6 +40,7 @@ import { StatusPill } from '@/components/ui-kit/StatusPill'
 import { EstadoVazio } from '@/components/ui-kit/EstadoVazio'
 import { SkeletonLinhas } from '@/components/ui-kit/SkeletonLinhas'
 import { Money } from '@/components/ui-kit/Money'
+import { CardLinha } from '@/components/ui-kit/CardLinha'
 import { formatarNumero } from '@/lib/formatos'
 
 type TipoAjuste = 'perda' | 'quebra' | 'vencimento' | 'cortesia' | 'acerto'
@@ -83,14 +84,20 @@ export default function EstoquePage() {
 
   async function carregar(f: Filtro = filtro) {
     setLoading(true)
-    const [dados, todos] = await Promise.all([
-      buscarPosicaoEstoque(f),
-      f === 'todos' ? Promise.resolve(null) : buscarPosicaoEstoque('todos'),
-    ])
-    const lista = dados as PosicaoEstoque[]
-    setEstoque(lista)
-    setCompleto((todos as PosicaoEstoque[] | null) ?? lista)
-    setLoading(false)
+    try {
+      const [dados, todos] = await Promise.all([
+        buscarPosicaoEstoque(f),
+        f === 'todos' ? Promise.resolve(null) : buscarPosicaoEstoque('todos'),
+      ])
+      const lista = dados as PosicaoEstoque[]
+      setEstoque(lista)
+      setCompleto((todos as PosicaoEstoque[] | null) ?? lista)
+    } catch (e) {
+      console.error('Erro ao carregar estoque:', e)
+      toast.error('Erro ao carregar estoque')
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function carregarReposicaoCount() {
@@ -103,6 +110,7 @@ export default function EstoquePage() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     carregar('todos')
     carregarReposicaoCount()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -272,6 +280,8 @@ export default function EstoquePage() {
           }
         />
       ) : (
+        <>
+        <div className="hidden lg:block">
         <Tabela>
           <TabelaHead>
             <tr>
@@ -335,6 +345,45 @@ export default function EstoquePage() {
             ))}
           </TabelaBody>
         </Tabela>
+        </div>
+
+        {/* Mobile: cards */}
+        <div className="space-y-2 lg:hidden">
+          {estoque.map((p) => (
+            <CardLinha
+              key={p.id}
+              titulo={p.nome}
+              destaque={<StatusPill status={p.status_estoque} />}
+              campos={[
+                { label: 'Saldo', valor: formatarNumero(p.saldo_atual) },
+                { label: 'Mínimo', valor: formatarNumero(p.estoque_minimo) },
+                { label: 'Custo médio', valor: <Money valor={p.custo_medio} /> },
+                { label: 'Valor total', valor: <Money valor={p.valor_total} /> },
+              ]}
+              acoes={
+                <>
+                  <button
+                    type="button"
+                    onClick={() => abrirEntrada(p)}
+                    className="u-motion u-press inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md border border-border bg-surface-2 text-[13px] font-medium text-text"
+                  >
+                    <Plus className="size-3.5" strokeWidth={1.5} />
+                    Entrada
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => abrirAjuste(p)}
+                    className="u-motion u-press inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md border border-border bg-surface-2 text-[13px] font-medium text-text"
+                  >
+                    <SlidersHorizontal className="size-3.5" strokeWidth={1.5} />
+                    Ajustar
+                  </button>
+                </>
+              }
+            />
+          ))}
+        </div>
+        </>
       )}
 
       {/* Sheet único de entrada (refinado) */}

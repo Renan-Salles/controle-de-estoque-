@@ -60,8 +60,8 @@ export function RomaneioView({ pedido }: Props) {
 
   return (
     <div
-      className="romaneio mx-auto max-w-[210mm] bg-white p-10 text-black"
-      style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '12px' }}
+      className="romaneio mx-auto max-w-[210mm] bg-white text-black"
+      style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '12px', padding: '14mm 16mm' }}
     >
       {/* Cabeçalho */}
       <div
@@ -73,6 +73,9 @@ export function RomaneioView({ pedido }: Props) {
             {pedido.locais?.nome ?? 'R$ DEPÓSITO'}
           </p>
           <p style={{ color: cinza, marginTop: '2px' }}>
+            CNPJ: 26.139.271/0001-16
+          </p>
+          <p style={{ color: cinza, marginTop: '1px' }}>
             Comprovante de venda
           </p>
         </div>
@@ -204,19 +207,6 @@ export function RomaneioView({ pedido }: Props) {
         </div>
       </div>
 
-      {/* Assinaturas */}
-      <div className="mt-10 flex justify-between" style={{ gap: '8mm' }}>
-        <div className="w-5/12 text-center">
-          <div style={{ borderTop: '1px solid #111', paddingTop: '6px', marginTop: '24px', color: cinza }}>
-            Assinatura do entregador
-          </div>
-        </div>
-        <div className="w-5/12 text-center">
-          <div style={{ borderTop: '1px solid #111', paddingTop: '6px', marginTop: '24px', color: cinza }}>
-            Assinatura do cliente
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

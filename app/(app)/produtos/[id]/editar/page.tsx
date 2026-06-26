@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { PageHeader } from '@/components/ui-kit/PageHeader'
-import { buscarProdutoPorId } from '@/lib/actions/produtos'
+import { buscarProdutoPorId, listarCategorias } from '@/lib/actions/produtos'
 import { ProdutoForm } from '../../ProdutoForm'
 
 export default async function EditarProdutoPage({
@@ -9,7 +9,10 @@ export default async function EditarProdutoPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const produto = await buscarProdutoPorId(id)
+  const [produto, categorias] = await Promise.all([
+    buscarProdutoPorId(id),
+    listarCategorias(),
+  ])
   if (!produto) notFound()
 
   return (
@@ -21,6 +24,7 @@ export default async function EditarProdutoPage({
       <ProdutoForm
         modo="editar"
         produtoId={produto.id}
+        categoriasIniciais={categorias as { id: string; nome: string }[]}
         inicial={{
           nome: produto.nome,
           marca: produto.marca ?? '',

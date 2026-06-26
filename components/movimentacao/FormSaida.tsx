@@ -1,6 +1,5 @@
 'use client'
-import { useState, useCallback, useEffect, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useCallback, useEffect, useMemo, useTransition, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   ReceiptText,
@@ -9,6 +8,11 @@ import {
   Loader2,
   Flame,
   Plus,
+  CheckCircle2,
+  Printer,
+  Download,
+  RefreshCw,
+  X,
 } from 'lucide-react'
 import { BuscaProduto } from '@/components/pedido/BuscaProduto'
 import {
@@ -16,7 +20,7 @@ import {
   type ClienteResumo,
 } from '@/components/pedido/BuscaCliente'
 import { ListaItensPedido } from '@/components/pedido/ListaItensPedido'
-import { registrarVenda } from '@/lib/actions/pedidos'
+import { registrarVenda, buscarPedidoParaCupom } from '@/lib/actions/pedidos'
 import { buscarMaisVendidos, type MaisVendido } from '@/lib/actions/produtos'
 import { formatarReal } from '@/lib/formatos'
 import { Money } from '@/components/ui-kit/Money'
@@ -28,6 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { CupomFiscal, type CupomData } from '@/components/romaneio/CupomFiscal'
 import type { ItemPedido } from '@/types'
 
 type FormaPagamentoVenda =
@@ -39,7 +44,6 @@ type FormaPagamentoVenda =
 // SAIDA (venda a vista). Reusa BuscaCliente/BuscaProduto/ListaItensPedido.
 // Cliente OPCIONAL (venda de balcao). Sem fiado, sem prazo, sem ciclo de entrega.
 export function FormSaida() {
-  const router = useRouter()
   const [cliente, setCliente] = useState<ClienteResumo | null>(null)
   const [itens, setItens] = useState<ItemPedido[]>([])
   const [formaPagamento, setFormaPagamento] =
@@ -48,6 +52,11 @@ export function FormSaida() {
   const [registrando, setRegistrando] = useState(false)
   const [maisVendidos, setMaisVendidos] = useState<MaisVendido[]>([])
   const [carregandoVendidos, setCarregandoVendidos] = useState(true)
+  const [vendaRegistrada, setVendaRegistrada] = useState<{ pedidoId: string; numero: number } | null>(null)
+  const [cupomData, setCupomData] = useState<CupomData | null>(null)
+  const [mostrarCupom, setMostrarCupom] = useState(false)
+  const [, startCupomTransition] = useTransition()
+  const cupomRef = useRef<HTMLDivElement>(null)
 
   const total = useMemo(
     () => itens.reduce((acc, i) => acc + i.total, 0),
@@ -81,9 +90,17 @@ export function FormSaida() {
       toast.error(resultado.error)
       return
     }
-    toast.success(`Venda #${resultado.numeroPedido} registrada`)
-    router.push(`/pedidos/${resultado.pedidoId}/romaneio`)
-  }, [cliente, itens, formaPagamento, observacoes, router])
+    const pedidoId = resultado.pedidoId!
+    const numeroPedido = resultado.numeroPedido!
+    setVendaRegistrada({ pedidoId, numero: numeroPedido })
+    startCupomTransition(async () => {
+      const data = await buscarPedidoParaCupom(pedidoId)
+      if (data) {
+        setCupomData(data as unknown as CupomData)
+        setMostrarCupom(true)
+      }
+    })
+  }, [cliente, itens, formaPagamento, observacoes])
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -153,6 +170,138 @@ export function FormSaida() {
   }, [])
 
   const podeRegistrar = itens.length > 0 && !registrando
+
+  function novaVenda() {
+    setVendaRegistrada(null)
+    setCupomData(null)
+    setMostrarCupom(false)
+    setCliente(null)
+    setItens([])
+    setFormaPagamento('dinheiro')
+    setObservacoes('')
+  }
+
+  function imprimirCupom() {
+    window.print()
+  }
+
+  function baixarPdf() {
+    if (!vendaRegistrada) return
+    const original = document.title
+    document.title = `Cupom-${String(vendaRegistrada.numero).padStart(4, '0')}`
+    window.print()
+    setTimeout(() => { document.title = original }, 1000)
+  }
+
+  if (vendaRegistrada) {
+    return (
+      <>
+        {/* CSS injetado apenas quando o cupom existe */}
+        {mostrarCupom && (
+          <style>{`
+            @page { size: 80mm auto; margin: 0 !important; }
+            @media print {
+              body * { visibility: hidden !important; }
+              .cupom-print-area,
+              .cupom-print-area * { visibility: visible !important; }
+              .cupom-print-area {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 80mm !important;
+                background: white !important;
+              }
+            }
+          `}</style>
+        )}
+
+        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 py-8">
+          {/* Header de sucesso */}
+          <div className="flex flex-col items-center gap-3 text-center">
+            <div className="flex size-14 items-center justify-center rounded-full bg-ok/10">
+              <CheckCircle2 className="size-7 text-ok" strokeWidth={1.5} />
+            </div>
+            <div>
+              <p className="text-xl font-bold text-text">
+                Venda #{String(vendaRegistrada.numero).padStart(4, '0')} registrada!
+              </p>
+              <p className="mt-1 text-sm text-text-muted">
+                {cliente ? `Cliente: ${cliente.nome}` : 'Venda de balcão'}
+              </p>
+            </div>
+          </div>
+
+          {/* Cupom fiscal inline */}
+          {mostrarCupom && cupomData ? (
+            <div className="w-full max-w-xs">
+              {/* Barra de ações do cupom */}
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+                  Cupom fiscal
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setMostrarCupom(false)}
+                  className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-text-muted hover:bg-surface-2 hover:text-text"
+                >
+                  <X className="size-3" strokeWidth={1.5} />
+                  Fechar
+                </button>
+              </div>
+
+              {/* Área do cupom com fundo papel */}
+              <div
+                ref={cupomRef}
+                className="cupom-print-area rounded-lg border border-border shadow-sm"
+                style={{ background: '#fafaf9' }}
+              >
+                <CupomFiscal data={cupomData} />
+              </div>
+
+              {/* Botões de impressão */}
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={imprimirCupom}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-brand-strong"
+                >
+                  <Printer className="size-4" strokeWidth={1.5} />
+                  Imprimir
+                </button>
+                <button
+                  type="button"
+                  onClick={baixarPdf}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-3 text-sm font-semibold text-text hover:bg-surface-2"
+                >
+                  <Download className="size-4" strokeWidth={1.5} />
+                  Baixar PDF
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setMostrarCupom(true)}
+              disabled={!cupomData}
+              className="flex items-center gap-2 rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-brand-strong disabled:opacity-50"
+            >
+              <Printer className="size-4" strokeWidth={1.5} />
+              {cupomData ? 'Ver cupom' : 'Carregando cupom...'}
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={novaVenda}
+            className="flex items-center gap-2 rounded-xl border border-border bg-surface px-6 py-3 text-sm font-semibold text-text hover:bg-surface-2"
+          >
+            <RefreshCw className="size-4" strokeWidth={1.5} />
+            Nova venda
+          </button>
+        </div>
+      </>
+    )
+  }
 
   return (
     <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-[1fr_400px]">

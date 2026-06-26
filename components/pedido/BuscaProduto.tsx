@@ -49,6 +49,16 @@ export function BuscaProduto({ onAdicionar }: Props) {
   const [produtos, setProdutos] = useState<ProdutoBusca[]>([])
   const [pendente, startTransition] = useTransition()
 
+  function abrirPopover(v: boolean) {
+    setOpen(v)
+    if (v && produtos.length === 0) {
+      startTransition(async () => {
+        const resultado = await buscarProdutos('')
+        setProdutos(resultado as unknown as ProdutoBusca[])
+      })
+    }
+  }
+
   function pesquisar(valor: string) {
     setTermo(valor)
     startTransition(async () => {
@@ -66,12 +76,15 @@ export function BuscaProduto({ onAdicionar }: Props) {
       saldo_atual: saldoDe(produto),
     })
     setTermo('')
-    setProdutos([])
-    // mantém aberto para o operador continuar lançando itens em sequência
+    // Recarrega a lista para o operador continuar lançando itens em sequência
+    startTransition(async () => {
+      const resultado = await buscarProdutos('')
+      setProdutos(resultado as unknown as ProdutoBusca[])
+    })
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={abrirPopover}>
       <PopoverTrigger
         className="u-motion u-press-sm group flex w-full items-center gap-3 rounded-xl border border-border bg-surface px-4 py-4 text-left hover:border-brand/50 hover:bg-surface-2 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none aria-expanded:border-brand/60"
       >
@@ -104,10 +117,10 @@ export function BuscaProduto({ onAdicionar }: Props) {
           <CommandList className="max-h-80">
             <CommandEmpty>
               {pendente
-                ? 'Buscando...'
+                ? 'Carregando...'
                 : termo
                   ? 'Nenhum produto encontrado'
-                  : 'Digite para buscar produtos'}
+                  : 'Nenhum produto cadastrado'}
             </CommandEmpty>
             {produtos.map((p) => {
               const saldo = saldoDe(p)

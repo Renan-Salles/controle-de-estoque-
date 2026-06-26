@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 
 export type Local = { id: string; nome: string; slug: string }
 
@@ -7,7 +7,7 @@ const COOKIE_LOCAL = 'local_ativo'
 const SLUG_PADRAO = 'deposito'
 
 export async function listarLocais(): Promise<Local[]> {
-  const supabase = await createClient()
+  const supabase = await createServiceClient()
   const { data } = await supabase
     .from('locais')
     .select('id, nome, slug')

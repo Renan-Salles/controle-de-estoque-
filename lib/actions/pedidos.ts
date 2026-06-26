@@ -127,6 +127,21 @@ export async function registrarVenda(data: unknown) {
   return { success: true, pedidoId: venda.id, numeroPedido: venda.numero_pedido }
 }
 
+export async function buscarPedidoParaCupom(id: string) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('pedidos')
+    .select(`
+      numero_pedido, data_pedido, total, forma_pagamento, prazo_pagamento_dias, observacoes,
+      locais(nome),
+      clientes(nome, telefone, endereco),
+      pedido_itens(quantidade_pedida, preco_unitario, total, produtos(nome, embalagem))
+    `)
+    .eq('id', id)
+    .single()
+  return data
+}
+
 // Cancela/estorna uma venda concluida: devolve os itens ao estoque, registra
 // movimentacao de devolucao por item e marca o pedido como 'cancelada'.
 export async function cancelarVenda(pedidoId: string) {

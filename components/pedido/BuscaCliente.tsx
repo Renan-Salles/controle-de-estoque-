@@ -35,6 +35,16 @@ export function BuscaCliente({ selecionado, onSelecionar }: Props) {
   const [clientes, setClientes] = useState<ClienteResumo[]>([])
   const [pendente, startTransition] = useTransition()
 
+  function abrirPopover(v: boolean) {
+    setOpen(v)
+    if (v && clientes.length === 0) {
+      startTransition(async () => {
+        const resultado = await buscarClientes('')
+        setClientes(resultado as unknown as ClienteResumo[])
+      })
+    }
+  }
+
   function pesquisar(valor: string) {
     setTermo(valor)
     startTransition(async () => {
@@ -77,7 +87,7 @@ export function BuscaCliente({ selecionado, onSelecionar }: Props) {
   )
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={abrirPopover}>
       <PopoverTrigger
         className="u-motion u-press-sm group flex w-full items-center gap-3 rounded-lg border border-border bg-surface px-3.5 py-3 text-left hover:border-brand/50 hover:bg-surface-2 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none aria-expanded:border-brand/60"
       >
@@ -123,10 +133,10 @@ export function BuscaCliente({ selecionado, onSelecionar }: Props) {
           <CommandList>
             <CommandEmpty>
               {pendente
-                ? 'Buscando...'
+                ? 'Carregando...'
                 : termo
                   ? 'Nenhum cliente encontrado'
-                  : 'Digite para buscar'}
+                  : 'Nenhum cliente cadastrado'}
             </CommandEmpty>
             {clientes.map((c) => (
               <CommandItem

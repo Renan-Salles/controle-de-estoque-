@@ -18,6 +18,8 @@ const produtosFix = [
   ["Agua Mineral Indaia 500ml", "Água Mineral Indaiá 500ml"],
   ["Agua com Gas 500ml",        "Água com Gás 500ml"],
   ["Agua Indaia 1,5L",          "Água Indaiá 1,5L"],
+  ["Cachaca 51 965ml",          "Cachaça 51 965ml"],
+  ["Carvao Vegetal 3kg",        "Carvão Vegetal 3kg"],
 ]
 
 const fornecedoresFix = [

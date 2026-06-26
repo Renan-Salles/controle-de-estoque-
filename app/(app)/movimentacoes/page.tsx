@@ -10,6 +10,7 @@ import {
   TabelaCell,
 } from '@/components/ui-kit/tabela'
 import { StatusPill } from '@/components/ui-kit/StatusPill'
+import { CardLinha } from '@/components/ui-kit/CardLinha'
 import { EstadoVazio } from '@/components/ui-kit/EstadoVazio'
 import { Money } from '@/components/ui-kit/Money'
 import { listarMovimentacoes } from '@/lib/actions/movimentacoes'
@@ -183,6 +184,8 @@ export default async function MovimentacoesPage({
           }
         />
       ) : (
+        <>
+        <div className="hidden lg:block">
         <Tabela>
           <TabelaHead>
             <tr>
@@ -274,6 +277,45 @@ export default async function MovimentacoesPage({
             })}
           </TabelaBody>
         </Tabela>
+        </div>
+
+        {/* Mobile: cards */}
+        <div className="space-y-2 lg:hidden">
+          {linhas.map((l) => {
+            const saida = l.tipo === 'saida'
+            return (
+              <CardLinha
+                key={l.chave}
+                href={l.href ?? undefined}
+                titulo={
+                  <span className="flex items-center gap-2">
+                    {l.descricao}
+                    {l.numero && (
+                      <span className="font-mono text-xs font-normal text-text-muted">
+                        {l.numero}
+                      </span>
+                    )}
+                  </span>
+                }
+                destaque={<Money valor={l.valor} destaque={saida} />}
+                campos={[
+                  {
+                    label: 'Tipo',
+                    valor: (
+                      <StatusPill
+                        status={saida ? 'critico' : 'ok'}
+                        label={saida ? 'Saída' : 'Entrada'}
+                      />
+                    ),
+                  },
+                  { label: 'Data/hora', valor: dataHora(l.data) },
+                  { label: 'Detalhe', valor: l.detalhe },
+                ]}
+              />
+            )
+          })}
+        </div>
+        </>
       )}
     </div>
   )

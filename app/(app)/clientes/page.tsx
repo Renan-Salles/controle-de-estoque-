@@ -13,6 +13,7 @@ import {
   TabelaCell,
 } from '@/components/ui-kit/tabela'
 import { StatusPill } from '@/components/ui-kit/StatusPill'
+import { CardLinha } from '@/components/ui-kit/CardLinha'
 import { EstadoVazio } from '@/components/ui-kit/EstadoVazio'
 import { SkeletonLinhas } from '@/components/ui-kit/SkeletonLinhas'
 import { btnClass } from '@/components/ui-kit/Button'
@@ -130,6 +131,8 @@ export default function ClientesPage() {
           />
         )
       ) : (
+        <>
+        <div className="hidden lg:block">
         <Tabela>
           <TabelaHead>
             <tr>
@@ -173,6 +176,35 @@ export default function ClientesPage() {
             ))}
           </TabelaBody>
         </Tabela>
+        </div>
+
+        {/* Mobile: cards */}
+        <div className="space-y-2 lg:hidden">
+          {filtrados.map((c) => (
+            <CardLinha
+              key={c.id}
+              href={`/clientes/${c.id}`}
+              titulo={c.nome}
+              destaque={
+                <StatusPill status={c.status === 'ativo' ? 'ativo' : 'inativo'} />
+              }
+              campos={[
+                { label: 'Tipo', valor: TIPO_LABEL[c.tipo] ?? c.tipo },
+                { label: 'Telefone', valor: c.telefone ?? '-' },
+                {
+                  label: 'Pagamento',
+                  valor: (
+                    <span>
+                      {PGTO_LABEL[c.forma_pagamento_padrao] ?? c.forma_pagamento_padrao}
+                      {c.prazo_pagamento_dias > 0 ? ` ${c.prazo_pagamento_dias}d` : ''}
+                    </span>
+                  ),
+                },
+              ]}
+            />
+          ))}
+        </div>
+        </>
       )}
     </div>
   )

@@ -4,19 +4,18 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
-// Navegação fina do módulo financeiro (segmented control).
-// A sidebar global não pode ser alterada, então a navegação entre as três
-// telas vive como tabs no topo de cada página financeira. A tab ativa é
-// determinada pelo pathname atual.
+// Navegação entre os relatórios de vendas (período/produto/cliente) + o
+// relatório de faturamento mensal & Curva ABC, que vive no módulo financeiro.
+// A tab ativa é determinada pelo pathname.
 
 const TABS = [
-  { href: '/financeiro/formas-pagamento', label: 'Formas de pagamento' },
-  { href: '/financeiro/a-pagar', label: 'A pagar' },
-  { href: '/financeiro/resultado', label: 'Resultado' },
+  { href: '/relatorios', label: 'Por período' },
+  { href: '/relatorios/produto', label: 'Por produto' },
+  { href: '/relatorios/cliente', label: 'Por cliente' },
   { href: '/financeiro/relatorios', label: 'Faturamento & ABC' },
 ] as const
 
-export function FinanceiroTabs() {
+export function RelatoriosTabs() {
   const pathname = usePathname()
 
   return (

@@ -33,5 +33,11 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/alertas).*)'],
+  // Exclui assets públicos do gate de auth: estáticos do Next, favicon, o
+  // manifest do PWA e arquivos de imagem (ícones do app). Rotas com dados
+  // sensíveis (ex.: /relatorios/.../pdf) NÃO casam com extensão de imagem e
+  // seguem protegidas.
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|api/alertas|.*\\.(?:png|svg|jpg|jpeg|gif|webp|ico)$).*)',
+  ],
 }

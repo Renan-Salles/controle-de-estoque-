@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Permite o acesso via 127.0.0.1 em dev (QA headless) sem aviso de cross-origin.
+  allowedDevOrigins: ['127.0.0.1'],
 };
 
 export default nextConfig;

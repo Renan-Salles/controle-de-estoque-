@@ -14,6 +14,7 @@ import {
 } from '@/components/ui-kit/tabela'
 import { StatusPill } from '@/components/ui-kit/StatusPill'
 import { Money } from '@/components/ui-kit/Money'
+import { CardLinha } from '@/components/ui-kit/CardLinha'
 import { EstadoVazio } from '@/components/ui-kit/EstadoVazio'
 import { SkeletonLinhas } from '@/components/ui-kit/SkeletonLinhas'
 import { btnClass } from '@/components/ui-kit/Button'
@@ -105,6 +106,8 @@ export default function ProdutosPage() {
           />
         )
       ) : (
+        <>
+        <div className="hidden lg:block">
         <Tabela>
           <TabelaHead>
             <tr>
@@ -152,6 +155,43 @@ export default function ProdutosPage() {
             ))}
           </TabelaBody>
         </Tabela>
+        </div>
+
+        {/* Mobile: cards */}
+        <div className="space-y-2 lg:hidden">
+          {filtrados.map((p) => (
+            <CardLinha
+              key={p.id}
+              href={`/produtos/${p.id}/editar`}
+              titulo={
+                <span>
+                  {p.nome}
+                  {p.marca && (
+                    <span className="block text-xs font-normal text-text-muted">
+                      {p.marca}
+                    </span>
+                  )}
+                </span>
+              }
+              destaque={<StatusPill status={p.status_estoque} />}
+              campos={[
+                { label: 'Categoria', valor: p.categoria },
+                {
+                  label: 'Embalagem',
+                  valor: (
+                    <span className="capitalize">
+                      {p.embalagem}
+                      {p.volume_ml ? ` ${p.volume_ml}ml` : ''}
+                    </span>
+                  ),
+                },
+                { label: 'Estoque', valor: formatarNumero(p.saldo_atual) },
+                { label: 'Preço', valor: <Money valor={p.preco_venda_padrao} /> },
+              ]}
+            />
+          ))}
+        </div>
+        </>
       )}
     </div>
   )
