@@ -26,50 +26,54 @@ import { itemVisivel } from '@/lib/nav-catalogo'
 export type Item = { href: string; label: string; icon: LucideIcon }
 export type Grupo = { titulo: string; icone: LucideIcon; itens: Item[] }
 
-// Itens soltos no topo (sem grupo colapsável).
-export const ITENS_TOPO: Item[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+// Um bloco da navegação é um item solto (link direto) ou um grupo colapsável.
+// Financeiro é item solto: abre o Resultado e as abas internas cuidam do resto
+// (evita 4 sub-botões na esquerda + abas repetidas em cima).
+export type Bloco = { tipo: 'item'; item: Item } | { tipo: 'grupo'; grupo: Grupo }
+
+const ITEM_DASHBOARD: Item = { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }
+const ITEM_FINANCEIRO: Item = { href: '/financeiro/resultado', label: 'Financeiro', icon: DollarSign }
+
+const GRUPO_VENDAS: Grupo = {
+  titulo: 'Vendas',
+  icone: ShoppingCart,
+  itens: [
+    { href: '/movimentacoes', label: 'Movimentações', icon: ArrowRightLeft },
+    { href: '/clientes', label: 'Clientes', icon: Users },
+  ],
+}
+
+const GRUPO_ESTOQUE: Grupo = {
+  titulo: 'Estoque',
+  icone: Boxes,
+  itens: [
+    { href: '/estoque', label: 'Posição', icon: Boxes },
+    { href: '/estoque/reposicao', label: 'Reposição', icon: ShoppingCart },
+    { href: '/produtos', label: 'Produtos', icon: Package },
+    { href: '/fornecedores', label: 'Fornecedores', icon: Truck },
+  ],
+}
+
+const GRUPO_RELATORIOS: Grupo = {
+  titulo: 'Relatórios',
+  icone: BarChart3,
+  itens: [
+    { href: '/relatorios', label: 'Vendas por período', icon: BarChart3 },
+    { href: '/relatorios/produto', label: 'Por produto', icon: Package },
+    { href: '/relatorios/cliente', label: 'Por cliente', icon: Users },
+  ],
+}
+
+// Ordem da sidebar (itens soltos e grupos intercalados).
+export const NAV: Bloco[] = [
+  { tipo: 'item', item: ITEM_DASHBOARD },
+  { tipo: 'grupo', grupo: GRUPO_VENDAS },
+  { tipo: 'grupo', grupo: GRUPO_ESTOQUE },
+  { tipo: 'item', item: ITEM_FINANCEIRO },
+  { tipo: 'grupo', grupo: GRUPO_RELATORIOS },
 ]
 
-export const GRUPOS: Grupo[] = [
-  {
-    titulo: 'Vendas',
-    icone: ShoppingCart,
-    itens: [
-      { href: '/movimentacoes', label: 'Movimentações', icon: ArrowRightLeft },
-      { href: '/clientes', label: 'Clientes', icon: Users },
-    ],
-  },
-  {
-    titulo: 'Estoque',
-    icone: Boxes,
-    itens: [
-      { href: '/estoque', label: 'Posição', icon: Boxes },
-      { href: '/estoque/reposicao', label: 'Reposição', icon: ShoppingCart },
-      { href: '/produtos', label: 'Produtos', icon: Package },
-      { href: '/fornecedores', label: 'Fornecedores', icon: Truck },
-    ],
-  },
-  {
-    titulo: 'Financeiro',
-    icone: DollarSign,
-    itens: [
-      { href: '/financeiro/resultado', label: 'Resultado', icon: BarChart3 },
-      { href: '/financeiro/a-receber', label: 'A receber', icon: DollarSign },
-      { href: '/financeiro/a-pagar', label: 'A pagar', icon: DollarSign },
-      { href: '/financeiro/formas-pagamento', label: 'Formas de pagamento', icon: DollarSign },
-    ],
-  },
-  {
-    titulo: 'Relatórios',
-    icone: BarChart3,
-    itens: [
-      { href: '/relatorios', label: 'Vendas por período', icon: BarChart3 },
-      { href: '/relatorios/produto', label: 'Por produto', icon: Package },
-      { href: '/relatorios/cliente', label: 'Por cliente', icon: Users },
-    ],
-  },
-]
+const GRUPOS: Grupo[] = NAV.flatMap((b) => (b.tipo === 'grupo' ? [b.grupo] : []))
 
 export const ITEM_NOVA_MOVIMENTACAO: Item = {
   href: '/movimentacoes/nova',
@@ -110,6 +114,8 @@ export function rotaAtiva(pathname: string, href: string) {
   if (href === '/dashboard') return pathname === '/dashboard'
   if (href === '/estoque') return pathname === '/estoque'
   if (href === '/relatorios') return pathname === '/relatorios'
+  // Item Financeiro fica ativo em qualquer sub-rota /financeiro (as abas trocam a tela).
+  if (href === '/financeiro/resultado') return pathname.startsWith('/financeiro')
   if (href === '/movimentacoes')
     return pathname === '/movimentacoes' || /^\/movimentacoes\/(?!nova)/.test(pathname)
   return pathname === href || pathname.startsWith(href + '/')
@@ -314,12 +320,6 @@ export function NavConteudo({
   const { aberta, alternar } = useSecoesAbertas(pathname)
 
   const novoVisivel = itemVisivel(ITEM_NOVA_MOVIMENTACAO.href, itensVisiveis)
-  const topo = ITENS_TOPO.filter((i) => itemVisivel(i.href, itensVisiveis))
-  // Filtra os itens de cada grupo; só mostra grupos que sobraram com algum item.
-  const grupos = GRUPOS.map((g) => ({
-    ...g,
-    itens: g.itens.filter((i) => itemVisivel(i.href, itensVisiveis)),
-  })).filter((g) => g.itens.length > 0)
 
   return (
     <>
@@ -328,29 +328,36 @@ export function NavConteudo({
           <NovaMovimentacaoLink ativo={novoAtivo} onNavegar={onNavegar} />
         )}
 
-        {topo.length > 0 && (
-          <div className="mb-3 space-y-0.5">
-            {topo.map((item) => (
-              <LinkItem
-                key={item.href}
-                item={item}
-                ativo={rotaAtiva(pathname, item.href)}
-                onNavegar={onNavegar}
-              />
-            ))}
-          </div>
-        )}
-
-        {grupos.map((grupo) => (
-          <GrupoColapsavel
-            key={grupo.titulo}
-            grupo={grupo}
-            aberto={aberta(grupo.titulo)}
-            onToggle={() => alternar(grupo.titulo)}
-            pathname={pathname}
-            onNavegar={onNavegar}
-          />
-        ))}
+        {NAV.map((bloco) => {
+          if (bloco.tipo === 'item') {
+            if (!itemVisivel(bloco.item.href, itensVisiveis)) return null
+            return (
+              <div key={bloco.item.href} className="mb-1.5">
+                <LinkItem
+                  item={bloco.item}
+                  ativo={rotaAtiva(pathname, bloco.item.href)}
+                  onNavegar={onNavegar}
+                />
+              </div>
+            )
+          }
+          // Grupo: filtra itens pelo cargo; some se não sobrar nenhum.
+          const itens = bloco.grupo.itens.filter((i) =>
+            itemVisivel(i.href, itensVisiveis),
+          )
+          if (itens.length === 0) return null
+          const grupo = { ...bloco.grupo, itens }
+          return (
+            <GrupoColapsavel
+              key={grupo.titulo}
+              grupo={grupo}
+              aberto={aberta(grupo.titulo)}
+              onToggle={() => alternar(grupo.titulo)}
+              pathname={pathname}
+              onNavegar={onNavegar}
+            />
+          )
+        })}
       </nav>
 
       {/* Configurações é a área do admin (usuários + cargos). Só admin vê. */}

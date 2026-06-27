@@ -22,10 +22,7 @@ export const NAV_CATALOGO: NavCatalogoItem[] = [
   { href: '/estoque/reposicao', label: 'Reposição', grupo: 'Estoque' },
   { href: '/produtos', label: 'Produtos', grupo: 'Estoque' },
   { href: '/fornecedores', label: 'Fornecedores', grupo: 'Estoque' },
-  { href: '/financeiro/resultado', label: 'Resultado', grupo: 'Financeiro' },
-  { href: '/financeiro/a-receber', label: 'A receber', grupo: 'Financeiro' },
-  { href: '/financeiro/a-pagar', label: 'A pagar', grupo: 'Financeiro' },
-  { href: '/financeiro/formas-pagamento', label: 'Formas de pagamento', grupo: 'Financeiro' },
+  { href: '/financeiro/resultado', label: 'Financeiro (resultado, contas, formas)', grupo: 'Financeiro' },
   { href: '/relatorios', label: 'Vendas por período', grupo: 'Relatórios' },
   { href: '/relatorios/produto', label: 'Vendas por produto', grupo: 'Relatórios' },
   { href: '/relatorios/cliente', label: 'Vendas por cliente', grupo: 'Relatórios' },
@@ -40,6 +37,15 @@ export function rotaPermitida(pathname: string, cargo: Cargo | null): boolean {
   // O detalhe/romaneio de um pedido é parte de Movimentações; quem vê
   // Movimentações abre a venda (o botão "Pedidos" foi unificado nele).
   if (pathname.startsWith('/pedidos') && cargo.itens_visiveis.includes('/movimentacoes')) {
+    return true
+  }
+  // Financeiro é um botão só (/financeiro/resultado); libera todas as sub-telas
+  // (a pagar, formas de pagamento, faturamento) que as abas internas trocam.
+  if (pathname.startsWith('/financeiro') && cargo.itens_visiveis.includes('/financeiro/resultado')) {
+    return true
+  }
+  // Faturamento & ABC também é alcançado pelas abas de Relatórios.
+  if (pathname === '/financeiro/relatorios' && cargo.itens_visiveis.includes('/relatorios')) {
     return true
   }
   return cargo.itens_visiveis.some(
