@@ -16,9 +16,8 @@ export type NavCatalogoItem = { href: string; label: string; grupo: string }
 export const NAV_CATALOGO: NavCatalogoItem[] = [
   { href: '/dashboard', label: 'Dashboard', grupo: 'Geral' },
   { href: '/movimentacoes/nova', label: 'Nova Movimentação', grupo: 'Geral' },
-  { href: '/pedidos', label: 'Pedidos', grupo: 'Vendas' },
-  { href: '/clientes', label: 'Clientes', grupo: 'Vendas' },
   { href: '/movimentacoes', label: 'Movimentações', grupo: 'Vendas' },
+  { href: '/clientes', label: 'Clientes', grupo: 'Vendas' },
   { href: '/estoque', label: 'Posição de estoque', grupo: 'Estoque' },
   { href: '/estoque/reposicao', label: 'Reposição', grupo: 'Estoque' },
   { href: '/produtos', label: 'Produtos', grupo: 'Estoque' },
@@ -38,6 +37,11 @@ export const NAV_CATALOGO: NavCatalogoItem[] = [
 export function rotaPermitida(pathname: string, cargo: Cargo | null): boolean {
   if (!cargo || cargo.admin) return true
   if (pathname === '/' || pathname.startsWith('/dashboard')) return true
+  // O detalhe/romaneio de um pedido é parte de Movimentações; quem vê
+  // Movimentações abre a venda (o botão "Pedidos" foi unificado nele).
+  if (pathname.startsWith('/pedidos') && cargo.itens_visiveis.includes('/movimentacoes')) {
+    return true
+  }
   return cargo.itens_visiveis.some(
     (href) => pathname === href || pathname.startsWith(href + '/'),
   )

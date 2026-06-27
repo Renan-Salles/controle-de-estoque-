@@ -36,9 +36,8 @@ export const GRUPOS: Grupo[] = [
     titulo: 'Vendas',
     icone: ShoppingCart,
     itens: [
-      { href: '/pedidos', label: 'Pedidos', icon: Package },
-      { href: '/clientes', label: 'Clientes', icon: Users },
       { href: '/movimentacoes', label: 'Movimentações', icon: ArrowRightLeft },
+      { href: '/clientes', label: 'Clientes', icon: Users },
     ],
   },
   {
