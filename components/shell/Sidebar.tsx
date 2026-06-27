@@ -4,7 +4,15 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { NavConteudo, logoPartes } from '@/components/shell/nav-items'
 
-export function Sidebar({ localNome }: { localNome: string }) {
+export function Sidebar({
+  localNome,
+  itensVisiveis = null,
+  isAdmin = false,
+}: {
+  localNome: string
+  itensVisiveis?: string[] | null
+  isAdmin?: boolean
+}) {
   const pathname = usePathname()
   const logo = logoPartes(localNome)
 
@@ -24,7 +32,7 @@ export function Sidebar({ localNome }: { localNome: string }) {
       </div>
 
       {/* Navegação compartilhada com o drawer mobile */}
-      <NavConteudo pathname={pathname} />
+      <NavConteudo pathname={pathname} itensVisiveis={itensVisiveis} isAdmin={isAdmin} />
     </aside>
   )
 }

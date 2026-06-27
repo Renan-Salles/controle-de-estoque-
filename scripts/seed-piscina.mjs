@@ -8,8 +8,7 @@ const HOJE = new Date('2026-06-24T00:00:00')
 const DIAS = 30
 
 const client = new pg.Client({
-  connectionString:
-    'postgresql://postgres:Renansistemas1234@db.jqdezlvqumzdkvvcbjtl.supabase.co:5432/postgres',
+  connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 })
 

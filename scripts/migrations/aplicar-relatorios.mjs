@@ -10,9 +10,7 @@ const sqlPath = join(__dirname, '..', '..', 'supabase', 'migrations', '2026-06-2
 const sql = readFileSync(sqlPath, 'utf8')
 
 const client = new pg.Client({
-  connectionString:
-    process.env.DATABASE_URL ||
-    'postgresql://postgres:Renansistemas1234@db.jqdezlvqumzdkvvcbjtl.supabase.co:5432/postgres',
+  connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 })
 

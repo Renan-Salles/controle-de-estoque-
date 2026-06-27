@@ -35,11 +35,15 @@ export function Topbar({
   locais,
   localSlug,
   localNome,
+  itensVisiveis = null,
+  isAdmin = false,
 }: {
   email: string
   locais: Local[]
   localSlug: string
   localNome: string
+  itensVisiveis?: string[] | null
+  isAdmin?: boolean
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -60,7 +64,7 @@ export function Topbar({
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b border-border bg-bg/80 px-3 backdrop-blur-sm sm:px-6">
       <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-        <MobileNav localNome={localNome} />
+        <MobileNav localNome={localNome} itensVisiveis={itensVisiveis} isAdmin={isAdmin} />
         <SeletorLocal locais={locais} ativoSlug={localSlug} />
         <span className="hidden h-4 w-px bg-border sm:block" />
         <h2 className="hidden text-sm font-medium tracking-tight text-text sm:block">

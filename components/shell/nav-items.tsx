@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { itemVisivel } from '@/lib/nav-catalogo'
 
 // Fonte única de navegação. Consumida pela Sidebar (desktop) e pelo MobileNav
 // (drawer no celular) para garantir paridade de telas em todos os breakpoints.
@@ -301,29 +302,47 @@ function GrupoColapsavel({
 export function NavConteudo({
   pathname,
   onNavegar,
+  itensVisiveis = null,
+  isAdmin = false,
 }: {
   pathname: string
   onNavegar?: () => void
+  // null = sem restrição (mostra tudo). Array = só os hrefs do cargo.
+  itensVisiveis?: string[] | null
+  isAdmin?: boolean
 }) {
   const novoAtivo = pathname === ITEM_NOVA_MOVIMENTACAO.href
   const { aberta, alternar } = useSecoesAbertas(pathname)
+
+  const novoVisivel = itemVisivel(ITEM_NOVA_MOVIMENTACAO.href, itensVisiveis)
+  const topo = ITENS_TOPO.filter((i) => itemVisivel(i.href, itensVisiveis))
+  // Filtra os itens de cada grupo; só mostra grupos que sobraram com algum item.
+  const grupos = GRUPOS.map((g) => ({
+    ...g,
+    itens: g.itens.filter((i) => itemVisivel(i.href, itensVisiveis)),
+  })).filter((g) => g.itens.length > 0)
+
   return (
     <>
       <nav className="flex-1 overflow-y-auto px-3 py-4">
-        <NovaMovimentacaoLink ativo={novoAtivo} onNavegar={onNavegar} />
+        {novoVisivel && (
+          <NovaMovimentacaoLink ativo={novoAtivo} onNavegar={onNavegar} />
+        )}
 
-        <div className="mb-3 space-y-0.5">
-          {ITENS_TOPO.map((item) => (
-            <LinkItem
-              key={item.href}
-              item={item}
-              ativo={rotaAtiva(pathname, item.href)}
-              onNavegar={onNavegar}
-            />
-          ))}
-        </div>
+        {topo.length > 0 && (
+          <div className="mb-3 space-y-0.5">
+            {topo.map((item) => (
+              <LinkItem
+                key={item.href}
+                item={item}
+                ativo={rotaAtiva(pathname, item.href)}
+                onNavegar={onNavegar}
+              />
+            ))}
+          </div>
+        )}
 
-        {GRUPOS.map((grupo) => (
+        {grupos.map((grupo) => (
           <GrupoColapsavel
             key={grupo.titulo}
             grupo={grupo}
@@ -335,13 +354,16 @@ export function NavConteudo({
         ))}
       </nav>
 
-      <div className="border-t border-border p-3">
-        <LinkItem
-          item={ITEM_CONFIGURACOES}
-          ativo={rotaAtiva(pathname, ITEM_CONFIGURACOES.href)}
-          onNavegar={onNavegar}
-        />
-      </div>
+      {/* Configurações é a área do admin (usuários + cargos). Só admin vê. */}
+      {isAdmin && (
+        <div className="border-t border-border p-3">
+          <LinkItem
+            item={ITEM_CONFIGURACOES}
+            ativo={rotaAtiva(pathname, ITEM_CONFIGURACOES.href)}
+            onNavegar={onNavegar}
+          />
+        </div>
+      )}
     </>
   )
 }

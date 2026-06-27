@@ -15,7 +15,15 @@ import { NavConteudo, logoPartes } from '@/components/shell/nav-items'
 // Navegação mobile: botão hamburguer (só em < lg) que abre um drawer pela
 // esquerda com os mesmos grupos/itens da Sidebar. Fecha ao tocar num item
 // (via onNavegar) ou no overlay (onOpenChange do Sheet).
-export function MobileNav({ localNome }: { localNome: string }) {
+export function MobileNav({
+  localNome,
+  itensVisiveis = null,
+  isAdmin = false,
+}: {
+  localNome: string
+  itensVisiveis?: string[] | null
+  isAdmin?: boolean
+}) {
   const pathname = usePathname()
   const [aberto, setAberto] = useState(false)
   const logo = logoPartes(localNome)
@@ -23,6 +31,7 @@ export function MobileNav({ localNome }: { localNome: string }) {
   // Fecha o drawer sempre que a rota muda (cinto e suspensório: além do
   // onNavegar nos links, garante fechamento se a navegação vier de outro lugar).
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setAberto(false)
   }, [pathname])
 
@@ -61,7 +70,12 @@ export function MobileNav({ localNome }: { localNome: string }) {
           </Link>
         </div>
 
-        <NavConteudo pathname={pathname} onNavegar={() => setAberto(false)} />
+        <NavConteudo
+          pathname={pathname}
+          onNavegar={() => setAberto(false)}
+          itensVisiveis={itensVisiveis}
+          isAdmin={isAdmin}
+        />
       </SheetContent>
     </Sheet>
   )
