@@ -7,6 +7,7 @@ export function ThemeToggle() {
   const [escuro, setEscuro] = useState(false)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setEscuro(document.documentElement.classList.contains('dark'))
   }, [])
 

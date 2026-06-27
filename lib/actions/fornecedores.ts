@@ -50,9 +50,9 @@ export async function criarFornecedor(data: Record<string, unknown>) {
 
   const localId = await getLocalAtivoId()
   const supabase = await createClient()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await supabase
     .from('fornecedores')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .insert({ ...montar(parsed.data), local_id: localId } as any)
   if (error) return { error: error.message }
 

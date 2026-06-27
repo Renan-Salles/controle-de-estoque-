@@ -1,15 +1,18 @@
 import { createServiceClient } from '@/lib/supabase/server'
+import type { PosicaoEstoque } from '@/types'
 
 export async function gerarAlertas() {
   const supabase = await createServiceClient()
 
-  const { data: criticos } = await supabase
+  const { data: criticosRaw } = await supabase
     .from('v_posicao_estoque')
     .select('*')
     .in('status_estoque', ['critico', 'ruptura'])
+  const criticos = (criticosRaw ?? []) as unknown as PosicaoEstoque[]
 
-  for (const p of criticos ?? []) {
-    await supabase.from('alertas').upsert({
+  for (const p of criticos) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from('alertas') as any).upsert({
       tipo: 'ruptura_estoque',
       severidade: p.status_estoque === 'ruptura' ? 'critico' : 'aviso',
       titulo: `Estoque ${p.status_estoque === 'ruptura' ? 'zerado' : 'critico'}: ${p.nome}`,
@@ -28,7 +31,8 @@ export async function gerarAlertas() {
     .limit(50)
 
   for (const cp of (vencidas ?? []) as { id: string; descricao: string; valor: number | string }[]) {
-    await supabase.from('alertas').upsert({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from('alertas') as any).upsert({
       tipo: 'conta_vencida',
       severidade: 'aviso',
       titulo: `Conta vencida: ${cp.descricao}`,

@@ -35,21 +35,24 @@ export async function darEntrada(data: {
     .eq('produto_id', data.produto_id)
     .single()
 
-  const saldoAtual = estoqueAtual?.saldo_atual ?? 0
-  const custoMedioAtual = estoqueAtual?.custo_medio ?? 0
+  const atual = estoqueAtual as { saldo_atual: number; custo_medio: number } | null
+  const saldoAtual = atual?.saldo_atual ?? 0
+  const custoMedioAtual = atual?.custo_medio ?? 0
   const novoSaldo = saldoAtual + data.quantidade
 
   const novoCustoMedio = saldoAtual > 0
     ? ((saldoAtual * custoMedioAtual) + (data.quantidade * data.custo_unitario)) / novoSaldo
     : data.custo_unitario
 
-  await serviceClient.from('estoque').update({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (serviceClient.from('estoque') as any).update({
     saldo_atual: novoSaldo,
     custo_medio: novoCustoMedio,
     updated_at: new Date().toISOString(),
   }).eq('produto_id', data.produto_id)
 
-  await serviceClient.from('movimentacoes_estoque').insert({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (serviceClient.from('movimentacoes_estoque') as any).insert({
     produto_id: data.produto_id,
     tipo: 'entrada_compra',
     quantidade: data.quantidade,
@@ -134,6 +137,7 @@ export async function ajustarEstoque(data: {
     ? `${ROTULO_AJUSTE[data.tipo]}: ${data.observacao}`
     : ROTULO_AJUSTE[data.tipo]
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (serviceClient.from('estoque') as any)
     .update({
       saldo_atual: novoSaldo,
@@ -141,6 +145,7 @@ export async function ajustarEstoque(data: {
     })
     .eq('produto_id', data.produto_id)
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (serviceClient.from('movimentacoes_estoque') as any).insert({
     produto_id: data.produto_id,
     tipo: tipoMov,
@@ -170,6 +175,7 @@ export async function buscarReposicao() {
   if (error) throw error
 
   const PISO = 12
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const lista = (data ?? []) as any[]
 
   const acabando = lista

@@ -186,6 +186,7 @@ export default function ResultadoPage() {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     carregar()
   }, [carregar])
 

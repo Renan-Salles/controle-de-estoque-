@@ -35,6 +35,7 @@ export default function NovaMovimentacaoPage() {
 
   useEffect(() => {
     const t = params.get('tipo')
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (t === 'entrada' || t === 'saida') setTipo(t)
   }, [params])
 

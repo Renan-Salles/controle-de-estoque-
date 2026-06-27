@@ -27,11 +27,11 @@ export async function criarCliente(data: Record<string, unknown>) {
   const { endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, ...resto } = parsed.data
   const localId = await getLocalAtivoId()
   const supabase = await createClient()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await supabase.from('clientes').insert({
     ...resto,
     local_id: localId,
     endereco: { rua: endereco_rua, numero: endereco_numero, bairro: endereco_bairro, cidade: endereco_cidade },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any)
   if (error) return { error: error.message }
   revalidatePath('/clientes')

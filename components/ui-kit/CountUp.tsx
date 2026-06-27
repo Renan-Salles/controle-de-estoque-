@@ -57,6 +57,7 @@ export function CountUp({
       typeof window !== 'undefined' &&
       window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     if (prefersReduced || target === 0 || duration <= 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDisplay(target)
       return
     }

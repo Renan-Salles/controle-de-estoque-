@@ -70,6 +70,7 @@ export function ProdutoForm({
   useEffect(() => {
     if (categoriasIniciais && categoriasIniciais.length > 0) return
     listarCategorias().then(setCategorias)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const set = (k: keyof ProdutoFormValores, v: string | null) => {
