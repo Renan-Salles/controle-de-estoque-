@@ -32,6 +32,7 @@ function tituloDaRota(pathname: string): string {
 
 export function Topbar({
   email,
+  nome,
   locais,
   localSlug,
   localNome,
@@ -39,6 +40,7 @@ export function Topbar({
   isAdmin = false,
 }: {
   email: string
+  nome: string
   locais: Local[]
   localSlug: string
   localNome: string
@@ -50,7 +52,7 @@ export function Topbar({
   const [aberto, setAberto] = useState(false)
   const [saindo, setSaindo] = useState(false)
 
-  const inicial = (email?.[0] ?? 'U').toUpperCase()
+  const inicial = (nome?.[0] ?? 'U').toUpperCase()
   const titulo = tituloDaRota(pathname)
 
   async function sair() {
@@ -83,7 +85,7 @@ export function Topbar({
           <span className="flex size-7 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand">
             {inicial}
           </span>
-          <span className="hidden max-w-[180px] truncate sm:inline">{email}</span>
+          <span className="hidden max-w-[180px] truncate sm:inline">{nome}</span>
           <ChevronDown className="size-4 shrink-0" strokeWidth={1.5} />
         </button>
 
@@ -96,10 +98,8 @@ export function Topbar({
             />
             <div className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-lg border border-border bg-surface shadow-lg u-fade-in">
               <div className="border-b border-border px-3 py-2.5">
-                <p className="text-[11px] uppercase tracking-wider text-text-muted">
-                  Conectado como
-                </p>
-                <p className="mt-0.5 truncate text-sm text-text">{email}</p>
+                <p className="font-medium text-sm text-text">{nome}</p>
+                <p className="mt-0.5 truncate text-[11px] text-text-muted">{email}</p>
               </div>
               <button
                 type="button"

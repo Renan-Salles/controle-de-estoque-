@@ -1,8 +1,14 @@
 import Link from 'next/link'
-import { Users, ShieldCheck } from 'lucide-react'
+import { Users, ShieldCheck, Store } from 'lucide-react'
 import { PageHeader } from '@/components/ui-kit/PageHeader'
 
 const CARDS = [
+  {
+    href: '/configuracoes/deposito',
+    icone: Store,
+    titulo: 'Dados do Depósito',
+    descricao: 'Nome, CNPJ e endereço que aparecem no cupom fiscal.',
+  },
   {
     href: '/configuracoes/usuarios',
     icone: Users,

@@ -5,7 +5,7 @@ import { Sidebar } from '@/components/shell/Sidebar'
 import { Topbar } from '@/components/shell/Topbar'
 import { Toaster } from 'sonner'
 import { listarLocais, getLocalAtivo } from '@/lib/local'
-import { getCargoUsuario } from '@/lib/permissoes'
+import { getCargoUsuario, getNomePerfil } from '@/lib/permissoes'
 import { rotaPermitida } from '@/lib/nav-catalogo'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -15,10 +15,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [locais, localAtivo, cargo] = await Promise.all([
+  const [locais, localAtivo, cargo, nomePerfil] = await Promise.all([
     listarLocais(),
     getLocalAtivo(),
     getCargoUsuario(),
+    getNomePerfil(),
   ])
 
   // Trava de rota por cargo (permissão real, não só esconder botão). O pathname
@@ -38,6 +39,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
         <Topbar
           email={user.email ?? 'usuário'}
+          nome={nomePerfil ?? user.email?.split('@')[0] ?? 'Usuário'}
           locais={locais}
           localSlug={localAtivo.slug}
           localNome={localAtivo.nome}

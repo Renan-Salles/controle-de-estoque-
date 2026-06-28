@@ -8,7 +8,15 @@ export interface CupomData {
   forma_pagamento: string
   prazo_pagamento_dias?: number | null
   observacoes?: string | null
-  locais: { nome: string } | null
+  locais: {
+    nome: string
+    cnpj?: string | null
+    telefone?: string | null
+    endereco_rua?: string | null
+    endereco_numero?: string | null
+    endereco_bairro?: string | null
+    endereco_cidade?: string | null
+  } | null
   clientes: {
     nome: string
     telefone: string | null
@@ -65,9 +73,22 @@ export function CupomFiscal({ data }: { data: CupomData }) {
         <div style={{ fontSize: '14px', fontWeight: 700, letterSpacing: '0.5px' }}>
           {data.locais?.nome?.toUpperCase() ?? 'R$ DEPÓSITO'}
         </div>
-        <div style={{ fontSize: '10px', marginTop: '2px' }}>
-          CNPJ: 26.139.271/0001-16
-        </div>
+        {data.locais?.cnpj && (
+          <div style={{ fontSize: '10px', marginTop: '2px' }}>
+            CNPJ: {data.locais.cnpj}
+          </div>
+        )}
+        {data.locais?.telefone && (
+          <div style={{ fontSize: '10px' }}>Tel: {data.locais.telefone}</div>
+        )}
+        {(data.locais?.endereco_rua) && (
+          <div style={{ fontSize: '10px' }}>
+            {[data.locais.endereco_rua, data.locais.endereco_numero].filter(Boolean).join(', ')}
+            {(data.locais.endereco_bairro || data.locais.endereco_cidade) && (
+              ` - ${[data.locais.endereco_bairro, data.locais.endereco_cidade].filter(Boolean).join('/')}`
+            )}
+          </div>
+        )}
         <div style={{ fontSize: '10px' }}>DEPÓSITO DE BEBIDAS</div>
       </div>
 

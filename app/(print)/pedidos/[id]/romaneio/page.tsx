@@ -13,7 +13,7 @@ export default async function RomaneioPage({
   const { data: pedido } = await supabase
     .from('pedidos')
     .select(
-      `*, locais(nome), clientes(nome, telefone, endereco), pedido_itens(quantidade_pedida, preco_unitario, total, produtos(nome, embalagem))`,
+      `*, locais(nome, cnpj, telefone, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade), clientes(nome, telefone, endereco), pedido_itens(quantidade_pedida, preco_unitario, total, produtos(nome, embalagem))`,
     )
     .eq('id', id)
     .single()
