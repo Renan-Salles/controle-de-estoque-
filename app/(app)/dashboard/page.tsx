@@ -9,11 +9,16 @@ import {
   ArrowUpRight,
   PackagePlus,
   CreditCard,
+  TrendingUp,
+  Star,
   type LucideIcon,
 } from 'lucide-react'
 import Link from 'next/link'
 import { Money } from '@/components/ui-kit/Money'
 import { GraficoVendas, type PontoVenda } from '@/components/dashboard/GraficoVendas'
+import { getDashStats } from '@/lib/actions/dashboard'
+import { getDre } from '@/lib/actions/dre'
+import { formatarReal } from '@/lib/formatos'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -31,10 +36,14 @@ export default async function DashboardPage() {
     { data: pedidosHoje },
     { data: estoquesCriticos },
     { data: pedidosMes },
+    stats,
+    dre,
   ] = await Promise.all([
     supabase.from('pedidos').select('total').gte('data_pedido', `${hoje}T00:00:00`).eq('status', 'concluida').eq('local_id', localId) as unknown as Promise<{ data: RowTotal[] }>,
     supabase.from('v_posicao_estoque').select('id').in('status_estoque', ['critico', 'ruptura']).eq('local_id', localId) as unknown as Promise<{ data: RowId[] }>,
     supabase.from('pedidos').select('data_pedido, total').gte('data_pedido', `${inicioMes}T00:00:00`).eq('status', 'concluida').eq('local_id', localId).order('data_pedido') as unknown as Promise<{ data: RowPedidoMes[] }>,
+    getDashStats(),
+    getDre(),
   ])
 
   const receitaHoje = (pedidosHoje ?? []).reduce((acc, p) => acc + (p.total ?? 0), 0)
@@ -70,7 +79,7 @@ export default async function DashboardPage() {
     money?: number
     moneyDestaque?: boolean
     icon: LucideIcon
-    tom: 'brand' | 'gold' | 'critico'
+    tom: 'brand' | 'gold' | 'critico' | 'ok'
   }
 
   const kpis: Kpi[] = [
@@ -108,17 +117,35 @@ export default async function DashboardPage() {
       icon: Receipt,
       tom: 'brand',
     },
+    {
+      label: 'Lucro do mes',
+      valor: '',
+      money: dre.lucro_liquido,
+      moneyDestaque: dre.lucro_liquido >= 0,
+      sub: `margem ${dre.lucro_liquido_pct.toFixed(1)}%`,
+      icon: TrendingUp,
+      tom: dre.lucro_liquido >= 0 ? 'ok' : 'critico',
+    },
+    {
+      label: 'Cliente destaque',
+      valor: stats.clienteVip ?? '-',
+      sub: stats.clienteVip ? formatarReal(stats.ticketMedio) + ' ticket medio' : 'sem vendas no mes',
+      icon: Star,
+      tom: 'gold',
+    },
   ]
 
   const tomCor: Record<Kpi['tom'], string> = {
     brand: 'text-brand',
     gold: 'text-accent-gold',
     critico: 'text-err',
+    ok: 'text-ok',
   }
   const tomAnel: Record<Kpi['tom'], string> = {
     brand: 'bg-brand/10 text-brand',
     gold: 'bg-warn/10 text-warn',
     critico: 'bg-err/10 text-err',
+    ok: 'bg-ok/10 text-ok',
   }
 
   const atalhos: Array<{
