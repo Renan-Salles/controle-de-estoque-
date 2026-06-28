@@ -75,3 +75,23 @@ export async function relatorioVendasCliente(p: Periodo) {
     total: Number(r.total ?? 0),
   }))
 }
+
+export async function produtosPorMargem() {
+  const localId = await getLocalAtivoId()
+  const supabase = await createClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (supabase.from('v_posicao_estoque') as any)
+    .select('produto_id, nome, marca, categoria, saldo_atual, custo_medio, preco_venda_padrao')
+    .eq('local_id', localId)
+  const lista = ((data ?? []) as Array<{
+    produto_id: string; nome: string; marca: string; categoria: string
+    saldo_atual: number; custo_medio: number; preco_venda_padrao: number
+  }>).map((p) => {
+    const margem_rs = (p.preco_venda_padrao ?? 0) - (p.custo_medio ?? 0)
+    const margem_pct = p.preco_venda_padrao > 0
+      ? (margem_rs / p.preco_venda_padrao) * 100
+      : 0
+    return { ...p, margem_rs, margem_pct }
+  })
+  return lista.sort((a, b) => b.margem_pct - a.margem_pct)
+}

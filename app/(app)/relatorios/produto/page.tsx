@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { Package } from 'lucide-react'
-import { relatorioVendasProduto } from '@/lib/actions/relatorios'
+import { relatorioVendasProduto, produtosPorMargem } from '@/lib/actions/relatorios'
 import { PageHeader } from '@/components/ui-kit/PageHeader'
 import {
   Tabela,
@@ -14,7 +14,7 @@ import {
 } from '@/components/ui-kit/tabela'
 import { EstadoVazio } from '@/components/ui-kit/EstadoVazio'
 import { Money } from '@/components/ui-kit/Money'
-import { formatarNumero } from '@/lib/formatos'
+import { formatarNumero, formatarReal } from '@/lib/formatos'
 import { FiltroPeriodo } from '@/components/relatorios/FiltroPeriodo'
 import { RelatoriosTabs } from '@/components/relatorios/RelatoriosTabs'
 import { CardLinha } from '@/components/ui-kit/CardLinha'
@@ -26,16 +26,20 @@ function mesCorrente() {
 }
 
 type Linha = Awaited<ReturnType<typeof relatorioVendasProduto>>[number]
+type LinhaMargem = Awaited<ReturnType<typeof produtosPorMargem>>[number]
 
 export default function RelatorioProdutoPage() {
   const [periodo, setPeriodo] = useState(mesCorrente())
   const [linhas, setLinhas] = useState<Linha[]>([])
+  const [margem, setMargem] = useState<LinhaMargem[]>([])
   const [loading, setLoading] = useState(true)
 
   async function carregar(p: { ini: string; fim: string }) {
     setLoading(true)
     try {
-      setLinhas(await relatorioVendasProduto(p))
+      const [vendas, mg] = await Promise.all([relatorioVendasProduto(p), produtosPorMargem()])
+      setLinhas(vendas)
+      setMargem(mg)
     } catch (e) {
       console.error(e)
       toast.error('Erro ao carregar relatório')
@@ -123,6 +127,51 @@ export default function RelatorioProdutoPage() {
             ))}
           </div>
         </>
+      )}
+
+      {margem.length > 0 && (
+        <div className="mt-8">
+          <h2 className="mb-4 text-base font-semibold text-text">Produtos por margem</h2>
+          <div className="rounded-lg border border-border bg-surface overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-surface-2">
+                  <th className="px-4 py-2.5 text-left font-medium text-text-muted">Produto</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-text-muted hidden sm:table-cell">Custo</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-text-muted hidden sm:table-cell">Venda</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-text-muted">Margem R$</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-text-muted">Margem %</th>
+                </tr>
+              </thead>
+              <tbody>
+                {margem.slice(0, 25).map((p) => (
+                  <tr key={p.produto_id} className="border-b border-border last:border-0">
+                    <td className="px-4 py-2.5">
+                      <div className="text-sm text-text">{p.nome}</div>
+                      <div className="text-xs text-text-muted">{p.categoria}</div>
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-text-muted hidden sm:table-cell">
+                      {formatarReal(p.custo_medio)}
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-text hidden sm:table-cell">
+                      {formatarReal(p.preco_venda_padrao)}
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-text">
+                      {formatarReal(p.margem_rs)}
+                    </td>
+                    <td className={`px-4 py-2.5 text-right tabular-nums font-medium ${
+                      p.margem_pct >= 25 ? 'text-green-600 dark:text-green-400'
+                      : p.margem_pct >= 10 ? 'text-text'
+                      : 'text-err'
+                    }`}>
+                      {p.margem_pct.toFixed(1)}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
     </div>
   )
