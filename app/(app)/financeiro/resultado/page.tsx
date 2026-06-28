@@ -51,7 +51,7 @@ export default async function ResultadoPage({
           <LinhaDRE label="= Margem Bruta" valor={dre.margem_bruta} pct={dre.margem_bruta_pct} destaque />
           <LinhaDRE label="(-) Custos Fixos" valor={dre.custos_fixos} negativo />
           <LinhaDRE label="(-) Perdas e Quebras" valor={dre.perdas} negativo />
-          <LinhaDRE label="= Lucro Liquido" valor={dre.lucro_liquido} pct={dre.lucro_liquido_pct} destaque />
+          <LinhaDRE label="= Lucro Liquido" valor={dre.lucro_liquido} pct={dre.lucro_liquido_pct} destaque negativo={dre.lucro_liquido < 0} />
         </div>
 
         {dre.custos_fixos === 0 && (

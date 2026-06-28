@@ -218,11 +218,19 @@ export async function buscarMovimentacoes(produtoId?: string) {
 export async function buscarDescartes(limite = 50) {
   const localId = await getLocalAtivoId()
   const supabase = await createClient()
+  // busca IDs dos produtos do local ativo
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: prods } = await (supabase.from('produtos') as any)
+    .select('id')
+    .eq('local_id', localId)
+  const ids: string[] = (prods ?? []).map((p: { id: string }) => p.id)
+  if (!ids.length) return []
+
   const { data, error } = await supabase
     .from('movimentacoes_estoque')
-    .select('id, produto_id, quantidade, custo_unitario, observacao, created_at, produtos!inner(nome, local_id)')
+    .select('id, produto_id, quantidade, custo_unitario, observacao, created_at, produtos(nome)')
     .eq('tipo', 'descarte')
-    .eq('produtos.local_id', localId)
+    .in('produto_id', ids)
     .order('created_at', { ascending: false })
     .limit(limite)
   if (error) throw error

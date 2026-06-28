@@ -5,7 +5,8 @@ import { MessageCircle, ShoppingCart, Star, AlertCircle } from 'lucide-react'
 import { PageHeader } from '@/components/ui-kit/PageHeader'
 import { btnClass } from '@/components/ui-kit/Button'
 import { formatarReal, formatarData } from '@/lib/formatos'
-import { buscarStatsCliente, buscarHistoricoCliente, classificarCliente } from '@/lib/actions/clientes-stats'
+import { buscarStatsCliente, buscarHistoricoCliente } from '@/lib/actions/clientes-stats'
+import { classificarCliente } from '@/lib/utils/clientes'
 
 const BADGE: Record<string, { cls: string; label: string; icon?: boolean }> = {
   vip:     { cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', label: 'VIP', icon: true },

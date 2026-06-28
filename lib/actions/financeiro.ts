@@ -1,5 +1,5 @@
 'use server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getLocalAtivoId } from '@/lib/local'
 import { revalidatePath } from 'next/cache'
 
@@ -24,10 +24,13 @@ export async function criarContaPagar(data: {
   data_vencimento: string
   observacoes?: string
 }) {
-  const localId = await getLocalAtivoId()
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Não autenticado' }
+  const localId = await getLocalAtivoId()
+  const serviceClient = await createServiceClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await supabase.from('contas_pagar').insert({ ...data, local_id: localId } as any)
+  const { error } = await (serviceClient.from('contas_pagar') as any).insert({ ...data, local_id: localId })
   if (error) return { error: error.message }
   revalidatePath('/financeiro')
   return { success: true }

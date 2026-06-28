@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { PageHeader } from '@/components/ui-kit/PageHeader'
 import { buscarPosicaoEstoque, buscarDescartes } from '@/lib/actions/estoque'
 import { PerdasClient } from './PerdasClient'
@@ -12,8 +14,8 @@ export default async function PerdasPage() {
   const rows = posicao as any[]
   const produtos = rows
     .filter((p) => (p.saldo_atual ?? 0) > 0)
-    .map((p: { produto_id: string; nome: string; saldo_atual: number | null }) => ({
-      produto_id: p.produto_id,
+    .map((p: { id: string; nome: string; saldo_atual: number | null }) => ({
+      produto_id: p.id,
       nome: p.nome,
       saldo_atual: p.saldo_atual,
     }))

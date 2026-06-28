@@ -58,7 +58,11 @@ export function PerdasClient({ produtos, historico }: { produtos: Produto[]; his
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Campo label="Produto" full>
             <Select value={produtoId} onValueChange={(v) => setProdutoId(v ?? '')}>
-              <SelectTrigger className="w-full"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecione...">
+                  {produtoId ? (produtos.find(p => p.produto_id === produtoId)?.nome ?? 'Selecione...') : null}
+                </SelectValue>
+              </SelectTrigger>
               <SelectContent>
                 {produtos.map((p) => (
                   <SelectItem key={p.produto_id} value={p.produto_id}>
