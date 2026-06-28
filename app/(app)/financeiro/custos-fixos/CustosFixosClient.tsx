@@ -7,10 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { btnClass } from '@/components/ui-kit/Button'
 import { Campo } from '@/components/ui-kit/FormKit'
 import { formatarReal } from '@/lib/formatos'
-import {
-  criarCustoFixo, atualizarCustoFixo, deletarCustoFixo,
-  CATEGORIAS, RECORRENCIAS, LABEL_CAT, LABEL_REC, type CustoFixo,
-} from '@/lib/actions/custos-fixos'
+import { criarCustoFixo, atualizarCustoFixo, deletarCustoFixo, type CustoFixo } from '@/lib/actions/custos-fixos'
+import { CATEGORIAS, RECORRENCIAS, LABEL_CAT, LABEL_REC } from '@/lib/constants/custos-fixos'
 
 type Form = { nome: string; categoria: string; valor: string; recorrencia: string; ativo: boolean }
 const VAZIO: Form = { nome: '', categoria: 'aluguel', valor: '', recorrencia: 'mensal', ativo: true }
