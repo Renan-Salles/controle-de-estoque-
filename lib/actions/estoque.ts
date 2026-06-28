@@ -214,3 +214,26 @@ export async function buscarMovimentacoes(produtoId?: string) {
   if (error) throw error
   return data ?? []
 }
+
+export async function buscarDescartes(limite = 50) {
+  const localId = await getLocalAtivoId()
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('movimentacoes_estoque')
+    .select('id, produto_id, quantidade, custo_unitario, observacao, created_at, produtos!inner(nome, local_id)')
+    .eq('tipo', 'descarte')
+    .eq('produtos.local_id', localId)
+    .order('created_at', { ascending: false })
+    .limit(limite)
+  if (error) throw error
+  return (data ?? []) as Array<{
+    id: string
+    produto_id: string
+    quantidade: number
+    custo_unitario: number | null
+    observacao: string | null
+    created_at: string
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    produtos: any
+  }>
+}

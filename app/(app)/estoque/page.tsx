@@ -19,6 +19,7 @@ import {
   SlidersHorizontal,
   ClipboardCheck,
   ShoppingBasket,
+  Trash2,
 } from 'lucide-react'
 import {
   buscarPosicaoEstoque,
@@ -230,6 +231,13 @@ export default function EstoquePage() {
             </p>
             <Money valor={resumo.valorTotal} destaque className="text-sm font-semibold" />
           </div>
+          <Link
+            href="/estoque/perdas"
+            className="u-motion u-press inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-text hover:border-err/50 hover:text-err"
+          >
+            <Trash2 className="size-4" strokeWidth={1.5} />
+            Perdas
+          </Link>
           <Link
             href="/estoque/reposicao"
             className="u-motion u-press inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-text hover:border-brand/50 hover:text-brand"
