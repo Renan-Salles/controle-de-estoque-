@@ -141,7 +141,7 @@ export function TabelaBody({
 }: HTMLAttributes<HTMLTableSectionElement>) {
   return (
     <tbody
-      className={cn('divide-y divide-border/60', className)}
+      className={cn('u-rows divide-y divide-border/60', className)}
       {...props}
     >
       {children}

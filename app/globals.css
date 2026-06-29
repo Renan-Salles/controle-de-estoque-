@@ -236,6 +236,23 @@
   .u-page-enter {
     animation: u-fade-up var(--dur-slow) var(--ease-out) both;
   }
+  /* Stagger automático para linhas de tabela. Aplique em <tbody>. */
+  .u-rows > tr {
+    animation: u-fade-up var(--dur) var(--ease-out) both;
+  }
+  .u-rows > tr:nth-child(1)  { animation-delay: 0ms; }
+  .u-rows > tr:nth-child(2)  { animation-delay: 24ms; }
+  .u-rows > tr:nth-child(3)  { animation-delay: 48ms; }
+  .u-rows > tr:nth-child(4)  { animation-delay: 72ms; }
+  .u-rows > tr:nth-child(5)  { animation-delay: 96ms; }
+  .u-rows > tr:nth-child(6)  { animation-delay: 116ms; }
+  .u-rows > tr:nth-child(7)  { animation-delay: 134ms; }
+  .u-rows > tr:nth-child(8)  { animation-delay: 150ms; }
+  .u-rows > tr:nth-child(9)  { animation-delay: 163ms; }
+  .u-rows > tr:nth-child(10) { animation-delay: 174ms; }
+  .u-rows > tr:nth-child(11) { animation-delay: 183ms; }
+  .u-rows > tr:nth-child(12) { animation-delay: 190ms; }
+  .u-rows > tr:nth-child(n+13) { animation-delay: 196ms; }
 }
 
 [data-sonner-toast][data-type='success'] [data-icon],

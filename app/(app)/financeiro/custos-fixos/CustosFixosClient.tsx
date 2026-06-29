@@ -115,7 +115,7 @@ export function CustosFixosClient({ inicial }: { inicial: CustoFixo[] }) {
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
-          <tbody>
+          <tbody className="u-rows">
             {lista.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-sm text-text-muted">

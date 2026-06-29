@@ -143,7 +143,7 @@ export default function RelatorioProdutoPage() {
                   <th className="px-4 py-2.5 text-right font-medium text-text-muted">Margem %</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="u-rows">
                 {margem.slice(0, 25).map((p) => (
                   <tr key={p.produto_id} className="border-b border-border last:border-0">
                     <td className="px-4 py-2.5">

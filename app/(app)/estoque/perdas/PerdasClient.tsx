@@ -104,7 +104,7 @@ export function PerdasClient({ produtos, historico }: { produtos: Produto[]; his
               <th className="px-4 py-2.5 text-right font-medium text-text-muted hidden sm:table-cell">Custo</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="u-rows">
             {historico.length === 0 && (
               <tr><td colSpan={4} className="px-4 py-8 text-center text-text-muted">Nenhuma perda registrada ainda.</td></tr>
             )}

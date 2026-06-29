@@ -103,7 +103,7 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
               <th className="px-4 py-2.5 text-right font-medium text-text-muted">Total</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="u-rows">
             {historico.length === 0 && (
               <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-text-muted">Nenhuma compra registrada</td></tr>
             )}
