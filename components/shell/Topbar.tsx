@@ -27,7 +27,7 @@ const TITULOS: { prefixo: string; titulo: string }[] = [
 
 function tituloDaRota(pathname: string): string {
   const m = TITULOS.find((t) => pathname.startsWith(t.prefixo))
-  return m?.titulo ?? 'R$ Depósito'
+  return m?.titulo ?? 'DepSys'
 }
 
 export function Topbar({

@@ -78,7 +78,7 @@ export default function LoginPage() {
       <div className="relative w-full max-w-sm">
         <div className="mb-7 text-center">
           <h1 className="font-display text-2xl font-bold tracking-tight text-text">
-            Gestão de Bebidas
+            DepSys
           </h1>
           <p className="mt-1.5 text-sm text-text-muted">
             <span className="text-accent-gold">R$ Depósito</span> · Império Salles

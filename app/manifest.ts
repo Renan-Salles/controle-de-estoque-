@@ -5,9 +5,9 @@ import type { MetadataRoute } from 'next'
 // o <link> automaticamente.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'R$ DEPÓSITO',
-    short_name: 'DEPÓSITO',
-    description: 'Gestão do depósito de bebidas',
+    name: 'DepSys',
+    short_name: 'DepSys',
+    description: 'Gestão de estoque e financeiro do depósito de bebidas',
     start_url: '/dashboard',
     display: 'standalone',
     background_color: '#ffffff',
