@@ -22,7 +22,7 @@ type Descarte = {
 }
 
 const MOTIVOS = [
-  { value: 'quebra', label: 'Quebra / Dano fisico' },
+  { value: 'quebra', label: 'Quebra / Dano físico' },
   { value: 'vencimento', label: 'Produto vencido' },
   { value: 'perda', label: 'Perda' },
   { value: 'cortesia', label: 'Cortesia' },
@@ -93,7 +93,7 @@ export function PerdasClient({ produtos, historico }: { produtos: Produto[]; his
 
       <div className="rounded-lg border border-border bg-surface overflow-hidden">
         <div className="border-b border-border px-5 py-3">
-          <h2 className="text-sm font-semibold text-text">Historico de perdas</h2>
+          <h2 className="text-sm font-semibold text-text">Histórico de perdas</h2>
         </div>
         <table className="w-full text-sm">
           <thead>

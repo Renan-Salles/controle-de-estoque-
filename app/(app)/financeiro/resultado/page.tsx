@@ -37,7 +37,7 @@ export default async function ResultadoPage({
     <div className="px-6 py-5">
       <FinanceiroTabs />
 
-      <PageHeader titulo="Resultado" subtitulo="Demonstrativo de resultado do mes." />
+      <PageHeader titulo="Resultado" subtitulo="Demonstrativo de resultado do mês." />
 
       <div className="space-y-5">
         <div className="flex items-center gap-3">
@@ -51,7 +51,7 @@ export default async function ResultadoPage({
           <LinhaDRE label="= Margem Bruta" valor={dre.margem_bruta} pct={dre.margem_bruta_pct} destaque />
           <LinhaDRE label="(-) Custos Fixos" valor={dre.custos_fixos} negativo />
           <LinhaDRE label="(-) Perdas e Quebras" valor={dre.perdas} negativo />
-          <LinhaDRE label="= Lucro Liquido" valor={dre.lucro_liquido} pct={dre.lucro_liquido_pct} destaque negativo={dre.lucro_liquido < 0} />
+          <LinhaDRE label="= Lucro Líquido" valor={dre.lucro_liquido} pct={dre.lucro_liquido_pct} destaque negativo={dre.lucro_liquido < 0} />
         </div>
 
         {dre.custos_fixos === 0 && (

@@ -16,7 +16,7 @@ const BADGE: Record<string, { cls: string; label: string; icon?: boolean }> = {
 
 const FORMA: Record<string, string> = {
   dinheiro: 'Dinheiro', pix: 'PIX',
-  cartao_debito: 'Debito', cartao_credito: 'Credito',
+  cartao_debito: 'Débito', cartao_credito: 'Crédito',
 }
 
 export default async function ClientePage({ params }: { params: Promise<{ id: string }> }) {
@@ -65,8 +65,8 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
         {[
           { label: 'Total gasto', valor: formatarReal(stats.valor_total) },
           { label: 'Compras', valor: String(stats.total_compras) },
-          { label: 'Ticket medio', valor: formatarReal(stats.ticket_medio) },
-          { label: 'Ultima compra', valor: stats.ultima_compra ? formatarData(stats.ultima_compra) : '-' },
+          { label: 'Ticket médio', valor: formatarReal(stats.ticket_medio) },
+          { label: 'Última compra', valor: stats.ultima_compra ? formatarData(stats.ultima_compra) : '-' },
         ].map((s) => (
           <div key={s.label} className="rounded-lg border border-border bg-surface p-4">
             <p className="text-xs text-text-muted">{s.label}</p>
@@ -81,8 +81,8 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
           {c.telefone && <><dt className="text-text-muted">Telefone</dt><dd className="text-text">{c.telefone}</dd></>}
           {c.whatsapp && <><dt className="text-text-muted">WhatsApp</dt><dd className="text-text">{c.whatsapp}</dd></>}
           {c.cpf_cnpj && <><dt className="text-text-muted">CPF/CNPJ</dt><dd className="text-text">{c.cpf_cnpj}</dd></>}
-          {endStr && <><dt className="text-text-muted">Endereco</dt><dd className="text-text">{endStr}</dd></>}
-          <dt className="text-text-muted">Forma padrao</dt>
+          {endStr && <><dt className="text-text-muted">Endereço</dt><dd className="text-text">{endStr}</dd></>}
+          <dt className="text-text-muted">Forma padrão</dt>
           <dd className="text-text">{FORMA[c.forma_pagamento_padrao] ?? c.forma_pagamento_padrao}</dd>
           {c.prazo_pagamento_dias > 0 && (
             <><dt className="text-text-muted">Prazo</dt><dd className="text-text">{c.prazo_pagamento_dias} dias</dd></>
@@ -92,7 +92,7 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
 
       <div className="rounded-lg border border-border bg-surface overflow-hidden">
         <div className="border-b border-border px-5 py-3">
-          <h2 className="text-sm font-semibold text-text">Ultimas compras</h2>
+          <h2 className="text-sm font-semibold text-text">Últimas compras</h2>
         </div>
         <table className="w-full text-sm">
           <thead>

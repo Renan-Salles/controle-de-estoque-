@@ -27,7 +27,7 @@ export async function darEntrada(data: {
   const serviceClient = await createServiceClient()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Nao autenticado' }
+  if (!user) return { error: 'Não autenticado' }
 
   const { data: estoqueAtual } = await serviceClient
     .from('estoque')
