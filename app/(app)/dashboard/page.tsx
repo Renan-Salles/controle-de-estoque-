@@ -79,7 +79,7 @@ export default async function DashboardPage() {
     money?: number
     moneyDestaque?: boolean
     icon: LucideIcon
-    tom: 'brand' | 'gold' | 'critico' | 'ok'
+    tom: 'brand' | 'critico' | 'ok'
   }
 
   const kpis: Kpi[] = [
@@ -99,7 +99,7 @@ export default async function DashboardPage() {
       moneyDestaque: true,
       sub: 'vendas concluídas no mês',
       icon: CalendarRange,
-      tom: 'gold',
+      tom: 'brand',
     },
     {
       label: 'Estoque crítico',
@@ -118,7 +118,7 @@ export default async function DashboardPage() {
       tom: 'brand',
     },
     {
-      label: 'Lucro do mes',
+      label: 'Lucro do mês',
       valor: '',
       money: dre.lucro_liquido,
       moneyDestaque: dre.lucro_liquido >= 0,
@@ -129,21 +129,19 @@ export default async function DashboardPage() {
     {
       label: 'Cliente destaque',
       valor: stats.clienteVip ?? '-',
-      sub: stats.clienteVip ? formatarReal(stats.ticketMedio) + ' ticket medio' : 'sem vendas no mes',
+      sub: stats.clienteVip ? formatarReal(stats.ticketMedio) + ' ticket médio' : 'sem vendas no mês',
       icon: Star,
-      tom: 'gold',
+      tom: 'brand',
     },
   ]
 
   const tomCor: Record<Kpi['tom'], string> = {
     brand: 'text-brand',
-    gold: 'text-accent-gold',
     critico: 'text-err',
     ok: 'text-ok',
   }
   const tomAnel: Record<Kpi['tom'], string> = {
     brand: 'bg-brand/10 text-brand',
-    gold: 'bg-warn/10 text-warn',
     critico: 'bg-err/10 text-err',
     ok: 'bg-ok/10 text-ok',
   }
@@ -153,7 +151,7 @@ export default async function DashboardPage() {
     titulo: string
     desc: string
     icon: LucideIcon
-    dourado?: boolean
+    destaque?: boolean
   }> = [
     {
       href: '/movimentacoes/nova?tipo=saida',
@@ -172,7 +170,7 @@ export default async function DashboardPage() {
       titulo: 'Formas de pagamento',
       desc: 'Quanto entrou em cada forma',
       icon: CreditCard,
-      dourado: true,
+      destaque: true,
     },
   ]
 
@@ -301,7 +299,7 @@ export default async function DashboardPage() {
                 className="u-motion group flex items-center gap-3 rounded-lg px-2 py-3 hover:bg-surface-2"
               >
                 <span
-                  className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${a.dourado ? 'bg-warn/10 text-warn' : 'bg-brand/10 text-brand'}`}
+                  className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${a.destaque ? 'bg-ok/10 text-ok' : 'bg-brand/10 text-brand'}`}
                 >
                   <a.icon className="size-4" strokeWidth={1.5} />
                 </span>

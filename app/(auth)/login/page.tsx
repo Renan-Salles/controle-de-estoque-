@@ -81,7 +81,7 @@ export default function LoginPage() {
             DepSys
           </h1>
           <p className="mt-1.5 text-sm text-text-muted">
-            <span className="text-accent-gold">R$ Depósito</span> · Império Salles
+            R$ Depósito · Império Salles
           </p>
         </div>
 

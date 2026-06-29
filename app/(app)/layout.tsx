@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { Sidebar } from '@/components/shell/Sidebar'
 import { Topbar } from '@/components/shell/Topbar'
+import { PageTransition } from '@/components/shell/PageTransition'
 import { Toaster } from 'sonner'
 import { listarLocais, getLocalAtivo } from '@/lib/local'
 import { getCargoUsuario, getNomePerfil } from '@/lib/permissoes'
@@ -46,7 +47,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           itensVisiveis={itensVisiveis}
           isAdmin={isAdmin}
         />
-        <main className="min-w-0 flex-1 px-6 py-5">{children}</main>
+        <main className="min-w-0 flex-1 px-6 py-5">
+          <PageTransition>{children}</PageTransition>
+        </main>
       </div>
       <Toaster position="top-right" theme="dark" richColors />
     </div>

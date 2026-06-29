@@ -67,9 +67,9 @@
   --brand: #0e9aa7;
   --brand-strong: #0a7d88;
   --brand-soft: #e0f5f6;
-  /* Dourado: identidade do "R$" + dinheiro/valores em destaque (Money) */
-  --accent-gold: #c8941a;
-  --accent-gold-soft: #f7eccf;
+  /* Segundo acento: mesmo teal da marca — sistema monoacento, estilo SaaS */
+  --accent-gold: #0e9aa7;
+  --accent-gold-soft: #e0f5f6;
   /* Semânticas */
   --ok: #10b981;
   --warn: #f59e0b;
@@ -109,9 +109,9 @@
   --brand: #1fc0cf;
   --brand-strong: #3fd4e0;
   --brand-soft: rgba(31, 192, 207, 0.14);
-  /* Dourado luminoso no escuro */
-  --accent-gold: #e0b84d;
-  --accent-gold-soft: rgba(224, 184, 77, 0.14);
+  /* Segundo acento: teal vibrante no escuro */
+  --accent-gold: #1fc0cf;
+  --accent-gold-soft: rgba(31, 192, 207, 0.14);
   --ok: #34d399;
   --warn: #fbbf24;
   --err: #f87171;
@@ -231,6 +231,10 @@
   .u-flash-in {
     animation: u-fade-up var(--dur) var(--ease-out) both,
       u-flash-bg 600ms var(--ease-out) both;
+  }
+  /* Transição de página: fade-up suave ao trocar de rota */
+  .u-page-enter {
+    animation: u-fade-up var(--dur-slow) var(--ease-out) both;
   }
 }
 
