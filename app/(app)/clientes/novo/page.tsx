@@ -100,7 +100,7 @@ export default function NovoClientePage() {
             <Campo label="Tipo">
               <Select value={form.tipo} onValueChange={(v) => set('tipo', v)}>
                 <SelectTrigger className="w-full">
-                  <SelectValue />
+                  <SelectValue>{(v: string) => TIPOS.find((t) => t.v === v)?.l ?? v}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {TIPOS.map((t) => (
@@ -181,10 +181,15 @@ export default function NovoClientePage() {
             <Campo label="Forma de pagamento padrão">
               <Select
                 value={form.forma_pagamento_padrao}
-                onValueChange={(v) => set('forma_pagamento_padrao', v)}
+                onValueChange={(v) => {
+                  set('forma_pagamento_padrao', v)
+                  if (v === 'fiado' && form.prazo_pagamento_dias === '0') {
+                    set('prazo_pagamento_dias', '7')
+                  }
+                }}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue />
+                  <SelectValue>{(v: string) => PAGAMENTOS.find((p) => p.v === v)?.l ?? v}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {PAGAMENTOS.map((p) => (

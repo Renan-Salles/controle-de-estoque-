@@ -23,6 +23,7 @@ import { ListaItensPedido } from '@/components/pedido/ListaItensPedido'
 import { registrarVenda, buscarPedidoParaCupom } from '@/lib/actions/pedidos'
 import { buscarMaisVendidos, type MaisVendido } from '@/lib/actions/produtos'
 import { formatarReal, formatarData, addDias } from '@/lib/formatos'
+import { rotuloPagamento } from '@/lib/pedido-labels'
 import { Money } from '@/components/ui-kit/Money'
 import {
   Select,
@@ -452,7 +453,7 @@ export function FormSaida() {
               }
             >
               <SelectTrigger className="w-full">
-                <SelectValue />
+                <SelectValue>{(v: string) => rotuloPagamento(v)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="dinheiro">Dinheiro</SelectItem>
