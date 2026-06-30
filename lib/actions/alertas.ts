@@ -22,7 +22,7 @@ export async function gerarAlertas() {
     }, { onConflict: 'tipo,referencia_id' })
   }
 
-  // Contas a pagar vencidas e ainda não quitadas (sem fiado, não há mais a receber).
+  // Contas a pagar vencidas e ainda não quitadas.
   const { data: vencidas } = await supabase
     .from('contas_pagar')
     .select('id, descricao, valor')
@@ -42,5 +42,37 @@ export async function gerarAlertas() {
     }, { onConflict: 'tipo,referencia_id' })
   }
 
-  return { ok: true, criticos: criticos?.length, vencidas: vencidas?.length }
+  // Fiado (contas_receber) vencido ou vencendo nos próximos 3 dias.
+  const hoje = new Date().toISOString().split('T')[0]
+  const em3dias = new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0]
+  const { data: fiados } = await supabase
+    .from('contas_receber')
+    .select('id, valor, valor_pago, data_vencimento, clientes(nome)')
+    .in('status', ['aberto', 'parcial'])
+    .lte('data_vencimento', em3dias)
+    .limit(50)
+
+  for (const f of (fiados ?? []) as {
+    id: string
+    valor: number | string
+    valor_pago: number | string
+    data_vencimento: string
+    clientes: { nome: string } | { nome: string }[] | null
+  }[]) {
+    const vencido = f.data_vencimento < hoje
+    const nomeCliente = (Array.isArray(f.clientes) ? f.clientes[0] : f.clientes)?.nome ?? 'Cliente'
+    const saldo = Number(f.valor) - Number(f.valor_pago)
+    const dataFmt = f.data_vencimento.split('-').reverse().join('/')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from('alertas') as any).upsert({
+      tipo: 'fiado_vencendo',
+      severidade: vencido ? 'critico' : 'aviso',
+      titulo: vencido ? `Fiado vencido: ${nomeCliente}` : `Fiado vence em breve: ${nomeCliente}`,
+      mensagem: `Valor em aberto: R$ ${saldo.toFixed(2)} - vencimento ${dataFmt}`,
+      referencia_tipo: 'conta_receber',
+      referencia_id: f.id,
+    }, { onConflict: 'tipo,referencia_id' })
+  }
+
+  return { ok: true, criticos: criticos?.length, vencidas: vencidas?.length, fiados: fiados?.length }
 }

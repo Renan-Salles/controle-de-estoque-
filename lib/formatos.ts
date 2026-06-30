@@ -44,3 +44,10 @@ export function formatarData(
   if (Number.isNaN(data.getTime())) return ''
   return FMT_DATA.format(data)
 }
+
+/** Soma dias a uma data (YYYY-MM-DD) e devolve YYYY-MM-DD. */
+export function addDias(dataISO: string, dias: number): string {
+  const d = new Date(`${dataISO}T00:00:00`)
+  d.setDate(d.getDate() + dias)
+  return d.toISOString().split('T')[0]
+}

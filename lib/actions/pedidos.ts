@@ -1,6 +1,7 @@
 'use server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getLocalAtivoId } from '@/lib/local'
+import { addDias } from '@/lib/formatos'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -13,18 +14,23 @@ const ItemSchema = z.object({
 
 const VendaSchema = z.object({
   // Cliente opcional: venda de balcao pode nao ter cliente identificado.
+  // Fiado exige cliente (validado abaixo, pois depende de outro campo).
   cliente_id: z.string().uuid().nullable().optional(),
-  forma_pagamento: z.enum(['dinheiro', 'pix', 'cartao_debito', 'cartao_credito']),
+  forma_pagamento: z.enum(['dinheiro', 'pix', 'cartao_debito', 'cartao_credito', 'fiado']),
+  prazo_dias: z.number().int().min(1).max(180).optional(),
   observacoes: z.string().optional(),
   canal: z.enum(['telefone', 'whatsapp', 'balcao']).default('balcao'),
   itens: z.array(ItemSchema).min(1, 'Adicione pelo menos 1 item'),
 })
 
-// Registra uma SAIDA (venda) a vista: baixa estoque atomico e gera comprovante.
-// Sem fiado, sem ciclo de status de entrega, sem conta a receber.
+// Registra uma SAIDA (venda): baixa estoque atomico e gera comprovante.
+// Fiado gera uma linha em contas_receber com vencimento = hoje + prazo_dias.
 export async function registrarVenda(data: unknown) {
   const parsed = VendaSchema.safeParse(data)
   if (!parsed.success) return { error: parsed.error.issues[0].message }
+  if (parsed.data.forma_pagamento === 'fiado' && !parsed.data.cliente_id) {
+    return { error: 'Selecione um cliente para venda fiado' }
+  }
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -35,6 +41,8 @@ export async function registrarVenda(data: unknown) {
   const { itens, forma_pagamento } = parsed.data
   const total = itens.reduce((acc, i) => acc + i.total, 0)
   const hoje = new Date().toISOString().split('T')[0]
+  const prazoDias = forma_pagamento === 'fiado' ? (parsed.data.prazo_dias ?? 7) : 0
+  const dataVencimento = forma_pagamento === 'fiado' ? addDias(hoje, prazoDias) : hoje
 
   // Valida o estoque de TODOS os itens antes de criar a venda: não deixa o
   // saldo ficar negativo (vender mais do que tem deixaria o estoque mentindo).
@@ -64,8 +72,8 @@ export async function registrarVenda(data: unknown) {
       local_id: localId,
       status: 'concluida',
       forma_pagamento,
-      prazo_pagamento_dias: 0,
-      data_vencimento: hoje,
+      prazo_pagamento_dias: prazoDias,
+      data_vencimento: dataVencimento,
       observacoes: parsed.data.observacoes || null,
       canal: parsed.data.canal,
       subtotal: total,
@@ -88,6 +96,22 @@ export async function registrarVenda(data: unknown) {
     }))
   )
   if (errItens) return { error: errItens.message }
+
+  if (forma_pagamento === 'fiado') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: errReceber } = await (serviceClient.from('contas_receber') as any).insert({
+      pedido_id: venda.id,
+      cliente_id: parsed.data.cliente_id,
+      descricao: `Venda #${String(venda.numero_pedido).padStart(4, '0')}`,
+      valor: total,
+      valor_pago: 0,
+      status: 'aberto',
+      data_emissao: hoje,
+      data_vencimento: dataVencimento,
+      forma_pagamento: 'fiado',
+    })
+    if (errReceber) return { error: errReceber.message }
+  }
 
   for (const item of itens) {
     const { data: estoqueAtual } = await serviceClient
@@ -123,6 +147,7 @@ export async function registrarVenda(data: unknown) {
   revalidatePath('/estoque')
   revalidatePath('/dashboard')
   revalidatePath('/financeiro')
+  revalidatePath('/financeiro/a-receber')
 
   return { success: true, pedidoId: venda.id, numeroPedido: venda.numero_pedido }
 }
@@ -207,10 +232,18 @@ export async function cancelarVenda(pedidoId: string) {
     .eq('id', pedidoId)
   if (errStatus) return { error: errStatus.message }
 
+  // Se era fiado, cancela a conta a receber junto (a nao ser que ja tenha sido paga).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (serviceClient.from('contas_receber') as any)
+    .update({ status: 'cancelado' })
+    .eq('pedido_id', pedidoId)
+    .neq('status', 'pago')
+
   revalidatePath('/movimentacoes')
   revalidatePath('/estoque')
   revalidatePath('/dashboard')
   revalidatePath('/financeiro')
+  revalidatePath('/financeiro/a-receber')
   revalidatePath(`/pedidos/${pedidoId}`)
 
   return { success: true }

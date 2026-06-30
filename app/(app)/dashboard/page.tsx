@@ -11,6 +11,7 @@ import {
   CreditCard,
   TrendingUp,
   Star,
+  HandCoins,
   type LucideIcon,
 } from 'lucide-react'
 import Link from 'next/link'
@@ -18,6 +19,7 @@ import { Money } from '@/components/ui-kit/Money'
 import { GraficoVendas, type PontoVenda } from '@/components/dashboard/GraficoVendas'
 import { getDashStats } from '@/lib/actions/dashboard'
 import { getDre } from '@/lib/actions/dre'
+import { buscarResumoFiado } from '@/lib/actions/financeiro'
 import { formatarReal } from '@/lib/formatos'
 
 export default async function DashboardPage() {
@@ -38,12 +40,14 @@ export default async function DashboardPage() {
     { data: pedidosMes },
     stats,
     dre,
+    resumoFiado,
   ] = await Promise.all([
     supabase.from('pedidos').select('total').gte('data_pedido', `${hoje}T00:00:00`).eq('status', 'concluida').eq('local_id', localId) as unknown as Promise<{ data: RowTotal[] }>,
     supabase.from('v_posicao_estoque').select('id').in('status_estoque', ['critico', 'ruptura']).eq('local_id', localId) as unknown as Promise<{ data: RowId[] }>,
     supabase.from('pedidos').select('data_pedido, total').gte('data_pedido', `${inicioMes}T00:00:00`).eq('status', 'concluida').eq('local_id', localId).order('data_pedido') as unknown as Promise<{ data: RowPedidoMes[] }>,
     getDashStats(),
     getDre(),
+    buscarResumoFiado(),
   ])
 
   const receitaHoje = (pedidosHoje ?? []).reduce((acc, p) => acc + (p.total ?? 0), 0)
@@ -214,6 +218,44 @@ export default async function DashboardPage() {
           </div>
           <span className="inline-flex items-center gap-1 text-[13px] font-medium text-err">
             Ver estoque
+            <ArrowUpRight className="size-4 u-motion group-hover:translate-x-0.5 group-hover:-translate-y-0.5" strokeWidth={1.5} />
+          </span>
+        </Link>
+      )}
+
+      {/* Aviso de fiado vencido ou vencendo nos próximos 3 dias */}
+      {(resumoFiado.qtdVencidas > 0 || resumoFiado.qtdVencendo > 0) && (
+        <Link
+          href="/financeiro/a-receber"
+          className={`u-motion u-fade-in group mb-5 flex items-center gap-3 rounded-lg border px-4 py-3 ${
+            resumoFiado.qtdVencidas > 0
+              ? 'border-err/30 bg-err/[0.07] hover:bg-err/10'
+              : 'border-warn/30 bg-warn/[0.07] hover:bg-warn/10'
+          }`}
+        >
+          <span
+            className={`flex size-8 shrink-0 items-center justify-center rounded-md ${
+              resumoFiado.qtdVencidas > 0 ? 'bg-err/15 text-err' : 'bg-warn/15 text-warn'
+            }`}
+          >
+            <HandCoins className="size-4" strokeWidth={1.5} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-text">
+              {resumoFiado.qtdVencidas > 0
+                ? `${resumoFiado.qtdVencidas} fiado${resumoFiado.qtdVencidas > 1 ? 's' : ''} vencido${resumoFiado.qtdVencidas > 1 ? 's' : ''}`
+                : `${resumoFiado.qtdVencendo} fiado${resumoFiado.qtdVencendo > 1 ? 's' : ''} vencendo nos próximos 3 dias`}
+            </p>
+            <p className="text-[13px] text-text-muted">
+              Total: {formatarReal(resumoFiado.qtdVencidas > 0 ? resumoFiado.totalVencido : resumoFiado.totalVencendo)}
+            </p>
+          </div>
+          <span
+            className={`inline-flex items-center gap-1 text-[13px] font-medium ${
+              resumoFiado.qtdVencidas > 0 ? 'text-err' : 'text-warn'
+            }`}
+          >
+            Ver fiados
             <ArrowUpRight className="size-4 u-motion group-hover:translate-x-0.5 group-hover:-translate-y-0.5" strokeWidth={1.5} />
           </span>
         </Link>

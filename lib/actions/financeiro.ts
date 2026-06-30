@@ -1,6 +1,7 @@
 'use server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getLocalAtivoId } from '@/lib/local'
+import { addDias } from '@/lib/formatos'
 import { revalidatePath } from 'next/cache'
 
 export async function buscarContasPagar(status?: string) {
@@ -202,7 +203,8 @@ export async function buscarCaixaDia() {
   return { resumo, totalGeral, totalVendas, data: hoje }
 }
 
-// Resumo de contas a pagar do mês (do local ativo). Sem fiado/contas a receber.
+// Resumo de contas a pagar do mês (do local ativo).
+// Para o lado do fiado/contas a receber, ver buscarResumoFiado() abaixo.
 export async function buscarResumoFinanceiro() {
   const localId = await getLocalAtivoId()
   const supabase = await createClient()
@@ -220,4 +222,80 @@ export async function buscarResumoFinanceiro() {
   const totalPago = contas.reduce((a, c) => a + Number(c.valor_pago ?? 0), 0)
 
   return { totalPagar, totalPago }
+}
+
+// Lista os fiados (contas_receber) do local ativo, com dados do cliente.
+// contas_receber nao tem local_id direto: filtra via pedidos!inner(local_id).
+export async function buscarContasReceber(status?: string) {
+  const localId = await getLocalAtivoId()
+  const supabase = await createClient()
+  let query = supabase
+    .from('contas_receber')
+    .select(
+      'id, pedido_id, descricao, valor, valor_pago, status, data_emissao, data_vencimento, clientes(nome, telefone), pedidos!inner(numero_pedido, local_id)',
+    )
+    .eq('pedidos.local_id', localId)
+    .order('data_vencimento')
+  if (status && status !== 'todas') query = query.eq('status', status)
+  const { data, error } = await query
+  if (error) throw error
+  return data ?? []
+}
+
+// Marca um fiado como recebido: baixa o valor integral e fecha a conta.
+export async function marcarContaReceberPaga(id: string) {
+  const supabase = await createClient()
+  const { data: contaRaw } = await supabase
+    .from('contas_receber')
+    .select('valor')
+    .eq('id', id)
+    .single()
+  const conta = contaRaw as { valor: number } | null
+  if (!conta) return { error: 'Conta não encontrada' }
+
+  const hoje = new Date().toISOString().split('T')[0]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.from('contas_receber') as any)
+    .update({ status: 'pago', valor_pago: conta.valor, data_pagamento: hoje })
+    .eq('id', id)
+  if (error) return { error: error.message }
+
+  revalidatePath('/financeiro/a-receber')
+  revalidatePath('/dashboard')
+  return { success: true }
+}
+
+// Resumo do fiado em aberto: total a receber, quanto vence nos proximos 3 dias
+// e quanto ja venceu. Alimenta o banner do dashboard e os KPIs de a-receber.
+export async function buscarResumoFiado() {
+  const localId = await getLocalAtivoId()
+  const supabase = await createClient()
+  const hoje = new Date().toISOString().split('T')[0]
+  const em3dias = addDias(hoje, 3)
+
+  const { data } = await supabase
+    .from('contas_receber')
+    .select('valor, valor_pago, data_vencimento, pedidos!inner(local_id)')
+    .eq('pedidos.local_id', localId)
+    .in('status', ['aberto', 'parcial'])
+
+  const rows = (data ?? []) as {
+    valor: number | string
+    valor_pago: number | string
+    data_vencimento: string
+  }[]
+  const abertas = rows.map((r) => ({
+    data_vencimento: r.data_vencimento,
+    saldo: Number(r.valor) - Number(r.valor_pago),
+  }))
+  const vencidas = abertas.filter((r) => r.data_vencimento < hoje)
+  const vencendo = abertas.filter((r) => r.data_vencimento >= hoje && r.data_vencimento <= em3dias)
+
+  return {
+    totalAberto: abertas.reduce((a, r) => a + r.saldo, 0),
+    qtdVencidas: vencidas.length,
+    totalVencido: vencidas.reduce((a, r) => a + r.saldo, 0),
+    qtdVencendo: vencendo.length,
+    totalVencendo: vencendo.reduce((a, r) => a + r.saldo, 0),
+  }
 }

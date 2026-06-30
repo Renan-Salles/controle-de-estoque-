@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Printer, User, CalendarDays, CreditCard, StickyNote, Ban } from 'lucide-react'
+import { ArrowLeft, Printer, User, CalendarDays, CreditCard, StickyNote, Ban, Clock } from 'lucide-react'
 import { PageHeader } from '@/components/ui-kit/PageHeader'
 import { StatusPill } from '@/components/ui-kit/StatusPill'
 import { BotaoCancelar } from '@/components/movimentacao/BotaoCancelar'
@@ -25,6 +25,8 @@ type VendaComRelacoes = {
   subtotal: number
   data_pedido: string
   forma_pagamento: string
+  prazo_pagamento_dias: number
+  data_vencimento: string | null
   observacoes: string | null
   clientes: { nome: string; telefone: string | null } | null
   pedido_itens: {
@@ -69,7 +71,7 @@ export default async function VendaDetailPage({
   const { data: vendaRaw } = await supabase
     .from('pedidos')
     .select(
-      `id, numero_pedido, status, total, subtotal, data_pedido, forma_pagamento, observacoes, clientes(nome, telefone), pedido_itens(quantidade_pedida, preco_unitario, total, produtos(nome, embalagem))`,
+      `id, numero_pedido, status, total, subtotal, data_pedido, forma_pagamento, prazo_pagamento_dias, data_vencimento, observacoes, clientes(nome, telefone), pedido_itens(quantidade_pedida, preco_unitario, total, produtos(nome, embalagem))`,
     )
     .eq('id', id)
     .single()
@@ -153,6 +155,13 @@ export default async function VendaDetailPage({
           rotulo="Pagamento"
           valor={rotuloPagamento(venda.forma_pagamento)}
         />
+        {venda.forma_pagamento === 'fiado' && venda.data_vencimento && (
+          <LinhaDado
+            icone={Clock}
+            rotulo="Vencimento"
+            valor={`${formatarData(venda.data_vencimento)} (${venda.prazo_pagamento_dias} dias)`}
+          />
+        )}
         <LinhaDado
           icone={StickyNote}
           rotulo="Observações"

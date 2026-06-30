@@ -29,6 +29,7 @@ const PAGAMENTOS = [
   { v: 'pix', l: 'Pix' },
   { v: 'cartao_debito', l: 'Cartão débito' },
   { v: 'cartao_credito', l: 'Cartão crédito' },
+  { v: 'fiado', l: 'Fiado' },
 ]
 
 export default function NovoClientePage() {
@@ -194,6 +195,20 @@ export default function NovoClientePage() {
                 </SelectContent>
               </Select>
             </Campo>
+            {form.forma_pagamento_padrao === 'fiado' && (
+              <Campo
+                label="Prazo de pagamento (dias)"
+                ajuda="Tempo limite padrão para esse cliente pagar. Pode ser ajustado em cada venda."
+              >
+                <Input
+                  type="number"
+                  min="1"
+                  value={form.prazo_pagamento_dias}
+                  onChange={(e) => set('prazo_pagamento_dias', e.target.value)}
+                  placeholder="7"
+                />
+              </Campo>
+            )}
             <Campo label="Observações" full>
               <Textarea
                 value={form.observacoes}

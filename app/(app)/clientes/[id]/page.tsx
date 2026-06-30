@@ -16,7 +16,7 @@ const BADGE: Record<string, { cls: string; label: string; icon?: boolean }> = {
 
 const FORMA: Record<string, string> = {
   dinheiro: 'Dinheiro', pix: 'PIX',
-  cartao_debito: 'Débito', cartao_credito: 'Crédito',
+  cartao_debito: 'Débito', cartao_credito: 'Crédito', fiado: 'Fiado',
 }
 
 export default async function ClientePage({ params }: { params: Promise<{ id: string }> }) {
@@ -27,7 +27,17 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const c = raw as any
-  const [stats, historico] = await Promise.all([buscarStatsCliente(id), buscarHistoricoCliente(id)])
+  const [stats, historico, fiadoRaw] = await Promise.all([
+    buscarStatsCliente(id),
+    buscarHistoricoCliente(id),
+    supabase
+      .from('contas_receber')
+      .select('valor, valor_pago')
+      .eq('cliente_id', id)
+      .in('status', ['aberto', 'parcial']),
+  ])
+  const fiadoAberto = ((fiadoRaw.data ?? []) as { valor: number; valor_pago: number }[])
+    .reduce((a, f) => a + (Number(f.valor) - Number(f.valor_pago)), 0)
   const classif = classificarCliente(stats)
   const badge = BADGE[classif]
   const tel = c.whatsapp || c.telefone
@@ -54,6 +64,14 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
           {classif === 'sumido' && <AlertCircle className="size-3" />}
           {badge.label}
         </span>
+        {fiadoAberto > 0 && (
+          <Link
+            href="/financeiro/a-receber"
+            className="inline-flex items-center gap-1 rounded-full bg-warn/10 px-2.5 py-0.5 text-xs font-medium text-warn hover:bg-warn/15"
+          >
+            Fiado em aberto: {formatarReal(fiadoAberto)}
+          </Link>
+        )}
         {stats.produto_favorito && (
           <span className="text-xs text-text-muted">
             Favorito: <strong className="text-text">{stats.produto_favorito}</strong>

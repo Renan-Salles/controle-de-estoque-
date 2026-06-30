@@ -1,5 +1,6 @@
 // Rótulos do pedido/venda. Fonte única para listagem e detalhe.
-// Venda à vista: status só concluída ou cancelada; pagamento sem fiado.
+// Status só concluída ou cancelada; o estoque sai na hora mesmo se for fiado.
+// Fiado vira uma linha em contas_receber, controlada à parte (lib/actions/financeiro.ts).
 
 import type { StatusPillTipo } from '@/components/ui-kit/StatusPill'
 
@@ -16,12 +17,13 @@ export const STATUS_PEDIDO_PILL: Record<string, StatusPillTipo> = {
   cancelada: 'cancelado',
 }
 
-// Rótulos das formas de pagamento (todas à vista).
+// Rótulos das formas de pagamento (inclui fiado, com prazo a receber).
 export const ROTULO_PAGAMENTO: Record<string, string> = {
   dinheiro: 'Dinheiro',
   pix: 'Pix',
   cartao_debito: 'Cartão débito',
   cartao_credito: 'Cartão crédito',
+  fiado: 'Fiado',
 }
 
 export function rotuloPagamento(forma: string | null | undefined): string {

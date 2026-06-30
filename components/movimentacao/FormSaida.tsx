@@ -22,7 +22,7 @@ import {
 import { ListaItensPedido } from '@/components/pedido/ListaItensPedido'
 import { registrarVenda, buscarPedidoParaCupom } from '@/lib/actions/pedidos'
 import { buscarMaisVendidos, type MaisVendido } from '@/lib/actions/produtos'
-import { formatarReal } from '@/lib/formatos'
+import { formatarReal, formatarData, addDias } from '@/lib/formatos'
 import { Money } from '@/components/ui-kit/Money'
 import {
   Select,
@@ -40,14 +40,17 @@ type FormaPagamentoVenda =
   | 'pix'
   | 'cartao_debito'
   | 'cartao_credito'
+  | 'fiado'
 
-// SAIDA (venda a vista). Reusa BuscaCliente/BuscaProduto/ListaItensPedido.
-// Cliente OPCIONAL (venda de balcao). Sem fiado, sem prazo, sem ciclo de entrega.
+// SAIDA (venda). Reusa BuscaCliente/BuscaProduto/ListaItensPedido.
+// Cliente OPCIONAL (venda de balcao), exceto quando fiado: ai e obrigatorio
+// para saber de quem cobrar, e o prazo (dias) e escolhido aqui na hora.
 export function FormSaida() {
   const [cliente, setCliente] = useState<ClienteResumo | null>(null)
   const [itens, setItens] = useState<ItemPedido[]>([])
   const [formaPagamento, setFormaPagamento] =
     useState<FormaPagamentoVenda>('dinheiro')
+  const [prazoDias, setPrazoDias] = useState('7')
   const [observacoes, setObservacoes] = useState('')
   const [registrando, setRegistrando] = useState(false)
   const [maisVendidos, setMaisVendidos] = useState<MaisVendido[]>([])
@@ -72,10 +75,15 @@ export function FormSaida() {
       toast.error('Adicione pelo menos 1 produto')
       return
     }
+    if (formaPagamento === 'fiado' && !cliente) {
+      toast.error('Selecione um cliente para venda fiado')
+      return
+    }
     setRegistrando(true)
     const resultado = await registrarVenda({
       cliente_id: cliente?.id ?? null,
       forma_pagamento: formaPagamento,
+      prazo_dias: formaPagamento === 'fiado' ? Number(prazoDias) || 7 : undefined,
       observacoes,
       canal: 'balcao',
       itens: itens.map((i) => ({
@@ -100,7 +108,7 @@ export function FormSaida() {
         setMostrarCupom(true)
       }
     })
-  }, [cliente, itens, formaPagamento, observacoes])
+  }, [cliente, itens, formaPagamento, prazoDias, observacoes])
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -169,7 +177,8 @@ export function FormSaida() {
     setItens((prev) => prev.filter((i) => i.produto_id !== produtoId))
   }, [])
 
-  const podeRegistrar = itens.length > 0 && !registrando
+  const podeRegistrar =
+    itens.length > 0 && !registrando && !(formaPagamento === 'fiado' && !cliente)
 
   function novaVenda() {
     setVendaRegistrada(null)
@@ -178,7 +187,23 @@ export function FormSaida() {
     setCliente(null)
     setItens([])
     setFormaPagamento('dinheiro')
+    setPrazoDias('7')
     setObservacoes('')
+  }
+
+  // Ao trocar cliente ou marcar fiado, sugere o prazo cadastrado no cliente.
+  function selecionarCliente(c: ClienteResumo) {
+    setCliente(c)
+    if (formaPagamento === 'fiado' && c.prazo_pagamento_dias) {
+      setPrazoDias(String(c.prazo_pagamento_dias))
+    }
+  }
+
+  function selecionarFormaPagamento(v: FormaPagamentoVenda) {
+    setFormaPagamento(v)
+    if (v === 'fiado' && cliente?.prazo_pagamento_dias) {
+      setPrazoDias(String(cliente.prazo_pagamento_dias))
+    }
   }
 
   function imprimirCupom() {
@@ -309,9 +334,9 @@ export function FormSaida() {
       <section className="flex min-w-0 flex-col gap-5">
         <div className="flex flex-col gap-2">
           <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
-            Cliente (opcional)
+            Cliente {formaPagamento === 'fiado' ? '(obrigatório p/ fiado)' : '(opcional)'}
           </label>
-          <BuscaCliente selecionado={cliente} onSelecionar={setCliente} />
+          <BuscaCliente selecionado={cliente} onSelecionar={selecionarCliente} />
           <p className="text-xs text-text-muted">
             Venda de balcão pode ficar sem cliente identificado.
           </p>
@@ -423,7 +448,7 @@ export function FormSaida() {
             <Select
               value={formaPagamento}
               onValueChange={(v) =>
-                v && setFormaPagamento(v as FormaPagamentoVenda)
+                v && selecionarFormaPagamento(v as FormaPagamentoVenda)
               }
             >
               <SelectTrigger className="w-full">
@@ -434,9 +459,37 @@ export function FormSaida() {
                 <SelectItem value="pix">Pix</SelectItem>
                 <SelectItem value="cartao_debito">Cartão débito</SelectItem>
                 <SelectItem value="cartao_credito">Cartão crédito</SelectItem>
+                <SelectItem value="fiado">Fiado</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {formaPagamento === 'fiado' && (
+            <div className="mt-3 flex flex-col gap-2 rounded-lg border border-warn/30 bg-warn/[0.06] p-3">
+              {!cliente ? (
+                <p className="text-xs font-medium text-warn">
+                  Selecione um cliente acima para venda fiado.
+                </p>
+              ) : (
+                <>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+                    Prazo para pagamento (dias)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={prazoDias}
+                    onChange={(e) => setPrazoDias(e.target.value)}
+                    className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-ring/50"
+                  />
+                  <p className="text-xs text-text-muted">
+                    Vence em{' '}
+                    {formatarData(addDias(new Date().toISOString().split('T')[0], Number(prazoDias) || 0))}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
 
           <div className="mt-4 flex items-baseline justify-between">
             <span className="text-sm text-text-muted">Subtotal</span>

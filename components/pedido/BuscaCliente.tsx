@@ -22,6 +22,7 @@ export interface ClienteResumo {
   nome: string
   telefone: string | null
   forma_pagamento_padrao: string
+  prazo_pagamento_dias?: number
 }
 
 interface Props {

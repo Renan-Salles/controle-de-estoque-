@@ -14,7 +14,7 @@ const ClienteSchema = z.object({
   endereco_numero: z.string().optional(),
   endereco_bairro: z.string().optional(),
   endereco_cidade: z.string().optional(),
-  forma_pagamento_padrao: z.enum(['dinheiro', 'pix', 'cartao_debito', 'cartao_credito']).default('dinheiro'),
+  forma_pagamento_padrao: z.enum(['dinheiro', 'pix', 'cartao_debito', 'cartao_credito', 'fiado']).default('dinheiro'),
   prazo_pagamento_dias: z.number().default(0),
   limite_credito: z.number().default(0),
   observacoes: z.string().optional(),
