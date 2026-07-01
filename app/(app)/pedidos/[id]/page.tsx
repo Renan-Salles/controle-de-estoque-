@@ -5,6 +5,7 @@ import { ArrowLeft, Printer, User, CalendarDays, CreditCard, StickyNote, Ban, Cl
 import { PageHeader } from '@/components/ui-kit/PageHeader'
 import { StatusPill } from '@/components/ui-kit/StatusPill'
 import { BotaoCancelar } from '@/components/movimentacao/BotaoCancelar'
+import { FulfillmentAcoes } from '@/components/movimentacao/FulfillmentAcoes'
 import {
   Tabela,
   TabelaHead,
@@ -28,6 +29,11 @@ type VendaComRelacoes = {
   prazo_pagamento_dias: number
   data_vencimento: string | null
   observacoes: string | null
+  tipo_fulfillment: string
+  frete: number
+  pago: boolean
+  concluido_em: string | null
+  entregador: { nome: string } | null
   clientes: { nome: string; telefone: string | null } | null
   pedido_itens: {
     quantidade_pedida: number
@@ -71,7 +77,7 @@ export default async function VendaDetailPage({
   const { data: vendaRaw } = await supabase
     .from('pedidos')
     .select(
-      `id, numero_pedido, status, total, subtotal, data_pedido, forma_pagamento, prazo_pagamento_dias, data_vencimento, observacoes, clientes(nome, telefone), pedido_itens(quantidade_pedida, preco_unitario, total, produtos(nome, embalagem))`,
+      `id, numero_pedido, status, total, subtotal, data_pedido, forma_pagamento, prazo_pagamento_dias, data_vencimento, observacoes, tipo_fulfillment, frete, pago, concluido_em, entregador:profiles!pedidos_entregador_id_fkey(nome), clientes(nome, telefone), pedido_itens(quantidade_pedida, preco_unitario, total, produtos(nome, embalagem))`,
     )
     .eq('id', id)
     .single()
@@ -122,6 +128,53 @@ export default async function VendaDetailPage({
               faturamento.
             </p>
           </div>
+        </div>
+      )}
+
+      {venda.tipo_fulfillment !== 'balcao' && (
+        <div className="mb-5 rounded-lg border border-border bg-surface p-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusPill
+                status={venda.concluido_em ? 'ok' : 'aberto'}
+                label={
+                  venda.concluido_em
+                    ? venda.tipo_fulfillment === 'entrega'
+                      ? 'Entregue'
+                      : 'Retirado'
+                    : venda.tipo_fulfillment === 'entrega'
+                      ? 'Aguardando entrega'
+                      : 'Aguardando retirada'
+                }
+              />
+              <StatusPill
+                status={venda.pago ? 'ok' : 'alerta'}
+                label={venda.pago ? 'Pago' : 'Pagamento pendente'}
+              />
+            </div>
+            {!cancelada && (
+              <FulfillmentAcoes
+                pedidoId={venda.id}
+                tipoFulfillment={venda.tipo_fulfillment}
+                pago={venda.pago}
+                concluidoEm={venda.concluido_em}
+              />
+            )}
+          </div>
+          {venda.tipo_fulfillment === 'entrega' && (
+            <div className="grid grid-cols-1 gap-y-2 text-sm sm:grid-cols-2">
+              <div>
+                <span className="text-text-muted">Entregador: </span>
+                {venda.entregador?.nome ?? '-'}
+              </div>
+              {venda.frete > 0 && (
+                <div>
+                  <span className="text-text-muted">Frete: </span>
+                  <Money valor={venda.frete} />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
