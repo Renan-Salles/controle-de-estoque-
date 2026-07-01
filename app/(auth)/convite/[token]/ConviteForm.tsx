@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { resgatarConvite } from '@/lib/actions/convites'
@@ -20,7 +19,6 @@ export function ConviteForm({
   const [senha, setSenha] = useState('')
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
-  const router = useRouter()
 
   async function criarConta() {
     if (loading) return
@@ -46,13 +44,17 @@ export function ConviteForm({
       return
     }
     const resultado = await resgatarConvite(token, nome.trim())
-    setLoading(false)
     if ('error' in resultado) {
+      setLoading(false)
       setErro(resultado.error)
       return
     }
-    router.push('/dashboard')
-    router.refresh()
+    // Navegacao dura (nao router.push): logo apos a Server Action acima,
+    // um push client-side do App Router nao completa de forma confiavel
+    // aqui (a troca de rota nao acontece, fica preso na propria tela sem
+    // erro nenhum). location.href forca reload puro, que passa pelo
+    // middleware como GET normal e cai certo no dashboard.
+    window.location.href = '/dashboard'
   }
 
   return (
