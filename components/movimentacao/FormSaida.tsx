@@ -23,6 +23,7 @@ import { ListaItensPedido } from '@/components/pedido/ListaItensPedido'
 import { registrarVenda, buscarPedidoParaCupom } from '@/lib/actions/pedidos'
 import { buscarClientePorId } from '@/lib/actions/clientes'
 import { buscarMaisVendidos, type MaisVendido } from '@/lib/actions/produtos'
+import { listarUsuariosComCargo, type UsuarioComCargo } from '@/lib/actions/cargos'
 import { formatarReal, formatarData, addDias } from '@/lib/formatos'
 import { rotuloPagamento } from '@/lib/pedido-labels'
 import { Money } from '@/components/ui-kit/Money'
@@ -35,6 +36,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { CupomFiscal, type CupomData } from '@/components/romaneio/CupomFiscal'
+import { cn } from '@/lib/utils'
 import type { ItemPedido } from '@/types'
 
 type FormaPagamentoVenda =
@@ -43,6 +45,14 @@ type FormaPagamentoVenda =
   | 'cartao_debito'
   | 'cartao_credito'
   | 'fiado'
+
+type TipoFulfillment = 'balcao' | 'entrega' | 'retirada'
+
+const TIPOS_FULFILLMENT: Array<{ valor: TipoFulfillment; label: string }> = [
+  { valor: 'balcao', label: 'Balcão' },
+  { valor: 'entrega', label: 'Entrega' },
+  { valor: 'retirada', label: 'Retirar depois' },
+]
 
 // Recalcula quantidade/preco_unitario/total (sempre em unidade base, é o que
 // vai pro backend) a partir de qtdEmbalagens + precoEmbalagem, quando a
@@ -77,11 +87,18 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
   const [mostrarCupom, setMostrarCupom] = useState(false)
   const [, startCupomTransition] = useTransition()
   const cupomRef = useRef<HTMLDivElement>(null)
+  const [tipoFulfillment, setTipoFulfillment] = useState<TipoFulfillment>('balcao')
+  const [entregadorId, setEntregadorId] = useState('')
+  const [frete, setFrete] = useState('')
+  const [jaPago, setJaPago] = useState(false)
+  const [equipe, setEquipe] = useState<UsuarioComCargo[]>([])
 
-  const total = useMemo(
+  const subtotal = useMemo(
     () => itens.reduce((acc, i) => acc + i.total, 0),
     [itens],
   )
+  const freteNum = tipoFulfillment === 'entrega' ? (Number(frete) || 0) : 0
+  const total = subtotal + freteNum
   const totalItens = useMemo(
     () => itens.reduce((acc, i) => acc + i.quantidade, 0),
     [itens],
@@ -94,6 +111,10 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
     }
     if (formaPagamento === 'fiado' && !cliente) {
       toast.error('Selecione um cliente para venda fiado')
+      return
+    }
+    if (tipoFulfillment === 'entrega' && !entregadorId) {
+      toast.error('Escolha quem vai entregar')
       return
     }
     setRegistrando(true)
@@ -109,6 +130,10 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
         preco_unitario: i.preco_unitario,
         total: i.total,
       })),
+      tipo_fulfillment: tipoFulfillment,
+      entregador_id: tipoFulfillment === 'entrega' ? entregadorId : null,
+      frete: freteNum,
+      pago: tipoFulfillment === 'balcao' ? undefined : jaPago,
     })
     setRegistrando(false)
     if (resultado.error) {
@@ -125,7 +150,7 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
         setMostrarCupom(true)
       }
     })
-  }, [cliente, itens, formaPagamento, prazoDias, observacoes])
+  }, [cliente, itens, formaPagamento, prazoDias, observacoes, tipoFulfillment, entregadorId, freteNum, jaPago])
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -170,6 +195,21 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
       })
       .finally(() => {
         if (ativo) setCarregandoVendidos(false)
+      })
+    return () => {
+      ativo = false
+    }
+  }, [])
+
+  // Equipe ativa, pra escolher quem vai entregar.
+  useEffect(() => {
+    let ativo = true
+    listarUsuariosComCargo()
+      .then((lista) => {
+        if (ativo) setEquipe(lista.filter((u) => u.status === 'ativo'))
+      })
+      .catch(() => {
+        if (ativo) setEquipe([])
       })
     return () => {
       ativo = false
@@ -272,7 +312,10 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
   }, [])
 
   const podeRegistrar =
-    itens.length > 0 && !registrando && !(formaPagamento === 'fiado' && !cliente)
+    itens.length > 0 &&
+    !registrando &&
+    !(formaPagamento === 'fiado' && !cliente) &&
+    !(tipoFulfillment === 'entrega' && !entregadorId)
 
   function novaVenda() {
     setVendaRegistrada(null)
@@ -283,6 +326,10 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
     setFormaPagamento('dinheiro')
     setPrazoDias('7')
     setObservacoes('')
+    setTipoFulfillment('balcao')
+    setEntregadorId('')
+    setFrete('')
+    setJaPago(false)
   }
 
   // Ao trocar cliente ou marcar fiado, sugere o prazo cadastrado no cliente.
@@ -435,6 +482,84 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
             Venda de balcão pode ficar sem cliente identificado.
           </p>
         </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+            Tipo
+          </label>
+          <div className="grid grid-cols-3 gap-1.5 rounded-lg border border-border bg-surface p-1">
+            {TIPOS_FULFILLMENT.map((t) => (
+              <button
+                key={t.valor}
+                type="button"
+                onClick={() => setTipoFulfillment(t.valor)}
+                className={cn(
+                  'u-motion rounded-md px-3 py-1.5 text-sm font-medium',
+                  tipoFulfillment === t.valor
+                    ? 'bg-brand text-primary-foreground'
+                    : 'text-text-muted hover:bg-surface-2 hover:text-text',
+                )}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {tipoFulfillment === 'entrega' && (
+          <div className="flex flex-col gap-2">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+              Quem vai entregar
+            </label>
+            <Select value={entregadorId} onValueChange={(v) => v && setEntregadorId(v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecione...">
+                  {(v: string) => equipe.find((u) => u.id === v)?.nome ?? v}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {equipe.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {tipoFulfillment === 'entrega' && (
+          <div className="flex flex-col gap-2">
+            <label
+              htmlFor="frete"
+              className="text-[11px] font-semibold uppercase tracking-wider text-text-muted"
+            >
+              Frete (R$)
+            </label>
+            <input
+              id="frete"
+              type="number"
+              step="0.01"
+              min="0"
+              value={frete}
+              onChange={(e) => setFrete(e.target.value)}
+              placeholder="0,00"
+              className="h-10 rounded-md border border-border bg-surface px-3 text-sm text-text outline-none focus:border-brand focus:ring-2 focus:ring-brand/30"
+            />
+          </div>
+        )}
+
+        {(tipoFulfillment === 'entrega' || tipoFulfillment === 'retirada') && (
+          <label className="flex items-center gap-2 text-sm text-text">
+            <input
+              type="checkbox"
+              checked={jaPago}
+              onChange={(e) => setJaPago(e.target.checked)}
+              className="size-4 rounded border-border"
+            />
+            Já foi pago
+          </label>
+        )}
 
         <div className="flex flex-col gap-2">
           <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
@@ -592,8 +717,14 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
 
           <div className="mt-4 flex items-baseline justify-between">
             <span className="text-sm text-text-muted">Subtotal</span>
-            <Money valor={total} className="text-sm text-text-muted" />
+            <Money valor={subtotal} className="text-sm text-text-muted" />
           </div>
+          {freteNum > 0 && (
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-sm text-text-muted">Frete</span>
+              <Money valor={freteNum} className="text-sm text-text-muted" />
+            </div>
+          )}
           <div className="mt-1.5 flex items-baseline justify-between">
             <span className="text-base font-semibold text-text">Total</span>
             <Money valor={total} destaque className="text-2xl font-semibold" />
