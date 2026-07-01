@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Package, Plus, Search } from 'lucide-react'
 import { PageHeader } from '@/components/ui-kit/PageHeader'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Tabela,
   TabelaHead,
@@ -24,11 +25,23 @@ import type { Database } from '@/types/database.types'
 
 type Produto = Database['public']['Views']['v_posicao_estoque']['Row']
 
+type FiltroStatus = 'todos' | 'ok' | 'alerta' | 'critico' | 'ruptura'
+
+const STATUS_OPCOES: Array<{ valor: FiltroStatus; label: string }> = [
+  { valor: 'todos', label: 'Todos' },
+  { valor: 'ok', label: 'OK' },
+  { valor: 'alerta', label: 'Alerta' },
+  { valor: 'critico', label: 'Crítico' },
+  { valor: 'ruptura', label: 'Ruptura' },
+]
+
 export default function ProdutosPage() {
   const router = useRouter()
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
+  const [categoria, setCategoria] = useState('todas')
+  const [status, setStatus] = useState<FiltroStatus>('todos')
 
   useEffect(() => {
     let ativo = true
@@ -40,17 +53,27 @@ export default function ProdutosPage() {
     }
   }, [])
 
+  const categorias = useMemo(() => {
+    const unicas = new Set(produtos.map((p) => p.categoria).filter(Boolean) as string[])
+    return Array.from(unicas).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  }, [produtos])
+
   const filtrados = useMemo(() => {
     const t = busca.trim().toLowerCase()
-    if (!t) return produtos
-    return produtos.filter(
-      (p) =>
-        p.nome.toLowerCase().includes(t) ||
-        (p.marca ?? '').toLowerCase().includes(t) ||
-        (p.categoria ?? '').toLowerCase().includes(t) ||
-        (p.codigo_barras ?? '').toLowerCase().includes(t),
-    )
-  }, [produtos, busca])
+    return produtos.filter((p) => {
+      if (t) {
+        const bateBusca =
+          p.nome.toLowerCase().includes(t) ||
+          (p.marca ?? '').toLowerCase().includes(t) ||
+          (p.categoria ?? '').toLowerCase().includes(t) ||
+          (p.codigo_barras ?? '').toLowerCase().includes(t)
+        if (!bateBusca) return false
+      }
+      if (categoria !== 'todas' && p.categoria !== categoria) return false
+      if (status !== 'todos' && p.status_estoque !== status) return false
+      return true
+    })
+  }, [produtos, busca, categoria, status])
 
   return (
     <div className="px-6 py-5">
@@ -64,7 +87,7 @@ export default function ProdutosPage() {
         </Link>
       </PageHeader>
 
-      <div className="mb-4 flex items-center gap-3">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="relative w-full max-w-sm">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted"
@@ -77,6 +100,28 @@ export default function ProdutosPage() {
             className="h-9 w-full rounded-md border border-border bg-surface pl-9 pr-3 text-sm text-text outline-none transition-colors placeholder:text-text-muted focus-visible:border-brand focus-visible:ring-3 focus-visible:ring-brand/30"
           />
         </div>
+
+        <Tabs value={categoria} onValueChange={(v) => setCategoria(v ?? 'todas')}>
+          <TabsList>
+            <TabsTrigger value="todas">Todas categorias</TabsTrigger>
+            {categorias.map((c) => (
+              <TabsTrigger key={c} value={c}>
+                {c}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
+        <Tabs value={status} onValueChange={(v) => setStatus((v ?? 'todos') as FiltroStatus)}>
+          <TabsList>
+            {STATUS_OPCOES.map((s) => (
+              <TabsTrigger key={s.valor} value={s.valor}>
+                {s.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
         {!loading && (
           <span className="shrink-0 font-mono text-xs tabular-nums text-text-muted">
             {filtrados.length} {filtrados.length === 1 ? 'item' : 'itens'}
@@ -87,11 +132,11 @@ export default function ProdutosPage() {
       {loading ? (
         <SkeletonLinhas colunas={6} linhas={8} />
       ) : filtrados.length === 0 ? (
-        busca ? (
+        busca || categoria !== 'todas' || status !== 'todos' ? (
           <EstadoVazio
             icone={Search}
             titulo="Nenhum produto encontrado"
-            descricao={`Nada corresponde a "${busca}". Tente outro termo.`}
+            descricao="Nada corresponde à busca ou aos filtros selecionados. Tente ajustar."
           />
         ) : (
           <EstadoVazio
