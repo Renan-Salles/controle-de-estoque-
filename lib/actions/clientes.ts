@@ -38,6 +38,47 @@ export async function criarCliente(data: Record<string, unknown>) {
   return { success: true }
 }
 
+export async function atualizarCliente(id: string, data: Record<string, unknown>) {
+  const parsed = ClienteSchema.safeParse(data)
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const { endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, ...resto } = parsed.data
+  const supabase = await createClient()
+  const { error } = await (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase.from('clientes') as any
+  ).update({
+    ...resto,
+    endereco: { rua: endereco_rua, numero: endereco_numero, bairro: endereco_bairro, cidade: endereco_cidade },
+  }).eq('id', id)
+  if (error) return { error: error.message }
+  revalidatePath('/clientes')
+  revalidatePath(`/clientes/${id}`)
+  return { success: true }
+}
+
+export async function buscarClientePorId(id: string) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('clientes')
+    .select('id, nome, tipo, cpf_cnpj, telefone, whatsapp, endereco, forma_pagamento_padrao, prazo_pagamento_dias, limite_credito, observacoes')
+    .eq('id', id)
+    .single()
+  return data as {
+    id: string
+    nome: string
+    tipo: string
+    cpf_cnpj: string | null
+    telefone: string | null
+    whatsapp: string | null
+    endereco: { rua?: string; numero?: string; bairro?: string; cidade?: string } | null
+    forma_pagamento_padrao: string
+    prazo_pagamento_dias: number
+    limite_credito: number
+    observacoes: string | null
+  } | null
+}
+
 export async function buscarClientes(termo?: string) {
   const localId = await getLocalAtivoId()
   const supabase = await createClient()

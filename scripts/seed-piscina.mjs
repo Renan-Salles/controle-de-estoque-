@@ -19,7 +19,7 @@ const PRODUTOS = [
   ['Antarctica Original 600ml', 'Antarctica', 'Cerveja', 'unidade', 600, 14.0, 5.5, 24],
   ['Coca-Cola Lata 350ml', 'Coca-Cola', 'Refrigerante', 'unidade', 350, 6.0, 2.1, 48],
   ['Guaraná Lata 350ml', 'Antarctica', 'Refrigerante', 'unidade', 350, 6.0, 1.9, 48],
-  ['Água Mineral 500ml', 'Indaiá', 'Agua', 'unidade', 500, 4.0, 0.8, 60],
+  ['Água Mineral 500ml', 'Indaiá', 'Água', 'unidade', 500, 4.0, 0.8, 60],
   ['Água de Coco 500ml', 'Kero Coco', 'Outros', 'unidade', 500, 8.0, 3.5, 36],
   ['Suco Natural Laranja 300ml', 'Natural', 'Outros', 'unidade', 300, 9.0, 3.0, 24],
   ['Red Bull 250ml', 'Red Bull', 'Outros', 'unidade', 250, 15.0, 5.5, 24],

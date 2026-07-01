@@ -1,7 +1,7 @@
 ﻿import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { MessageCircle, ShoppingCart, Star, AlertCircle } from 'lucide-react'
+import { MessageCircle, ShoppingCart, Star, AlertCircle, Pencil } from 'lucide-react'
 import { PageHeader } from '@/components/ui-kit/PageHeader'
 import { btnClass } from '@/components/ui-kit/Button'
 import { formatarReal, formatarData } from '@/lib/formatos'
@@ -53,6 +53,9 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
             <MessageCircle className="size-4" /> WhatsApp
           </a>
         )}
+        <Link href={`/clientes/${id}/editar`} className={btnClass('outline')}>
+          <Pencil className="size-4" /> Editar
+        </Link>
         <Link href={`/movimentacoes/nova?cliente_id=${id}`} className={btnClass('primary')}>
           <ShoppingCart className="size-4" /> Nova venda
         </Link>
