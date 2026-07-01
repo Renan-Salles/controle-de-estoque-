@@ -98,7 +98,7 @@ export async function listarMovimentacoes() {
   const [{ data: vendas }, { data: entradas }] = await Promise.all([
     supabase
       .from('pedidos')
-      .select('id, numero_pedido, total, data_pedido, forma_pagamento, status, clientes(nome)')
+      .select('id, numero_pedido, total, data_pedido, forma_pagamento, status, tipo_fulfillment, concluido_em, clientes(nome)')
       .eq('local_id', localId)
       .order('data_pedido', { ascending: false })
       .limit(150),

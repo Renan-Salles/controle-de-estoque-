@@ -35,3 +35,26 @@ export function rotuloStatusPedido(status: string | null | undefined): string {
   if (!status) return 'N/A'
   return ROTULO_STATUS_PEDIDO[status] ?? status
 }
+
+export const ROTULO_FULFILLMENT: Record<string, string> = {
+  balcao: 'Balcão',
+  entrega: 'Entrega',
+  retirada: 'Retirada',
+}
+
+export function rotuloFulfillment(tipo: string | null | undefined): string {
+  if (!tipo) return 'N/A'
+  return ROTULO_FULFILLMENT[tipo] ?? tipo
+}
+
+// Badge de status pra listagem/detalhe. null quando é balcão (não se aplica).
+export function badgeFulfillment(
+  tipo: string,
+  concluidoEm: string | null,
+): { label: string; status: 'aberto' | 'ok' } | null {
+  if (tipo === 'balcao') return null
+  if (concluidoEm) {
+    return { label: tipo === 'entrega' ? 'Entregue' : 'Retirado', status: 'ok' }
+  }
+  return { label: tipo === 'entrega' ? 'Aguardando entrega' : 'Aguardando retirada', status: 'aberto' }
+}

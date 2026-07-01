@@ -21,6 +21,10 @@ const VendaSchema = z.object({
   observacoes: z.string().optional(),
   canal: z.enum(['telefone', 'whatsapp', 'balcao']).default('balcao'),
   itens: z.array(ItemSchema).min(1, 'Adicione pelo menos 1 item'),
+  tipo_fulfillment: z.enum(['balcao', 'entrega', 'retirada']).default('balcao'),
+  entregador_id: z.string().uuid().nullable().optional(),
+  frete: z.number().min(0).default(0),
+  pago: z.boolean().optional(),
 })
 
 // Registra uma SAIDA (venda): baixa estoque atomico e gera comprovante.
@@ -31,6 +35,9 @@ export async function registrarVenda(data: unknown) {
   if (parsed.data.forma_pagamento === 'fiado' && !parsed.data.cliente_id) {
     return { error: 'Selecione um cliente para venda fiado' }
   }
+  if (parsed.data.tipo_fulfillment === 'entrega' && !parsed.data.entregador_id) {
+    return { error: 'Escolha quem vai entregar' }
+  }
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -38,8 +45,11 @@ export async function registrarVenda(data: unknown) {
 
   const localId = await getLocalAtivoId()
   const serviceClient = await createServiceClient()
-  const { itens, forma_pagamento } = parsed.data
-  const total = itens.reduce((acc, i) => acc + i.total, 0)
+  const { itens, forma_pagamento, tipo_fulfillment, frete } = parsed.data
+  const subtotal = itens.reduce((acc, i) => acc + i.total, 0)
+  const total = subtotal + frete
+  const pago = tipo_fulfillment === 'balcao' ? true : (parsed.data.pago ?? false)
+  const concluidoEm = tipo_fulfillment === 'balcao' ? new Date().toISOString() : null
   const hoje = new Date().toISOString().split('T')[0]
   const prazoDias = forma_pagamento === 'fiado' ? (parsed.data.prazo_dias ?? 7) : 0
   const dataVencimento = forma_pagamento === 'fiado' ? addDias(hoje, prazoDias) : hoje
@@ -76,7 +86,12 @@ export async function registrarVenda(data: unknown) {
       data_vencimento: dataVencimento,
       observacoes: parsed.data.observacoes || null,
       canal: parsed.data.canal,
-      subtotal: total,
+      tipo_fulfillment,
+      entregador_id: tipo_fulfillment === 'entrega' ? parsed.data.entregador_id : null,
+      frete,
+      pago,
+      concluido_em: concluidoEm,
+      subtotal,
       total,
     })
     .select('id, numero_pedido')
@@ -260,4 +275,41 @@ export async function listarVendas() {
     .limit(100)
   if (error) throw error
   return data ?? []
+}
+
+// Confirma que o pagamento da entrega/retirada foi recebido. Independente
+// da conclusão (pode confirmar pagamento antes ou depois de entregar).
+export async function marcarPagoPedido(pedidoId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Nao autenticado' }
+
+  const serviceClient = await createServiceClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (serviceClient.from('pedidos') as any)
+    .update({ pago: true, updated_at: new Date().toISOString() })
+    .eq('id', pedidoId)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/pedidos/${pedidoId}`)
+  revalidatePath('/movimentacoes')
+  return { success: true as const }
+}
+
+// Confirma que a entrega/retirada aconteceu.
+export async function marcarConcluidoPedido(pedidoId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Nao autenticado' }
+
+  const serviceClient = await createServiceClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (serviceClient.from('pedidos') as any)
+    .update({ concluido_em: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq('id', pedidoId)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/pedidos/${pedidoId}`)
+  revalidatePath('/movimentacoes')
+  return { success: true as const }
 }
