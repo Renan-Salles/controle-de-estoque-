@@ -15,6 +15,7 @@ import { StatusPill } from '@/components/ui-kit/StatusPill'
 import { CardLinha } from '@/components/ui-kit/CardLinha'
 import { Money } from '@/components/ui-kit/Money'
 import { cn } from '@/lib/utils'
+import { badgeFulfillment } from '@/lib/pedido-labels'
 
 export type LinhaMov = {
   chave: string
@@ -27,6 +28,8 @@ export type LinhaMov = {
   href: string | null
   romaneioHref: string | null
   statusVenda?: string
+  tipoFulfillment?: string
+  concluidoEm?: string | null
 }
 
 const FMT_DATA_HORA = new Intl.DateTimeFormat('pt-BR', {
@@ -71,6 +74,9 @@ export function MovimentacoesLista({ linhas }: { linhas: LinhaMov[] }) {
             {visiveis.map((l) => {
               const saida = l.tipo === 'saida'
               const Icone = saida ? ArrowUpRight : ArrowDownLeft
+              const badge = l.tipoFulfillment
+                ? badgeFulfillment(l.tipoFulfillment, l.concluidoEm ?? null)
+                : null
               const conteudo = (
                 <span className="flex items-center gap-2">
                   <span className="font-medium text-text">{l.descricao}</span>
@@ -79,6 +85,7 @@ export function MovimentacoesLista({ linhas }: { linhas: LinhaMov[] }) {
                       {l.numero}
                     </span>
                   )}
+                  {badge && <StatusPill status={badge.status} label={badge.label} />}
                 </span>
               )
               return (
@@ -142,6 +149,9 @@ export function MovimentacoesLista({ linhas }: { linhas: LinhaMov[] }) {
       <div className="space-y-2 lg:hidden">
         {visiveis.map((l) => {
           const saida = l.tipo === 'saida'
+          const badge = l.tipoFulfillment
+            ? badgeFulfillment(l.tipoFulfillment, l.concluidoEm ?? null)
+            : null
           return (
             <CardLinha
               key={l.chave}
@@ -169,6 +179,9 @@ export function MovimentacoesLista({ linhas }: { linhas: LinhaMov[] }) {
                 },
                 { label: 'Data/hora', valor: dataHora(l.data) },
                 { label: 'Detalhe', valor: l.detalhe },
+                ...(badge
+                  ? [{ label: 'Status', valor: <StatusPill status={badge.status} label={badge.label} /> }]
+                  : []),
               ]}
             />
           )

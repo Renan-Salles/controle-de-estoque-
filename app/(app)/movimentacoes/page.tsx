@@ -24,6 +24,8 @@ type VendaRaw = {
   data_pedido: string
   forma_pagamento: string
   status: string
+  tipo_fulfillment: string
+  concluido_em: string | null
   clientes: Rel<{ nome: string }>
 }
 
@@ -40,7 +42,12 @@ const FILTROS = [
   { chave: '', rotulo: 'Todas' },
   { chave: 'vendas', rotulo: 'Vendas' },
   { chave: 'entradas', rotulo: 'Entradas' },
+  { chave: 'aguardando-entrega', rotulo: 'Aguardando entrega' },
+  { chave: 'aguardando-retirada', rotulo: 'Aguardando retirada' },
 ] as const
+
+type FiltroChave = '' | 'vendas' | 'entradas' | 'aguardando-entrega' | 'aguardando-retirada'
+const CHAVES_VALIDAS: readonly string[] = ['vendas', 'entradas', 'aguardando-entrega', 'aguardando-retirada']
 
 export default async function MovimentacoesPage({
   searchParams,
@@ -48,7 +55,7 @@ export default async function MovimentacoesPage({
   searchParams: Promise<{ tipo?: string }>
 }) {
   const { tipo } = await searchParams
-  const filtroAtivo = tipo === 'vendas' || tipo === 'entradas' ? tipo : ''
+  const filtroAtivo: FiltroChave = CHAVES_VALIDAS.includes(tipo ?? '') ? (tipo as FiltroChave) : ''
 
   const { vendas, entradas } = await listarMovimentacoes()
 
@@ -65,6 +72,8 @@ export default async function MovimentacoesPage({
       href: `/pedidos/${v.id}`,
       romaneioHref: `/pedidos/${v.id}/romaneio`,
       statusVenda: v.status,
+      tipoFulfillment: v.tipo_fulfillment,
+      concluidoEm: v.concluido_em,
     }
   })
 
@@ -88,7 +97,11 @@ export default async function MovimentacoesPage({
   let linhas: LinhaMov[]
   if (filtroAtivo === 'vendas') linhas = linhasVenda
   else if (filtroAtivo === 'entradas') linhas = linhasEntrada
-  else linhas = [...linhasVenda, ...linhasEntrada]
+  else if (filtroAtivo === 'aguardando-entrega') {
+    linhas = linhasVenda.filter((l) => l.tipoFulfillment === 'entrega' && !l.concluidoEm)
+  } else if (filtroAtivo === 'aguardando-retirada') {
+    linhas = linhasVenda.filter((l) => l.tipoFulfillment === 'retirada' && !l.concluidoEm)
+  } else linhas = [...linhasVenda, ...linhasEntrada]
 
   // Mais recente primeiro (une as duas listas por data/hora).
   linhas.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
@@ -136,7 +149,11 @@ export default async function MovimentacoesPage({
               ? 'Nenhuma venda ainda'
               : filtroAtivo === 'entradas'
                 ? 'Nenhuma entrada ainda'
-                : 'Nenhuma movimentação ainda'
+                : filtroAtivo === 'aguardando-entrega'
+                  ? 'Nenhuma entrega pendente'
+                  : filtroAtivo === 'aguardando-retirada'
+                    ? 'Nenhuma retirada pendente'
+                    : 'Nenhuma movimentação ainda'
           }
           descricao="Registre uma venda ou uma compra de estoque para começar."
           acao={
