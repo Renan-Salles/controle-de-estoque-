@@ -33,7 +33,12 @@ export async function middleware(request: NextRequest) {
   if (!isAuth && !isAuthPage) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
-  if (isAuth && isAuthPage) {
+  // GET only: uma Server Action (ex. resgatarConvite em /convite/[token])
+  // faz POST pra essa mesma URL logo depois do signUp() criar sessão. Se
+  // redirecionarmos esse POST também, o Next não sabe interpretar o
+  // redirect como resposta de Server Action ("unexpected response") e a
+  // action nunca roda: convidado fica com "Criando..." travado pra sempre.
+  if (isAuth && isAuthPage && request.method === 'GET') {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
   return supabaseResponse
