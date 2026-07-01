@@ -231,11 +231,21 @@ export async function buscarProdutoPorId(id: string) {
   return data
 }
 
+const ProdutoUpdateSchema = ProdutoSchema.partial()
+
 export async function atualizarProduto(id: string, data: Record<string, unknown>) {
+  const parsed = ProdutoUpdateSchema.safeParse(data)
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const localId = await getLocalAtivoId()
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase.from('produtos') as any).update(data).eq('id', id)
+  const { error, count } = await (supabase.from('produtos') as any)
+    .update(parsed.data, { count: 'exact' })
+    .eq('id', id)
+    .eq('local_id', localId)
   if (error) return { error: error.message }
+  if (count === 0) return { error: 'Produto não encontrado neste local.' }
   revalidatePath('/produtos')
   return { success: true }
 }
