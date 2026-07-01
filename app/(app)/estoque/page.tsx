@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -64,10 +65,16 @@ const FILTROS: Array<{ valor: Filtro; label: string }> = [
 ]
 
 export default function EstoquePage() {
+  // Vem do atalho do dashboard (ex.: /estoque?filtro=critico): já abre filtrado.
+  const params = useSearchParams()
+  const filtroUrl = params.get('filtro')
+  const filtroInicial: Filtro =
+    filtroUrl === 'critico' || filtroUrl === 'ruptura' ? filtroUrl : 'todos'
+
   // Lista filtrada (tabela) e lista completa (resumo do topo).
   const [estoque, setEstoque] = useState<PosicaoEstoque[]>([])
   const [completo, setCompleto] = useState<PosicaoEstoque[]>([])
-  const [filtro, setFiltro] = useState<Filtro>('todos')
+  const [filtro, setFiltro] = useState<Filtro>(filtroInicial)
   const [loading, setLoading] = useState(true)
   const [produtoSelecionado, setProdutoSelecionado] = useState<PosicaoEstoque | null>(null)
   const [quantidade, setQuantidade] = useState('')
@@ -113,7 +120,7 @@ export default function EstoquePage() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    carregar('todos')
+    carregar(filtroInicial)
     carregarReposicaoCount()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
