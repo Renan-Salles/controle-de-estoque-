@@ -9,6 +9,7 @@ const ProdutoSchema = z.object({
   marca: z.string().optional(),
   categoria_id: z.string().uuid('Categoria obrigatoria'),
   embalagem: z.enum(['unidade', 'fardo', 'caixa', 'grade', 'pack']),
+  fator_conversao: z.number().min(1).default(1),
   volume_ml: z.number().optional(),
   preco_venda_padrao: z.number().min(0),
   custo_atual: z.number().min(0),
@@ -22,12 +23,21 @@ export async function criarProduto(data: Record<string, unknown>) {
 
   const localId = await getLocalAtivoId()
   const supabase = await createClient()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await supabase.from('produtos').insert({ ...parsed.data, local_id: localId } as any)
+  const { data: produto, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .from('produtos').insert({ ...parsed.data, local_id: localId } as any)
+    .select('id, nome, marca, preco_venda_padrao, embalagem, fator_conversao')
+    .single()
   if (error) return { error: error.message }
 
   revalidatePath('/produtos')
-  return { success: true }
+  return {
+    success: true,
+    produto: produto as {
+      id: string; nome: string; marca: string | null
+      preco_venda_padrao: number; embalagem: string; fator_conversao: number
+    },
+  }
 }
 
 export async function buscarProdutos(termo?: string) {
@@ -35,7 +45,7 @@ export async function buscarProdutos(termo?: string) {
   const supabase = await createClient()
   let query = supabase
     .from('produtos')
-    .select('id, nome, marca, preco_venda_padrao, embalagem, categorias(nome), estoque(saldo_atual)')
+    .select('id, nome, marca, preco_venda_padrao, embalagem, fator_conversao, categorias(nome), estoque(saldo_atual)')
     .eq('ativo', true)
     .eq('local_id', localId)
     .order('nome')
@@ -146,7 +156,7 @@ export async function buscarProdutoPorId(id: string) {
   const { data } = await supabase
     .from('produtos')
     .select(
-      'id, nome, marca, codigo_barras, categoria_id, embalagem, volume_ml, preco_venda_padrao, custo_atual, estoque_minimo, ativo',
+      'id, nome, marca, codigo_barras, categoria_id, embalagem, fator_conversao, volume_ml, preco_venda_padrao, custo_atual, estoque_minimo, ativo',
     )
     .eq('id', id)
     .single() as {
@@ -157,6 +167,7 @@ export async function buscarProdutoPorId(id: string) {
       codigo_barras: string | null
       categoria_id: string
       embalagem: string
+      fator_conversao: number
       volume_ml: number | null
       preco_venda_padrao: number
       custo_atual: number

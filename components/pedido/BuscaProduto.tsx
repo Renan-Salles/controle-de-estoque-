@@ -1,5 +1,6 @@
 'use client'
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
+import { toast } from 'sonner'
 import {
   Command,
   CommandInput,
@@ -12,8 +13,25 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { Search, Plus } from 'lucide-react'
-import { buscarProdutos } from '@/lib/actions/produtos'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
+import { Campo } from '@/components/ui-kit/FormKit'
+import { btnClass } from '@/components/ui-kit/Button'
+import { Search, Plus, PackagePlus } from 'lucide-react'
+import { buscarProdutos, criarProduto, listarCategorias } from '@/lib/actions/produtos'
 import { formatarReal } from '@/lib/formatos'
 import { cn } from '@/lib/utils'
 import type { ItemPedido } from '@/types'
@@ -25,12 +43,25 @@ interface ProdutoBusca {
   nome: string
   marca: string | null
   preco_venda_padrao: number
+  embalagem: string
+  fator_conversao: number
   categorias: Rel<{ nome: string }>
   estoque: Rel<{ saldo_atual: number }>
 }
 
+export interface ProdutoParaAdicionar extends Omit<ItemPedido, 'quantidade' | 'total'> {
+  embalagem: string
+  fator_conversao: number
+}
+
+const EMBALAGENS = ['unidade', 'fardo', 'caixa', 'grade', 'pack'] as const
+
 interface Props {
-  onAdicionar: (item: Omit<ItemPedido, 'quantidade' | 'total'>) => void
+  onAdicionar: (item: ProdutoParaAdicionar) => void
+  // Mostra "Cadastrar produto novo" quando a busca não acha nada. Só faz
+  // sentido na ENTRADA (comprar algo que ainda não existe no catálogo) —
+  // na venda não tem porque cadastrar produto sem estoque.
+  permitirCriar?: boolean
 }
 
 // A relação 1:1 do Supabase pode chegar como objeto ou array; normaliza os dois.
@@ -43,11 +74,12 @@ function saldoDe(p: ProdutoBusca): number {
   return umaRel(p.estoque)?.saldo_atual ?? 0
 }
 
-export function BuscaProduto({ onAdicionar }: Props) {
+export function BuscaProduto({ onAdicionar, permitirCriar = false }: Props) {
   const [open, setOpen] = useState(false)
   const [termo, setTermo] = useState('')
   const [produtos, setProdutos] = useState<ProdutoBusca[]>([])
   const [pendente, startTransition] = useTransition()
+  const [criando, setCriando] = useState(false)
 
   function abrirPopover(v: boolean) {
     setOpen(v)
@@ -74,6 +106,8 @@ export function BuscaProduto({ onAdicionar }: Props) {
       categoria: umaRel(produto.categorias)?.nome ?? '',
       preco_unitario: produto.preco_venda_padrao,
       saldo_atual: saldoDe(produto),
+      embalagem: produto.embalagem,
+      fator_conversao: produto.fator_conversao,
     })
     setTermo('')
     // Recarrega a lista para o operador continuar lançando itens em sequência
@@ -82,6 +116,12 @@ export function BuscaProduto({ onAdicionar }: Props) {
       setProdutos(resultado as unknown as ProdutoBusca[])
     })
   }
+
+  const nomeExiste = produtos.some(
+    (p) => p.nome.toLowerCase() === termo.trim().toLowerCase(),
+  )
+
+  const [sheetAberto, setSheetAberto] = useState(false)
 
   return (
     <Popover open={open} onOpenChange={abrirPopover}>
@@ -163,9 +203,180 @@ export function BuscaProduto({ onAdicionar }: Props) {
                 </CommandItem>
               )
             })}
+            {permitirCriar && termo.trim().length >= 2 && !nomeExiste && (
+              <CommandItem
+                value="__cadastrar_produto__"
+                onSelect={() => setSheetAberto(true)}
+                className="flex items-center gap-2 font-medium text-brand"
+              >
+                <PackagePlus className="size-4" strokeWidth={1.5} />
+                Cadastrar produto &quot;{termo.trim()}&quot;
+              </CommandItem>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>
+      {permitirCriar && (
+        <CriarProdutoRapido
+          aberto={sheetAberto}
+          onOpenChange={setSheetAberto}
+          nomeInicial={termo.trim()}
+          criando={criando}
+          setCriando={setCriando}
+          onCriado={(produto) => {
+            setProdutos((prev) => [...prev, {
+              id: produto.id,
+              nome: produto.nome,
+              marca: produto.marca,
+              preco_venda_padrao: produto.preco_venda_padrao,
+              embalagem: produto.embalagem,
+              fator_conversao: produto.fator_conversao,
+              categorias: null,
+              estoque: { saldo_atual: 0 },
+            }])
+            selecionar({
+              id: produto.id,
+              nome: produto.nome,
+              marca: produto.marca,
+              preco_venda_padrao: produto.preco_venda_padrao,
+              embalagem: produto.embalagem,
+              fator_conversao: produto.fator_conversao,
+              categorias: null,
+              estoque: { saldo_atual: 0 },
+            })
+            setSheetAberto(false)
+            setOpen(false)
+          }}
+        />
+      )}
     </Popover>
+  )
+}
+
+type CategoriaOpcao = { id: string; nome: string }
+
+function CriarProdutoRapido({
+  aberto,
+  onOpenChange,
+  nomeInicial,
+  criando,
+  setCriando,
+  onCriado,
+}: {
+  aberto: boolean
+  onOpenChange: (v: boolean) => void
+  nomeInicial: string
+  criando: boolean
+  setCriando: (v: boolean) => void
+  onCriado: (produto: {
+    id: string; nome: string; marca: string | null
+    preco_venda_padrao: number; embalagem: string; fator_conversao: number
+  }) => void
+}) {
+  const [categorias, setCategorias] = useState<CategoriaOpcao[]>([])
+  const [form, setForm] = useState({
+    nome: nomeInicial,
+    categoria_id: '',
+    embalagem: 'unidade' as (typeof EMBALAGENS)[number],
+    fator_conversao: '1',
+    preco_venda_padrao: '',
+  })
+
+  useEffect(() => {
+    if (aberto) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setForm((f) => ({ ...f, nome: nomeInicial }))
+      if (categorias.length === 0) listarCategorias().then(setCategorias)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aberto])
+
+  function set<K extends keyof typeof form>(campo: K, valor: (typeof form)[K]) {
+    setForm((f) => ({ ...f, [campo]: valor }))
+  }
+
+  async function salvar() {
+    if (form.nome.trim().length < 2) { toast.error('Informe o nome do produto'); return }
+    if (!form.categoria_id) { toast.error('Selecione a categoria'); return }
+    if (!form.preco_venda_padrao) { toast.error('Informe o preço de venda'); return }
+    setCriando(true)
+    const resultado = await criarProduto({
+      nome: form.nome.trim(),
+      categoria_id: form.categoria_id,
+      embalagem: form.embalagem,
+      fator_conversao: form.embalagem === 'unidade' ? 1 : Number(form.fator_conversao || 1),
+      preco_venda_padrao: Number(form.preco_venda_padrao),
+      custo_atual: 0,
+      estoque_minimo: 0,
+    })
+    setCriando(false)
+    if (resultado.error || !resultado.produto) {
+      toast.error(resultado.error ?? 'Erro ao cadastrar produto')
+      return
+    }
+    toast.success(`Produto "${resultado.produto.nome}" cadastrado`)
+    onCriado(resultado.produto)
+  }
+
+  return (
+    <Sheet open={aberto} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full gap-0 sm:max-w-md">
+        <SheetHeader className="border-b border-border">
+          <SheetTitle>Cadastrar produto</SheetTitle>
+          <SheetDescription>
+            Só o essencial pra já lançar a entrada. Ajuste o resto depois em Produtos.
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="flex flex-col gap-4 overflow-y-auto p-4">
+          <Campo label="Nome" obrigatorio full>
+            <Input value={form.nome} onChange={(e) => set('nome', e.target.value)} placeholder="Brahma Duplo Malte 350ml" />
+          </Campo>
+          <Campo label="Categoria" obrigatorio full>
+            <Select value={form.categoria_id} onValueChange={(v) => set('categoria_id', v ?? '')}>
+              <SelectTrigger className="w-full"><SelectValue placeholder="Selecione a categoria">
+                {categorias.find((c) => c.id === form.categoria_id)?.nome ?? 'Selecione a categoria'}
+              </SelectValue></SelectTrigger>
+              <SelectContent>
+                {categorias.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Campo>
+          <div className="grid grid-cols-2 gap-3">
+            <Campo label="Embalagem">
+              <Select
+                value={form.embalagem}
+                onValueChange={(v) => {
+                  set('embalagem', (v ?? 'unidade') as (typeof EMBALAGENS)[number])
+                  if (v === 'unidade') set('fator_conversao', '1')
+                }}
+              >
+                <SelectTrigger className="w-full"><SelectValue className="capitalize" /></SelectTrigger>
+                <SelectContent>
+                  {EMBALAGENS.map((e) => <SelectItem key={e} value={e} className="capitalize">{e}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </Campo>
+            {form.embalagem !== 'unidade' && (
+              <Campo label={`Unidades por ${form.embalagem}`}>
+                <Input type="number" min={1} value={form.fator_conversao} onChange={(e) => set('fator_conversao', e.target.value)} placeholder="24" />
+              </Campo>
+            )}
+          </div>
+          <Campo label="Preço de venda (R$)" obrigatorio>
+            <Input type="number" step="0.01" value={form.preco_venda_padrao} onChange={(e) => set('preco_venda_padrao', e.target.value)} placeholder="4,75" />
+          </Campo>
+        </div>
+
+        <div className="mt-auto flex gap-2 border-t border-border p-4">
+          <button type="button" onClick={() => onOpenChange(false)} disabled={criando} className={cn(btnClass('outline'), 'flex-1')}>
+            Cancelar
+          </button>
+          <button type="button" onClick={salvar} disabled={criando} className={cn(btnClass('primary'), 'flex-1')}>
+            {criando ? 'Salvando...' : 'Cadastrar e usar'}
+          </button>
+        </div>
+      </SheetContent>
+    </Sheet>
   )
 }

@@ -27,6 +27,7 @@ export type ProdutoFormValores = {
   codigo_barras: string
   categoria_id: string
   embalagem: string
+  fator_conversao: string
   volume_ml: string
   preco_venda_padrao: string
   custo_atual: string
@@ -39,6 +40,7 @@ const VAZIO: ProdutoFormValores = {
   codigo_barras: '',
   categoria_id: '',
   embalagem: 'unidade',
+  fator_conversao: '1',
   volume_ml: '',
   preco_venda_padrao: '',
   custo_atual: '0',
@@ -97,6 +99,7 @@ export function ProdutoForm({
       codigo_barras: form.codigo_barras,
       categoria_id: form.categoria_id,
       embalagem: form.embalagem,
+      fator_conversao: form.embalagem === 'unidade' ? 1 : Number(form.fator_conversao || 1),
       preco_venda_padrao: Number(form.preco_venda_padrao),
       custo_atual: Number(form.custo_atual || 0),
       estoque_minimo: Number(form.estoque_minimo || 0),
@@ -172,10 +175,13 @@ export function ProdutoForm({
           <Campo label="Tipo de embalagem">
             <Select
               value={form.embalagem}
-              onValueChange={(v) => set('embalagem', v)}
+              onValueChange={(v) => {
+                set('embalagem', v)
+                if (v === 'unidade') set('fator_conversao', '1')
+              }}
             >
               <SelectTrigger className="w-full">
-                <SelectValue />
+                <SelectValue className="capitalize" />
               </SelectTrigger>
               <SelectContent>
                 {EMBALAGENS.map((e) => (
@@ -186,6 +192,21 @@ export function ProdutoForm({
               </SelectContent>
             </Select>
           </Campo>
+          {form.embalagem !== 'unidade' && (
+            <Campo
+              label={`Unidades por ${form.embalagem}`}
+              ajuda="Quantas garrafas/latas tem dentro de 1 desses. Usado pra converter o preço quando você compra em caixa/fardo."
+            >
+              <Input
+                type="number"
+                min={1}
+                inputMode="numeric"
+                value={form.fator_conversao}
+                onChange={(e) => set('fator_conversao', e.target.value)}
+                placeholder="24"
+              />
+            </Campo>
+          )}
           <Campo label="Volume (ml)">
             <Input
               type="number"

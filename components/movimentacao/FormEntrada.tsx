@@ -3,19 +3,22 @@ import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { PackagePlus, Truck, Loader2 } from 'lucide-react'
-import { BuscaProduto } from '@/components/pedido/BuscaProduto'
+import { BuscaProduto, type ProdutoParaAdicionar } from '@/components/pedido/BuscaProduto'
 import { BuscaFornecedor } from '@/components/movimentacao/BuscaFornecedor'
 import {
   ListaItensEntrada,
+  unidadesDoItem,
+  custoUnitarioDoItem,
   type ItemEntrada,
 } from '@/components/movimentacao/ListaItensEntrada'
 import { registrarEntrada } from '@/lib/actions/movimentacoes'
 import { Money } from '@/components/ui-kit/Money'
 import { Textarea } from '@/components/ui/textarea'
-import type { ItemPedido } from '@/types'
 
 // ENTRADA (compra de estoque). Aumenta saldo + custo medio.
-// Fornecedor por texto livre (simples). Cada item pede CUSTO unitario.
+// Fornecedor por texto livre (simples). Cada item pede quantas embalagens
+// (caixa/fardo/un) e quanto foi pago por ela — a conversao pra unidade base
+// de estoque acontece aqui (fatorConversao), o backend so recebe unidades.
 export function FormEntrada() {
   const router = useRouter()
   const [fornecedor, setFornecedor] = useState('')
@@ -24,22 +27,22 @@ export function FormEntrada() {
   const [registrando, setRegistrando] = useState(false)
 
   const total = useMemo(
-    () => itens.reduce((acc, i) => acc + i.quantidade * i.custo_unitario, 0),
+    () => itens.reduce((acc, i) => acc + i.qtdEmbalagens * i.custoEmbalagem, 0),
     [itens],
   )
   const totalItens = useMemo(
-    () => itens.reduce((acc, i) => acc + i.quantidade, 0),
+    () => itens.reduce((acc, i) => acc + unidadesDoItem(i), 0),
     [itens],
   )
 
   const adicionarItem = useCallback(
-    (produto: Omit<ItemPedido, 'quantidade' | 'total'>) => {
+    (produto: ProdutoParaAdicionar) => {
       setItens((prev) => {
         const existe = prev.find((i) => i.produto_id === produto.produto_id)
         if (existe) {
           return prev.map((i) =>
             i.produto_id === produto.produto_id
-              ? { ...i, quantidade: i.quantidade + 1 }
+              ? { ...i, qtdEmbalagens: i.qtdEmbalagens + 1 }
               : i,
           )
         }
@@ -49,9 +52,11 @@ export function FormEntrada() {
             produto_id: produto.produto_id,
             nome: produto.nome,
             marca: produto.categoria || null,
-            quantidade: 1,
+            embalagem: produto.embalagem,
+            fatorConversao: produto.fator_conversao || 1,
+            qtdEmbalagens: 1,
             // Custo de compra parte de zero: o operador digita o valor real.
-            custo_unitario: 0,
+            custoEmbalagem: 0,
           },
         ]
       })
@@ -59,18 +64,18 @@ export function FormEntrada() {
     [],
   )
 
-  const alterarQtde = useCallback((produtoId: string, qtde: number) => {
+  const alterarQtde = useCallback((produtoId: string, qtdEmbalagens: number) => {
     setItens((prev) =>
       prev.map((i) =>
-        i.produto_id === produtoId ? { ...i, quantidade: qtde } : i,
+        i.produto_id === produtoId ? { ...i, qtdEmbalagens } : i,
       ),
     )
   }, [])
 
-  const alterarCusto = useCallback((produtoId: string, custo: number) => {
+  const alterarCusto = useCallback((produtoId: string, custoEmbalagem: number) => {
     setItens((prev) =>
       prev.map((i) =>
-        i.produto_id === produtoId ? { ...i, custo_unitario: custo } : i,
+        i.produto_id === produtoId ? { ...i, custoEmbalagem } : i,
       ),
     )
   }, [])
@@ -90,8 +95,8 @@ export function FormEntrada() {
       observacoes: observacoes.trim() || undefined,
       itens: itens.map((i) => ({
         produto_id: i.produto_id,
-        quantidade: i.quantidade,
-        custo_unitario: i.custo_unitario,
+        quantidade: unidadesDoItem(i),
+        custo_unitario: Math.round(custoUnitarioDoItem(i) * 100) / 100,
       })),
     })
     setRegistrando(false)
@@ -123,10 +128,10 @@ export function FormEntrada() {
           <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
             Produtos
           </label>
-          <BuscaProduto onAdicionar={adicionarItem} />
+          <BuscaProduto onAdicionar={adicionarItem} permitirCriar />
           <p className="text-xs text-text-muted">
-            Busque o produto e informe o custo unitário de compra na lista à
-            direita.
+            Busque o produto (ou cadastre um novo) e informe quanto pagou na
+            lista à direita.
           </p>
         </div>
 

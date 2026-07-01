@@ -1,24 +1,44 @@
 'use client'
 import { Minus, Plus, Trash2 } from 'lucide-react'
 import { Money } from '@/components/ui-kit/Money'
+import { formatarReal } from '@/lib/formatos'
 
 export interface ItemEntrada {
   produto_id: string
   nome: string
   marca: string | null
-  quantidade: number
-  custo_unitario: number
+  embalagem: string
+  // Unidades base (garrafas/latas) que cabem em 1 "embalagem". 1 quando o
+  // produto é vendido/comprado por unidade solta.
+  fatorConversao: number
+  // Quantidade digitada pelo operador, na unidade da embalagem (ex: 2 caixas).
+  qtdEmbalagens: number
+  // Valor pago pela embalagem inteira (ex: R$ 50 pela caixa toda).
+  custoEmbalagem: number
+}
+
+const LABEL_EMBALAGEM: Record<string, string> = {
+  unidade: 'un', fardo: 'fardos', caixa: 'caixas', grade: 'grades', pack: 'packs',
+}
+
+export function unidadesDoItem(item: ItemEntrada): number {
+  return item.qtdEmbalagens * item.fatorConversao
+}
+
+export function custoUnitarioDoItem(item: ItemEntrada): number {
+  return item.fatorConversao > 0 ? item.custoEmbalagem / item.fatorConversao : item.custoEmbalagem
 }
 
 interface Props {
   itens: ItemEntrada[]
-  onAlterarQtde: (produtoId: string, qtde: number) => void
-  onAlterarCusto: (produtoId: string, custo: number) => void
+  onAlterarQtde: (produtoId: string, qtdEmbalagens: number) => void
+  onAlterarCusto: (produtoId: string, custoEmbalagem: number) => void
   onRemover: (produtoId: string) => void
 }
 
-// Lista de itens de uma ENTRADA (compra). Diferente da comanda de venda:
-// cada linha pede CUSTO unitario (preco de compra), nao preco de venda.
+// Lista de itens de uma ENTRADA (compra). Cada linha pede quantas embalagens
+// (caixa/fardo/unidade) e quanto foi pago por ela — a conversão pra unidade
+// base de estoque e custo por unidade é automática (fatorConversao).
 export function ListaItensEntrada({
   itens,
   onAlterarQtde,
@@ -28,7 +48,11 @@ export function ListaItensEntrada({
   return (
     <ul className="divide-y divide-border/60">
       {itens.map((item) => {
-        const subtotal = item.quantidade * item.custo_unitario
+        const temEmbalagem = item.fatorConversao > 1
+        const rotulo = LABEL_EMBALAGEM[item.embalagem] ?? item.embalagem
+        const unidades = unidadesDoItem(item)
+        const custoUnitario = custoUnitarioDoItem(item)
+        const subtotal = item.qtdEmbalagens * item.custoEmbalagem
         return (
           <li
             key={item.produto_id}
@@ -45,10 +69,10 @@ export function ListaItensEntrada({
               )}
 
               <div className="mt-2.5 flex flex-wrap items-end gap-3">
-                {/* Quantidade */}
+                {/* Quantidade (em embalagens: caixa/fardo/un) */}
                 <div className="flex flex-col gap-1">
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
-                    Qtde
+                    Qtde {temEmbalagem ? `(${rotulo})` : ''}
                   </span>
                   <div className="inline-flex items-center rounded-lg border border-border bg-bg">
                     <button
@@ -56,11 +80,11 @@ export function ListaItensEntrada({
                       onClick={() =>
                         onAlterarQtde(
                           item.produto_id,
-                          Math.max(1, item.quantidade - 1),
+                          Math.max(1, item.qtdEmbalagens - 1),
                         )
                       }
                       className="u-motion flex size-8 items-center justify-center rounded-l-lg text-text-muted hover:bg-surface-2 hover:text-text active:scale-95 disabled:opacity-40"
-                      disabled={item.quantidade <= 1}
+                      disabled={item.qtdEmbalagens <= 1}
                       aria-label="Diminuir quantidade"
                     >
                       <Minus className="size-3.5" strokeWidth={2} />
@@ -68,7 +92,7 @@ export function ListaItensEntrada({
                     <input
                       type="number"
                       min={1}
-                      value={item.quantidade}
+                      value={item.qtdEmbalagens}
                       onChange={(e) =>
                         onAlterarQtde(
                           item.produto_id,
@@ -81,7 +105,7 @@ export function ListaItensEntrada({
                     <button
                       type="button"
                       onClick={() =>
-                        onAlterarQtde(item.produto_id, item.quantidade + 1)
+                        onAlterarQtde(item.produto_id, item.qtdEmbalagens + 1)
                       }
                       className="u-motion flex size-8 items-center justify-center rounded-r-lg text-text-muted hover:bg-surface-2 hover:text-text active:scale-95"
                       aria-label="Aumentar quantidade"
@@ -91,10 +115,10 @@ export function ListaItensEntrada({
                   </div>
                 </div>
 
-                {/* Custo unitario */}
+                {/* Custo pago (pela embalagem inteira, ou por unidade se solta) */}
                 <div className="flex flex-col gap-1">
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
-                    Custo un. (R$)
+                    {temEmbalagem ? `Custo por ${item.embalagem} (R$)` : 'Custo un. (R$)'}
                   </span>
                   <div className="inline-flex h-8 items-center rounded-lg border border-border bg-bg pl-2.5">
                     <span className="font-mono text-xs text-text-muted">R$</span>
@@ -102,7 +126,7 @@ export function ListaItensEntrada({
                       type="number"
                       min={0}
                       step="0.01"
-                      value={item.custo_unitario === 0 ? '' : item.custo_unitario}
+                      value={item.custoEmbalagem === 0 ? '' : item.custoEmbalagem}
                       placeholder="0,00"
                       onChange={(e) =>
                         onAlterarCusto(
@@ -111,11 +135,17 @@ export function ListaItensEntrada({
                         )
                       }
                       className="h-8 w-24 bg-transparent px-2 text-right font-mono text-sm tabular-nums text-text outline-none placeholder:text-text-muted/60 focus-visible:bg-surface-2 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      aria-label="Custo unitário"
+                      aria-label="Custo pago"
                     />
                   </div>
                 </div>
               </div>
+
+              {temEmbalagem && (
+                <p className="mt-2 text-[11px] text-text-muted">
+                  = {unidades} un a {formatarReal(custoUnitario)}/un
+                </p>
+              )}
             </div>
 
             <div className="flex flex-col items-end gap-2">

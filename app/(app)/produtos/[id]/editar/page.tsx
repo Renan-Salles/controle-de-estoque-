@@ -31,6 +31,7 @@ export default async function EditarProdutoPage({
           codigo_barras: produto.codigo_barras ?? '',
           categoria_id: produto.categoria_id,
           embalagem: produto.embalagem,
+          fator_conversao: String(produto.fator_conversao ?? 1),
           volume_ml: produto.volume_ml != null ? String(produto.volume_ml) : '',
           preco_venda_padrao: String(produto.preco_venda_padrao),
           custo_atual: String(produto.custo_atual),
