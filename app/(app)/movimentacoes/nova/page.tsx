@@ -32,6 +32,7 @@ const OPCOES: {
 export default function NovaMovimentacaoPage() {
   const params = useSearchParams()
   const [tipo, setTipo] = useState<Tipo>(params.get('tipo') === 'entrada' ? 'entrada' : 'saida')
+  const clienteId = params.get('cliente_id') ?? undefined
 
   useEffect(() => {
     const t = params.get('tipo')
@@ -108,7 +109,7 @@ export default function NovaMovimentacaoPage() {
         })}
       </div>
 
-      {tipo === 'saida' ? <FormSaida /> : <FormEntrada />}
+      {tipo === 'saida' ? <FormSaida clienteIdInicial={clienteId} /> : <FormEntrada />}
     </div>
   )
 }

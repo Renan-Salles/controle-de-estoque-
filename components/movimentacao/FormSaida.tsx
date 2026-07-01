@@ -21,6 +21,7 @@ import {
 } from '@/components/pedido/BuscaCliente'
 import { ListaItensPedido } from '@/components/pedido/ListaItensPedido'
 import { registrarVenda, buscarPedidoParaCupom } from '@/lib/actions/pedidos'
+import { buscarClientePorId } from '@/lib/actions/clientes'
 import { buscarMaisVendidos, type MaisVendido } from '@/lib/actions/produtos'
 import { formatarReal, formatarData, addDias } from '@/lib/formatos'
 import { rotuloPagamento } from '@/lib/pedido-labels'
@@ -61,7 +62,7 @@ function recalcularPorEmbalagem(item: ItemPedido, qtdEmbalagens: number): ItemPe
 // SAIDA (venda). Reusa BuscaCliente/BuscaProduto/ListaItensPedido.
 // Cliente OPCIONAL (venda de balcao), exceto quando fiado: ai e obrigatorio
 // para saber de quem cobrar, e o prazo (dias) e escolhido aqui na hora.
-export function FormSaida() {
+export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = {}) {
   const [cliente, setCliente] = useState<ClienteResumo | null>(null)
   const [itens, setItens] = useState<ItemPedido[]>([])
   const [formaPagamento, setFormaPagamento] =
@@ -136,6 +137,26 @@ export function FormSaida() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [registrar])
+
+  // Veio de "Nova venda" na página de um cliente (?cliente_id=...): pré-seleciona.
+  useEffect(() => {
+    if (!clienteIdInicial) return
+    let ativo = true
+    buscarClientePorId(clienteIdInicial).then((c) => {
+      if (ativo && c) {
+        setCliente({
+          id: c.id,
+          nome: c.nome,
+          telefone: c.telefone,
+          forma_pagamento_padrao: c.forma_pagamento_padrao,
+          prazo_pagamento_dias: c.prazo_pagamento_dias,
+        })
+      }
+    })
+    return () => {
+      ativo = false
+    }
+  }, [clienteIdInicial])
 
   // Atalho de balcao: carrega os mais vendidos do local na montagem.
   useEffect(() => {
