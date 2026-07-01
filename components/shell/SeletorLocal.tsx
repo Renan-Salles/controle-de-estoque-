@@ -25,6 +25,18 @@ export function SeletorLocal({
   if (!ativo) return null
   const IconeAtivo = ICONE[ativo.slug] ?? Store
 
+  // Só 1 local disponível: mostra o nome, sem dropdown de troca.
+  if (locais.length <= 1) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-border bg-surface py-1.5 pl-2.5 pr-3 text-sm">
+        <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-brand-soft text-brand">
+          <IconeAtivo className="size-3.5" strokeWidth={1.5} />
+        </span>
+        <span className="max-w-[140px] truncate font-medium text-text">{ativo.nome}</span>
+      </div>
+    )
+  }
+
   function selecionar(slug: string) {
     setAberto(false)
     if (slug === ativoSlug) return

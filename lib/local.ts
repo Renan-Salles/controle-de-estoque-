@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { createServiceClient } from '@/lib/supabase/server'
+import { getCargoUsuario, getLocalIdUsuario } from '@/lib/permissoes'
 
 export type Local = { id: string; nome: string; slug: string }
 
@@ -16,11 +17,24 @@ export async function listarLocais(): Promise<Local[]> {
   return ((data ?? []) as Local[])
 }
 
-// Local ativo da sessao (cookie). Default: Deposito. Server-only.
+// Local ativo da sessao. Se o usuario tem local_id fixo (convite/nao-admin),
+// esse local sempre vence, ignorando o cookie — fecha a brecha de trocar de
+// local direto pela action, sem precisar rejeitar a escrita do cookie em si.
 export async function getLocalAtivo(): Promise<Local> {
+  const locais = await listarLocais()
+
+  const [cargo, localIdRestrito] = await Promise.all([
+    getCargoUsuario(),
+    getLocalIdUsuario(),
+  ])
+  const restrito = !cargo?.admin && localIdRestrito ? localIdRestrito : null
+  if (restrito) {
+    const forcado = locais.find((l) => l.id === restrito)
+    if (forcado) return forcado
+  }
+
   const store = await cookies()
   const slug = store.get(COOKIE_LOCAL)?.value ?? SLUG_PADRAO
-  const locais = await listarLocais()
   const local =
     locais.find((l) => l.slug === slug) ??
     locais.find((l) => l.slug === SLUG_PADRAO) ??

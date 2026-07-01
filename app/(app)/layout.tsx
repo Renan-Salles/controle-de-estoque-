@@ -6,7 +6,7 @@ import { Topbar } from '@/components/shell/Topbar'
 import { PageTransition } from '@/components/shell/PageTransition'
 import { Toaster } from 'sonner'
 import { listarLocais, getLocalAtivo } from '@/lib/local'
-import { getCargoUsuario, getNomePerfil } from '@/lib/permissoes'
+import { getCargoUsuario, getNomePerfil, getLocalIdUsuario } from '@/lib/permissoes'
 import { rotaPermitida } from '@/lib/nav-catalogo'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -16,11 +16,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [locais, localAtivo, cargo, nomePerfil] = await Promise.all([
+  const [locaisTodos, localAtivo, cargo, nomePerfil, localIdUsuario] = await Promise.all([
     listarLocais(),
     getLocalAtivo(),
     getCargoUsuario(),
     getNomePerfil(),
+    getLocalIdUsuario(),
   ])
 
   // Trava de rota por cargo (permissão real, não só esconder botão). O pathname
@@ -33,6 +34,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // null = sem restrição (admin ou fail-open) → sidebar mostra tudo.
   const itensVisiveis = !cargo || cargo.admin ? null : cargo.itens_visiveis
   const isAdmin = cargo?.admin ?? false
+
+  // Não-admin com local fixo só vê aquele local no seletor do topo.
+  const locais =
+    !isAdmin && localIdUsuario
+      ? locaisTodos.filter((l) => l.id === localIdUsuario)
+      : locaisTodos
 
   return (
     <div className="flex min-h-screen bg-background">
