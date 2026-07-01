@@ -9,7 +9,7 @@
 import pg from 'pg'
 
 const ATENDENTE = '04029c48-99f4-454b-8776-4ba0c11b2f4c' // usuário renan (auth.users)
-const HOJE = new Date('2026-06-24T00:00:00')
+const HOJE = new Date('2026-07-01T00:00:00')
 const DIAS = 30
 
 const client = new pg.Client({
@@ -106,6 +106,8 @@ async function main() {
   await client.connect()
   console.log('Conectado. Limpando dados transacionais...')
 
+  const localId = (await client.query("select id from locais where slug='deposito'")).rows[0].id
+
   await client.query(`
     truncate table movimentacoes_estoque, pedido_itens, pedidos,
       contas_receber, contas_pagar, alertas, estoque restart identity cascade;
@@ -124,9 +126,9 @@ async function main() {
   for (const [nome, marca, cat, emb, vol, preco, custo, minimo] of PRODUTOS) {
     const r = await client.query(
       `insert into produtos (nome, marca, categoria_id, embalagem, volume_ml,
-        preco_venda_padrao, custo_atual, estoque_minimo, ativo)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,true) returning id`,
-      [nome, marca, catId(cat) ?? catId('Outros'), emb, vol, preco, custo, minimo],
+        preco_venda_padrao, custo_atual, estoque_minimo, ativo, local_id)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,true,$9) returning id`,
+      [nome, marca, catId(cat) ?? catId('Outros'), emb, vol, preco, custo, minimo, localId],
     )
     prod.push({ id: r.rows[0].id, nome, preco, custo, minimo, embalagem: emb,
       saldo: 0, custoMedio: 0 })
@@ -138,9 +140,9 @@ async function main() {
   for (const [nome, tipo, tel, forma] of CLIENTES) {
     const r = await client.query(
       `insert into clientes (nome, tipo, telefone, whatsapp, forma_pagamento_padrao,
-        prazo_pagamento_dias, status, endereco)
-       values ($1,$2,$3,$3,$4,0,'ativo','{}') returning id`,
-      [nome, tipo, tel, forma],
+        prazo_pagamento_dias, status, endereco, local_id)
+       values ($1,$2,$3,$3,$4,0,'ativo','{}',$5) returning id`,
+      [nome, tipo, tel, forma, localId],
     )
     cli.push({ id: r.rows[0].id, nome, forma })
   }
@@ -150,8 +152,8 @@ async function main() {
   for (const [nome, razao, cnpj, fornece, contato] of FORNECEDORES) {
     await client.query(
       `insert into fornecedores (nome, razao_social, cnpj, produtos_fornecidos,
-        contato_nome, status, endereco) values ($1,$2,$3,$4,$5,'ativo','{}')`,
-      [nome, razao, cnpj, fornece, contato],
+        contato_nome, status, endereco, local_id) values ($1,$2,$3,$4,$5,'ativo','{}',$6)`,
+      [nome, razao, cnpj, fornece, contato, localId],
     )
   }
 
@@ -234,10 +236,10 @@ async function main() {
       const ped = await client.query(
         `insert into pedidos (cliente_id, atendente_id, status, data_pedido,
           forma_pagamento, prazo_pagamento_dias, data_vencimento, subtotal, total,
-          canal, created_at)
-         values ($1,$2,'concluida',$3,$4,0,$5,$6,$6,$7,$3) returning id, numero_pedido`,
+          canal, created_at, local_id)
+         values ($1,$2,'concluida',$3,$4,0,$5,$6,$6,$7,$3,$8) returning id, numero_pedido`,
         [c?.id ?? null, ATENDENTE, dataPed.toISOString(), forma,
-          dataYMD(dataPed), total, pick(['telefone', 'whatsapp', 'balcao'])],
+          dataYMD(dataPed), total, pick(['telefone', 'whatsapp', 'balcao']), localId],
       )
       const pedidoId = ped.rows[0].id
       totalPedidos++
@@ -277,10 +279,10 @@ async function main() {
   for (const [categoria, descricao, valor, venc, st] of pagar) {
     await client.query(
       `insert into contas_pagar (categoria, descricao, valor, valor_pago, status,
-        data_emissao, data_vencimento, data_pagamento)
-       values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        data_emissao, data_vencimento, data_pagamento, local_id)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
       [categoria, descricao, valor, st === 'pago' ? valor : 0, st,
-        venc, venc, st === 'pago' ? venc : null],
+        venc, venc, st === 'pago' ? venc : null, localId],
     )
   }
 

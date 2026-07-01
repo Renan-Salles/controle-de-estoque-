@@ -4,7 +4,7 @@
 import pg from 'pg'
 
 const ATENDENTE = '04029c48-99f4-454b-8776-4ba0c11b2f4c'
-const HOJE = new Date('2026-06-24T00:00:00')
+const HOJE = new Date('2026-07-01T00:00:00')
 const DIAS = 30
 
 const client = new pg.Client({
