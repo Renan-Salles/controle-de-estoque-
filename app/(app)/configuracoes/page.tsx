@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Users, ShieldCheck, Store } from 'lucide-react'
+import { ShieldCheck, Store } from 'lucide-react'
 import { PageHeader } from '@/components/ui-kit/PageHeader'
 
 const CARDS = [
@@ -8,12 +8,6 @@ const CARDS = [
     icone: Store,
     titulo: 'Dados do Depósito',
     descricao: 'Nome, CNPJ e endereço que aparecem no cupom fiscal.',
-  },
-  {
-    href: '/configuracoes/usuarios',
-    icone: Users,
-    titulo: 'Usuários',
-    descricao: 'Quem tem acesso, o cargo de cada um e ativar/desativar.',
   },
   {
     href: '/configuracoes/cargos',

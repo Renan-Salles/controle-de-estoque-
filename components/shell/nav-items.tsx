@@ -15,6 +15,7 @@ import {
   Settings,
   ShoppingCart,
   ChevronDown,
+  UserCog,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -45,6 +46,8 @@ const GRUPO_CADASTROS: Grupo = {
     { href: '/produtos', label: 'Produtos', icon: Package },
   ],
 }
+
+const ITEM_EQUIPE: Item = { href: '/equipe', label: 'Equipe', icon: UserCog }
 
 const GRUPO_RELATORIOS: Grupo = {
   titulo: 'Relatórios',
@@ -338,6 +341,9 @@ export function NavConteudo({
           const itens = bloco.grupo.itens.filter((i) =>
             itemVisivel(i.href, itensVisiveis),
           )
+          if (bloco.grupo.titulo === 'Cadastros' && isAdmin) {
+            itens.push(ITEM_EQUIPE)
+          }
           if (itens.length === 0) return null
           const grupo = { ...bloco.grupo, itens }
           return (
