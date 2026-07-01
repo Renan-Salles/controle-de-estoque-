@@ -101,8 +101,10 @@ begin
     return;
   end if;
 
+  -- l.nome é varchar(120): precisa do cast pra bater com o "text" declarado
+  -- no returns table (RETURN QUERY exige tipo exato, não só compatível).
   return query
-    select true, c.nome, l.nome
+    select true, c.nome::text, l.nome::text
     from public.cargos c, public.locais l
     where c.id = v_convite.cargo_id and l.id = v_convite.local_id;
 end;
@@ -138,7 +140,7 @@ begin
   where id = v_convite.id;
 
   return query
-    select c.nome, l.nome
+    select c.nome::text, l.nome::text
     from public.cargos c, public.locais l
     where c.id = v_convite.cargo_id and l.id = v_convite.local_id;
 end;
