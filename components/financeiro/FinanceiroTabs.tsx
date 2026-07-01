@@ -15,7 +15,6 @@ const TABS = [
   { href: '/financeiro/a-receber', label: 'A receber' },
   { href: '/financeiro/custos-fixos', label: 'Custos Fixos' },
   { href: '/financeiro/formas-pagamento', label: 'Formas de pagamento' },
-  { href: '/financeiro/relatorios', label: 'Faturamento & ABC' },
 ] as const
 
 export function FinanceiroTabs() {
