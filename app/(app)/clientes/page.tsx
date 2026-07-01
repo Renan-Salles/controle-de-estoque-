@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Plus, Search, Store } from 'lucide-react'
 import { PageHeader } from '@/components/ui-kit/PageHeader'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Tabela,
   TabelaHead,
@@ -44,12 +45,32 @@ const PGTO_LABEL: Record<string, string> = {
   cartao_credito: 'Cartão crédito',
 }
 
+type FiltroTipo = 'todos' | 'bar' | 'comercio' | 'consumidor_final' | 'revendedor'
+
+const TIPO_OPCOES: Array<{ valor: FiltroTipo; label: string }> = [
+  { valor: 'todos', label: 'Todos' },
+  { valor: 'bar', label: 'Bar' },
+  { valor: 'comercio', label: 'Comércio' },
+  { valor: 'consumidor_final', label: 'Consumidor final' },
+  { valor: 'revendedor', label: 'Revendedor' },
+]
+
+type FiltroStatus = 'todos' | 'ativo' | 'inativo'
+
+const STATUS_OPCOES: Array<{ valor: FiltroStatus; label: string }> = [
+  { valor: 'todos', label: 'Todos' },
+  { valor: 'ativo', label: 'Ativo' },
+  { valor: 'inativo', label: 'Inativo' },
+]
+
 export default function ClientesPage() {
   const router = useRouter()
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [busca, setBusca] = useState('')
+  const [tipo, setTipo] = useState<FiltroTipo>('todos')
+  const [status, setStatus] = useState<FiltroStatus>('todos')
 
   useEffect(() => {
     let ativo = true
@@ -64,14 +85,19 @@ export default function ClientesPage() {
 
   const filtrados = useMemo(() => {
     const t = busca.trim().toLowerCase()
-    if (!t) return clientes
-    return clientes.filter(
-      (c) =>
-        c.nome.toLowerCase().includes(t) ||
-        (c.telefone ?? '').includes(t) ||
-        (c.whatsapp ?? '').includes(t),
-    )
-  }, [clientes, busca])
+    return clientes.filter((c) => {
+      if (t) {
+        const bateBusca =
+          c.nome.toLowerCase().includes(t) ||
+          (c.telefone ?? '').includes(t) ||
+          (c.whatsapp ?? '').includes(t)
+        if (!bateBusca) return false
+      }
+      if (tipo !== 'todos' && c.tipo !== tipo) return false
+      if (status !== 'todos' && c.status !== status) return false
+      return true
+    })
+  }, [clientes, busca, tipo, status])
 
   return (
     <div className="px-6 py-5">
@@ -85,7 +111,7 @@ export default function ClientesPage() {
         </Link>
       </PageHeader>
 
-      <div className="mb-4 flex items-center gap-3">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="relative w-full max-w-sm">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted"
@@ -98,6 +124,27 @@ export default function ClientesPage() {
             className="h-9 w-full rounded-md border border-border bg-surface pl-9 pr-3 text-sm text-text outline-none transition-colors placeholder:text-text-muted focus-visible:border-brand focus-visible:ring-3 focus-visible:ring-brand/30"
           />
         </div>
+
+        <Tabs value={tipo} onValueChange={(v) => setTipo((v ?? 'todos') as FiltroTipo)}>
+          <TabsList>
+            {TIPO_OPCOES.map((t) => (
+              <TabsTrigger key={t.valor} value={t.valor}>
+                {t.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
+        <Tabs value={status} onValueChange={(v) => setStatus((v ?? 'todos') as FiltroStatus)}>
+          <TabsList>
+            {STATUS_OPCOES.map((s) => (
+              <TabsTrigger key={s.valor} value={s.valor}>
+                {s.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
         {!loading && (
           <span className="shrink-0 font-mono text-xs tabular-nums text-text-muted">
             {filtrados.length} {filtrados.length === 1 ? 'cliente' : 'clientes'}
@@ -111,11 +158,11 @@ export default function ClientesPage() {
       {loading ? (
         <SkeletonLinhas colunas={5} linhas={8} />
       ) : filtrados.length === 0 ? (
-        busca ? (
+        busca || tipo !== 'todos' || status !== 'todos' ? (
           <EstadoVazio
             icone={Search}
             titulo="Nenhum cliente encontrado"
-            descricao={`Nada corresponde a "${busca}". Tente outro termo.`}
+            descricao="Nada corresponde à busca ou aos filtros selecionados. Tente ajustar."
           />
         ) : (
           <EstadoVazio

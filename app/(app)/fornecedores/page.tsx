@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Plus, Search, Truck } from 'lucide-react'
 import { PageHeader } from '@/components/ui-kit/PageHeader'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Tabela,
   TabelaHead,
@@ -27,10 +28,19 @@ type Fornecedor = {
   status: string
 }
 
+type FiltroStatus = 'todos' | 'ativo' | 'inativo'
+
+const STATUS_OPCOES: Array<{ valor: FiltroStatus; label: string }> = [
+  { valor: 'todos', label: 'Todos' },
+  { valor: 'ativo', label: 'Ativo' },
+  { valor: 'inativo', label: 'Inativo' },
+]
+
 export default function FornecedoresPage() {
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([])
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
+  const [status, setStatus] = useState<FiltroStatus>('todos')
 
   useEffect(() => {
     let ativo = true
@@ -44,15 +54,19 @@ export default function FornecedoresPage() {
 
   const filtrados = useMemo(() => {
     const t = busca.trim().toLowerCase()
-    if (!t) return fornecedores
-    return fornecedores.filter(
-      (f) =>
-        f.nome.toLowerCase().includes(t) ||
-        (f.razao_social ?? '').toLowerCase().includes(t) ||
-        (f.cnpj ?? '').includes(t) ||
-        (f.contato_nome ?? '').toLowerCase().includes(t),
-    )
-  }, [fornecedores, busca])
+    return fornecedores.filter((f) => {
+      if (t) {
+        const bateBusca =
+          f.nome.toLowerCase().includes(t) ||
+          (f.razao_social ?? '').toLowerCase().includes(t) ||
+          (f.cnpj ?? '').includes(t) ||
+          (f.contato_nome ?? '').toLowerCase().includes(t)
+        if (!bateBusca) return false
+      }
+      if (status !== 'todos' && f.status !== status) return false
+      return true
+    })
+  }, [fornecedores, busca, status])
 
   return (
     <div className="px-6 py-5">
@@ -66,7 +80,7 @@ export default function FornecedoresPage() {
         </Link>
       </PageHeader>
 
-      <div className="mb-4 flex items-center gap-3">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="relative w-full max-w-sm">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted"
@@ -79,6 +93,17 @@ export default function FornecedoresPage() {
             className="h-9 w-full rounded-md border border-border bg-surface pl-9 pr-3 text-sm text-text outline-none transition-colors placeholder:text-text-muted focus-visible:border-brand focus-visible:ring-3 focus-visible:ring-brand/30"
           />
         </div>
+
+        <Tabs value={status} onValueChange={(v) => setStatus((v ?? 'todos') as FiltroStatus)}>
+          <TabsList>
+            {STATUS_OPCOES.map((s) => (
+              <TabsTrigger key={s.valor} value={s.valor}>
+                {s.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
         {!loading && (
           <span className="shrink-0 font-mono text-xs tabular-nums text-text-muted">
             {filtrados.length}{' '}
@@ -90,11 +115,11 @@ export default function FornecedoresPage() {
       {loading ? (
         <SkeletonLinhas colunas={5} linhas={8} />
       ) : filtrados.length === 0 ? (
-        busca ? (
+        busca || status !== 'todos' ? (
           <EstadoVazio
             icone={Search}
             titulo="Nenhum fornecedor encontrado"
-            descricao={`Nada corresponde a "${busca}". Tente outro termo.`}
+            descricao="Nada corresponde à busca ou ao filtro selecionado. Tente ajustar."
           />
         ) : (
           <EstadoVazio
