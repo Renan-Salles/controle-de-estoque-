@@ -35,6 +35,7 @@ export default async function EditarProdutoPage({
           volume_ml: produto.volume_ml != null ? String(produto.volume_ml) : '',
           preco_venda_padrao: String(produto.preco_venda_padrao),
           custo_atual: String(produto.custo_atual),
+          margem_alvo_pct: produto.margem_alvo_pct != null ? String(produto.margem_alvo_pct) : '',
           estoque_minimo: String(produto.estoque_minimo),
         }}
       />

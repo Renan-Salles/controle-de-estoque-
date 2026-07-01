@@ -280,6 +280,7 @@ function CriarProdutoRapido({
     embalagem: 'unidade' as (typeof EMBALAGENS)[number],
     fator_conversao: '1',
     preco_venda_padrao: '',
+    margem_alvo_pct: '',
   })
 
   useEffect(() => {
@@ -298,15 +299,18 @@ function CriarProdutoRapido({
   async function salvar() {
     if (form.nome.trim().length < 2) { toast.error('Informe o nome do produto'); return }
     if (!form.categoria_id) { toast.error('Selecione a categoria'); return }
-    if (!form.preco_venda_padrao) { toast.error('Informe o preço de venda'); return }
     setCriando(true)
     const resultado = await criarProduto({
       nome: form.nome.trim(),
       categoria_id: form.categoria_id,
       embalagem: form.embalagem,
       fator_conversao: form.embalagem === 'unidade' ? 1 : Number(form.fator_conversao || 1),
-      preco_venda_padrao: Number(form.preco_venda_padrao),
+      // Preço fica a seu critério: pode deixar em branco agora e definir depois
+      // (em Produtos), ou já informar a margem pra sugerir o preço quando o
+      // custo real entrar na entrada de estoque.
+      preco_venda_padrao: Number(form.preco_venda_padrao || 0),
       custo_atual: 0,
+      margem_alvo_pct: form.margem_alvo_pct ? Number(form.margem_alvo_pct) : undefined,
       estoque_minimo: 0,
     })
     setCriando(false)
@@ -363,9 +367,20 @@ function CriarProdutoRapido({
               </Campo>
             )}
           </div>
-          <Campo label="Preço de venda (R$)" obrigatorio>
-            <Input type="number" step="0.01" value={form.preco_venda_padrao} onChange={(e) => set('preco_venda_padrao', e.target.value)} placeholder="4,75" />
-          </Campo>
+          <div className="grid grid-cols-2 gap-3">
+            <Campo
+              label="Preço de venda (R$)"
+              ajuda="Deixe em branco se ainda não decidiu."
+            >
+              <Input type="number" step="0.01" value={form.preco_venda_padrao} onChange={(e) => set('preco_venda_padrao', e.target.value)} placeholder="0,00" />
+            </Campo>
+            <Campo
+              label="Margem desejada (%)"
+              ajuda="Sugere o preço quando o custo real entrar."
+            >
+              <Input type="number" step="1" value={form.margem_alvo_pct} onChange={(e) => set('margem_alvo_pct', e.target.value)} placeholder="30" />
+            </Campo>
+          </div>
         </div>
 
         <div className="mt-auto flex gap-2 border-t border-border p-4">

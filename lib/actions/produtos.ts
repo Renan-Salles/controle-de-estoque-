@@ -11,8 +11,9 @@ const ProdutoSchema = z.object({
   embalagem: z.enum(['unidade', 'fardo', 'caixa', 'grade', 'pack']),
   fator_conversao: z.number().min(1).default(1),
   volume_ml: z.number().optional(),
-  preco_venda_padrao: z.number().min(0),
+  preco_venda_padrao: z.number().min(0).default(0),
   custo_atual: z.number().min(0),
+  margem_alvo_pct: z.number().min(0).max(1000).optional(),
   estoque_minimo: z.number().min(0).default(0),
   codigo_barras: z.string().optional(),
 })
@@ -83,6 +84,8 @@ export type MaisVendido = {
   categoria: string
   preco_venda_padrao: number
   saldo_atual: number
+  embalagem: string
+  fator_conversao: number
 }
 
 export async function buscarMaisVendidos(): Promise<MaisVendido[]> {
@@ -93,7 +96,7 @@ export async function buscarMaisVendidos(): Promise<MaisVendido[]> {
   const { data, error } = await supabase
     .from('pedido_itens')
     .select(
-      'produto_id, quantidade_pedida, pedidos!inner(status, data_pedido, local_id), produtos!inner(id, nome, ativo, preco_venda_padrao, local_id, categorias(nome), estoque(saldo_atual))',
+      'produto_id, quantidade_pedida, pedidos!inner(status, data_pedido, local_id), produtos!inner(id, nome, ativo, preco_venda_padrao, embalagem, fator_conversao, local_id, categorias(nome), estoque(saldo_atual))',
     )
     .eq('pedidos.status', 'concluida')
     .eq('pedidos.local_id', localId)
@@ -111,6 +114,8 @@ export async function buscarMaisVendidos(): Promise<MaisVendido[]> {
       id: string
       nome: string
       preco_venda_padrao: number
+      embalagem: string
+      fator_conversao: number
       categorias: Rel<{ nome: string }>
       estoque: Rel<{ saldo_atual: number }>
     }>
@@ -134,6 +139,8 @@ export async function buscarMaisVendidos(): Promise<MaisVendido[]> {
           categoria: umaRel(prod.categorias)?.nome ?? '',
           preco_venda_padrao: prod.preco_venda_padrao,
           saldo_atual: umaRel(prod.estoque)?.saldo_atual ?? 0,
+          embalagem: prod.embalagem,
+          fator_conversao: prod.fator_conversao,
         },
       })
     }
@@ -156,7 +163,7 @@ export async function buscarProdutoPorId(id: string) {
   const { data } = await supabase
     .from('produtos')
     .select(
-      'id, nome, marca, codigo_barras, categoria_id, embalagem, fator_conversao, volume_ml, preco_venda_padrao, custo_atual, estoque_minimo, ativo',
+      'id, nome, marca, codigo_barras, categoria_id, embalagem, fator_conversao, volume_ml, preco_venda_padrao, custo_atual, margem_alvo_pct, estoque_minimo, ativo',
     )
     .eq('id', id)
     .single() as {
@@ -171,6 +178,7 @@ export async function buscarProdutoPorId(id: string) {
       volume_ml: number | null
       preco_venda_padrao: number
       custo_atual: number
+      margem_alvo_pct: number | null
       estoque_minimo: number
       ativo: boolean
     } | null

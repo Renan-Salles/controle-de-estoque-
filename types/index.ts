@@ -28,10 +28,22 @@ export interface ItemPedido {
   produto_id: string
   nome: string
   categoria: string
+  // Preço por unidade base e quantidade em unidades base — sempre a fonte
+  // de verdade enviada pro backend, mesmo quando a linha foi lançada
+  // vendendo a embalagem fechada (ver campos abaixo).
   preco_unitario: number
   quantidade: number
   total: number
   saldo_atual: number
+  // Venda por embalagem (caixa/fardo) — opcional, só relevante quando o
+  // produto tem fatorConversao > 1. Quando vendaEmbalagem é true, qtdEmbalagens
+  // e precoEmbalagem são a entrada do operador; quantidade/preco_unitario/total
+  // ficam sincronizados a partir deles.
+  embalagem?: string
+  fatorConversao?: number
+  vendaEmbalagem?: boolean
+  qtdEmbalagens?: number
+  precoEmbalagem?: number
 }
 
 export interface ResumoFinanceiro {

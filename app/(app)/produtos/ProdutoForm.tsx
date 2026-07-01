@@ -31,6 +31,7 @@ export type ProdutoFormValores = {
   volume_ml: string
   preco_venda_padrao: string
   custo_atual: string
+  margem_alvo_pct: string
   estoque_minimo: string
 }
 
@@ -44,6 +45,7 @@ const VAZIO: ProdutoFormValores = {
   volume_ml: '',
   preco_venda_padrao: '',
   custo_atual: '0',
+  margem_alvo_pct: '',
   estoque_minimo: '0',
 }
 
@@ -84,10 +86,20 @@ export function ProdutoForm({
     const e: Record<string, string> = {}
     if (form.nome.trim().length < 2) e.nome = 'Informe o nome do produto'
     if (!form.categoria_id) e.categoria_id = 'Selecione uma categoria'
-    if (form.preco_venda_padrao === '' || Number(form.preco_venda_padrao) < 0)
-      e.preco_venda_padrao = 'Informe o preço de venda'
+    if (Number(form.preco_venda_padrao || 0) < 0)
+      e.preco_venda_padrao = 'Preço não pode ser negativo'
     setErros(e)
     return Object.keys(e).length === 0
+  }
+
+  function usarSugestaoPreco() {
+    const custo = Number(form.custo_atual || 0)
+    const margem = Number(form.margem_alvo_pct || 0)
+    if (!custo || !margem) {
+      toast.error('Informe custo e margem pra calcular a sugestão')
+      return
+    }
+    set('preco_venda_padrao', (custo * (1 + margem / 100)).toFixed(2))
   }
 
   async function salvar() {
@@ -100,8 +112,9 @@ export function ProdutoForm({
       categoria_id: form.categoria_id,
       embalagem: form.embalagem,
       fator_conversao: form.embalagem === 'unidade' ? 1 : Number(form.fator_conversao || 1),
-      preco_venda_padrao: Number(form.preco_venda_padrao),
+      preco_venda_padrao: Number(form.preco_venda_padrao || 0),
       custo_atual: Number(form.custo_atual || 0),
+      margem_alvo_pct: form.margem_alvo_pct ? Number(form.margem_alvo_pct) : undefined,
       estoque_minimo: Number(form.estoque_minimo || 0),
       volume_ml: form.volume_ml ? Number(form.volume_ml) : undefined,
     }
@@ -220,23 +233,8 @@ export function ProdutoForm({
 
         <FormSection
           titulo="Preços e estoque"
-          descricao="Valores em reais e ponto de alerta de reposição."
+          descricao="Você decide o preço. Custo + margem é só uma sugestão pra ajudar a calcular."
         >
-          <Campo
-            label="Preço de venda (R$)"
-            obrigatorio
-            erro={erros.preco_venda_padrao}
-          >
-            <Input
-              type="number"
-              step="0.01"
-              inputMode="decimal"
-              value={form.preco_venda_padrao}
-              onChange={(e) => set('preco_venda_padrao', e.target.value)}
-              placeholder="4,75"
-              aria-invalid={!!erros.preco_venda_padrao}
-            />
-          </Campo>
           <Campo label="Custo atual (R$)">
             <Input
               type="number"
@@ -246,6 +244,44 @@ export function ProdutoForm({
               onChange={(e) => set('custo_atual', e.target.value)}
               placeholder="3,20"
             />
+          </Campo>
+          <Campo
+            label="Margem alvo (%)"
+            ajuda="Usada pra sugerir o preço de venda a partir do custo."
+          >
+            <Input
+              type="number"
+              step="1"
+              inputMode="decimal"
+              value={form.margem_alvo_pct}
+              onChange={(e) => set('margem_alvo_pct', e.target.value)}
+              placeholder="30"
+            />
+          </Campo>
+          <Campo
+            label="Preço de venda (R$)"
+            erro={erros.preco_venda_padrao}
+            ajuda="Deixe em branco se ainda não decidiu."
+          >
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                step="0.01"
+                inputMode="decimal"
+                value={form.preco_venda_padrao}
+                onChange={(e) => set('preco_venda_padrao', e.target.value)}
+                placeholder="0,00"
+                aria-invalid={!!erros.preco_venda_padrao}
+              />
+              <button
+                type="button"
+                onClick={usarSugestaoPreco}
+                className={btnClass('outline')}
+                title="Calcular a partir do custo e da margem"
+              >
+                Sugerir
+              </button>
+            </div>
           </Campo>
           <Campo
             label="Estoque mínimo"

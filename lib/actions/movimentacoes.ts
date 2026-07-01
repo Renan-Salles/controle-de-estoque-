@@ -53,6 +53,23 @@ export async function registrarEntrada(data: unknown) {
       updated_at: new Date().toISOString(),
     }).eq('produto_id', item.produto_id)
 
+    // Preço de venda ainda em aberto (0) e o dono já deixou uma margem alvo:
+    // sugere o preço agora que o custo real chegou. Nunca mexe se já tem
+    // preço definido — quem manda no preço é o dono, isso só preenche o vazio.
+    const { data: prod } = await service
+      .from('produtos')
+      .select('preco_venda_padrao, margem_alvo_pct')
+      .eq('id', item.produto_id)
+      .single()
+    const produtoInfo = prod as { preco_venda_padrao: number; margem_alvo_pct: number | null } | null
+    if (produtoInfo && Number(produtoInfo.preco_venda_padrao) === 0 && produtoInfo.margem_alvo_pct) {
+      const precoSugerido = Math.round(novoCusto * (1 + Number(produtoInfo.margem_alvo_pct) / 100) * 100) / 100
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (service.from('produtos') as any)
+        .update({ preco_venda_padrao: precoSugerido })
+        .eq('id', item.produto_id)
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (service.from('movimentacoes_estoque') as any).insert({
       produto_id: item.produto_id,
@@ -70,6 +87,7 @@ export async function registrarEntrada(data: unknown) {
   revalidatePath('/movimentacoes')
   revalidatePath('/estoque')
   revalidatePath('/dashboard')
+  revalidatePath('/produtos')
   return { success: true }
 }
 

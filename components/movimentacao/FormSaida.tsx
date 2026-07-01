@@ -14,7 +14,7 @@ import {
   RefreshCw,
   X,
 } from 'lucide-react'
-import { BuscaProduto } from '@/components/pedido/BuscaProduto'
+import { BuscaProduto, type ProdutoParaAdicionar } from '@/components/pedido/BuscaProduto'
 import {
   BuscaCliente,
   type ClienteResumo,
@@ -42,6 +42,21 @@ type FormaPagamentoVenda =
   | 'cartao_debito'
   | 'cartao_credito'
   | 'fiado'
+
+// Recalcula quantidade/preco_unitario/total (sempre em unidade base, é o que
+// vai pro backend) a partir de qtdEmbalagens + precoEmbalagem, quando a
+// linha está no modo "vender caixa fechada".
+function recalcularPorEmbalagem(item: ItemPedido, qtdEmbalagens: number): ItemPedido {
+  const fator = item.fatorConversao || 1
+  const precoEmbalagem = item.precoEmbalagem ?? 0
+  return {
+    ...item,
+    qtdEmbalagens,
+    quantidade: qtdEmbalagens * fator,
+    total: +(qtdEmbalagens * precoEmbalagem).toFixed(2),
+    preco_unitario: fator > 0 ? +(precoEmbalagem / fator).toFixed(2) : precoEmbalagem,
+  }
+}
 
 // SAIDA (venda). Reusa BuscaCliente/BuscaProduto/ListaItensPedido.
 // Cliente OPCIONAL (venda de balcao), exceto quando fiado: ai e obrigatorio
@@ -141,10 +156,17 @@ export function FormSaida() {
   }, [])
 
   const adicionarItem = useCallback(
-    (produto: Omit<ItemPedido, 'quantidade' | 'total'>) => {
+    (produto: ProdutoParaAdicionar) => {
       setItens((prev) => {
         const existe = prev.find((i) => i.produto_id === produto.produto_id)
         if (existe) {
+          if (existe.vendaEmbalagem) {
+            return prev.map((i) =>
+              i.produto_id === produto.produto_id
+                ? recalcularPorEmbalagem(i, (i.qtdEmbalagens ?? 1) + 1)
+                : i,
+            )
+          }
           return prev.map((i) =>
             i.produto_id === produto.produto_id
               ? {
@@ -155,9 +177,19 @@ export function FormSaida() {
               : i,
           )
         }
+        const fatorConversao = produto.fator_conversao || 1
         return [
           ...prev,
-          { ...produto, quantidade: 1, total: produto.preco_unitario },
+          {
+            ...produto,
+            quantidade: 1,
+            total: produto.preco_unitario,
+            embalagem: produto.embalagem,
+            fatorConversao,
+            vendaEmbalagem: false,
+            qtdEmbalagens: 1,
+            precoEmbalagem: +(produto.preco_unitario * fatorConversao).toFixed(2),
+          },
         ]
       })
     },
@@ -168,9 +200,49 @@ export function FormSaida() {
     setItens((prev) =>
       prev.map((i) =>
         i.produto_id === produtoId
-          ? { ...i, quantidade: qtde, total: qtde * i.preco_unitario }
+          ? { ...i, quantidade: qtde, total: +(qtde * i.preco_unitario).toFixed(2) }
           : i,
       ),
+    )
+  }, [])
+
+  const alterarQtdeEmbalagens = useCallback((produtoId: string, qtdEmbalagens: number) => {
+    setItens((prev) =>
+      prev.map((i) =>
+        i.produto_id === produtoId ? recalcularPorEmbalagem(i, qtdEmbalagens) : i,
+      ),
+    )
+  }, [])
+
+  const alterarPrecoEmbalagem = useCallback((produtoId: string, precoEmbalagem: number) => {
+    setItens((prev) =>
+      prev.map((i) => {
+        if (i.produto_id !== produtoId) return i
+        const fator = i.fatorConversao || 1
+        const qtdEmbalagens = i.qtdEmbalagens ?? 1
+        return {
+          ...i,
+          precoEmbalagem,
+          total: +(qtdEmbalagens * precoEmbalagem).toFixed(2),
+          preco_unitario: fator > 0 ? +(precoEmbalagem / fator).toFixed(2) : precoEmbalagem,
+        }
+      }),
+    )
+  }, [])
+
+  const alternarModoVenda = useCallback((produtoId: string) => {
+    setItens((prev) =>
+      prev.map((i) => {
+        if (i.produto_id !== produtoId) return i
+        const fator = i.fatorConversao || 1
+        if (!i.vendaEmbalagem) {
+          // liga o modo caixa fechada: sugere o preco pela embalagem inteira
+          const precoEmbalagem = i.precoEmbalagem || +(i.preco_unitario * fator).toFixed(2)
+          return recalcularPorEmbalagem({ ...i, vendaEmbalagem: true, precoEmbalagem }, 1)
+        }
+        // volta pra unidade solta: mantem o preco por unidade, reseta pra 1
+        return { ...i, vendaEmbalagem: false, quantidade: 1, total: i.preco_unitario }
+      }),
     )
   }, [])
 
@@ -372,6 +444,8 @@ export function FormSaida() {
                         categoria: p.categoria,
                         preco_unitario: p.preco_venda_padrao,
                         saldo_atual: p.saldo_atual,
+                        embalagem: p.embalagem,
+                        fator_conversao: p.fator_conversao,
                       })
                     }
                     className="u-motion group inline-flex items-center gap-2 rounded-lg border border-border bg-surface py-1.5 pl-2.5 pr-3 text-left hover:border-brand/50 hover:bg-surface-2 active:scale-[0.98]"
@@ -436,6 +510,9 @@ export function FormSaida() {
             <ListaItensPedido
               itens={itens}
               onAlterarQtde={alterarQtde}
+              onAlterarQtdeEmbalagens={alterarQtdeEmbalagens}
+              onAlterarPrecoEmbalagem={alterarPrecoEmbalagem}
+              onAlternarModoVenda={alternarModoVenda}
               onRemover={remover}
             />
           )}
