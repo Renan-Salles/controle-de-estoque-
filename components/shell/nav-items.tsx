@@ -33,24 +33,16 @@ export type Bloco = { tipo: 'item'; item: Item } | { tipo: 'grupo'; grupo: Grupo
 
 const ITEM_DASHBOARD: Item = { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }
 const ITEM_FINANCEIRO: Item = { href: '/financeiro/resultado', label: 'Financeiro', icon: DollarSign }
+const ITEM_MOVIMENTACOES: Item = { href: '/movimentacoes', label: 'Movimentações', icon: ArrowRightLeft }
+const ITEM_ESTOQUE: Item = { href: '/estoque', label: 'Estoque', icon: Boxes }
 
-const GRUPO_VENDAS: Grupo = {
-  titulo: 'Vendas',
+const GRUPO_CADASTROS: Grupo = {
+  titulo: 'Cadastros',
   icone: ShoppingCart,
   itens: [
-    { href: '/movimentacoes', label: 'Movimentações', icon: ArrowRightLeft },
     { href: '/clientes', label: 'Clientes', icon: Users },
-  ],
-}
-
-const GRUPO_ESTOQUE: Grupo = {
-  titulo: 'Estoque',
-  icone: Boxes,
-  itens: [
-    { href: '/estoque', label: 'Posição', icon: Boxes },
-    { href: '/estoque/reposicao', label: 'Reposição', icon: ShoppingCart },
-    { href: '/produtos', label: 'Produtos', icon: Package },
     { href: '/fornecedores', label: 'Fornecedores', icon: Truck },
+    { href: '/produtos', label: 'Produtos', icon: Package },
   ],
 }
 
@@ -67,8 +59,9 @@ const GRUPO_RELATORIOS: Grupo = {
 // Ordem da sidebar (itens soltos e grupos intercalados).
 export const NAV: Bloco[] = [
   { tipo: 'item', item: ITEM_DASHBOARD },
-  { tipo: 'grupo', grupo: GRUPO_VENDAS },
-  { tipo: 'grupo', grupo: GRUPO_ESTOQUE },
+  { tipo: 'item', item: ITEM_MOVIMENTACOES },
+  { tipo: 'grupo', grupo: GRUPO_CADASTROS },
+  { tipo: 'item', item: ITEM_ESTOQUE },
   { tipo: 'item', item: ITEM_FINANCEIRO },
   { tipo: 'grupo', grupo: GRUPO_RELATORIOS },
 ]
@@ -112,7 +105,7 @@ function gravarLS(chave: string, valor: unknown) {
 // "/relatorios" são exatos para não acender junto com suas sub-rotas próprias.
 export function rotaAtiva(pathname: string, href: string) {
   if (href === '/dashboard') return pathname === '/dashboard'
-  if (href === '/estoque') return pathname === '/estoque'
+  if (href === '/estoque') return pathname.startsWith('/estoque')
   if (href === '/relatorios') return pathname === '/relatorios'
   // Item Financeiro fica ativo em qualquer sub-rota /financeiro (as abas trocam a tela).
   if (href === '/financeiro/resultado') return pathname.startsWith('/financeiro')
