@@ -47,7 +47,8 @@ export default function ProdutosPage() {
       (p) =>
         p.nome.toLowerCase().includes(t) ||
         (p.marca ?? '').toLowerCase().includes(t) ||
-        (p.categoria ?? '').toLowerCase().includes(t),
+        (p.categoria ?? '').toLowerCase().includes(t) ||
+        (p.codigo_barras ?? '').toLowerCase().includes(t),
     )
   }, [produtos, busca])
 
@@ -72,7 +73,7 @@ export default function ProdutosPage() {
           <input
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            placeholder="Buscar por nome, marca ou categoria"
+            placeholder="Buscar por nome, marca, categoria ou código"
             className="h-9 w-full rounded-md border border-border bg-surface pl-9 pr-3 text-sm text-text outline-none transition-colors placeholder:text-text-muted focus-visible:border-brand focus-visible:ring-3 focus-visible:ring-brand/30"
           />
         </div>
@@ -112,6 +113,7 @@ export default function ProdutosPage() {
           <TabelaHead>
             <tr>
               <TabelaHeadCell>Produto</TabelaHeadCell>
+              <TabelaHeadCell>Código</TabelaHeadCell>
               <TabelaHeadCell>Categoria</TabelaHeadCell>
               <TabelaHeadCell>Embalagem</TabelaHeadCell>
               <TabelaHeadCell alinhar="direita">Estoque</TabelaHeadCell>
@@ -130,6 +132,9 @@ export default function ProdutosPage() {
                   {p.marca && (
                     <p className="text-xs text-text-muted">{p.marca}</p>
                   )}
+                </TabelaCell>
+                <TabelaCell mono className="text-text-muted">
+                  {p.codigo_barras ?? '-'}
                 </TabelaCell>
                 <TabelaCell className="text-text-muted">
                   {p.categoria}
@@ -175,6 +180,7 @@ export default function ProdutosPage() {
               }
               destaque={<StatusPill status={p.status_estoque} />}
               campos={[
+                { label: 'Código', valor: <span className="font-mono">{p.codigo_barras ?? '-'}</span> },
                 { label: 'Categoria', valor: p.categoria },
                 {
                   label: 'Embalagem',

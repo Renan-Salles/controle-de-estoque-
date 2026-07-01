@@ -234,6 +234,7 @@ export interface Database {
           status_estoque: 'ok' | 'alerta' | 'critico' | 'ruptura'
           preco_venda_padrao: number
           ativo: boolean
+          codigo_barras: string | null
         }
       }
       v_aging_receber: {

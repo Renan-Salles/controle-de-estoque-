@@ -45,6 +45,7 @@ interface ProdutoBusca {
   preco_venda_padrao: number
   embalagem: string
   fator_conversao: number
+  codigo_barras: string | null
   categorias: Rel<{ nome: string }>
   estoque: Rel<{ saldo_atual: number }>
 }
@@ -180,11 +181,14 @@ export function BuscaProduto({ onAdicionar, permitirCriar = false }: Props) {
                       <span className="block truncate text-sm font-medium text-text">
                         {p.nome}
                       </span>
-                      {p.marca && (
-                        <span className="block truncate text-xs text-text-muted">
-                          {p.marca}
-                        </span>
-                      )}
+                      <span className="flex items-center gap-1.5 text-xs text-text-muted">
+                        {p.marca && <span className="truncate">{p.marca}</span>}
+                        {p.codigo_barras && (
+                          <span className="shrink-0 rounded bg-surface-2 px-1 font-mono text-[10px] text-text-muted">
+                            {p.codigo_barras}
+                          </span>
+                        )}
+                      </span>
                     </span>
                   </span>
                   <span className="flex shrink-0 items-center gap-4">
@@ -231,6 +235,7 @@ export function BuscaProduto({ onAdicionar, permitirCriar = false }: Props) {
               preco_venda_padrao: produto.preco_venda_padrao,
               embalagem: produto.embalagem,
               fator_conversao: produto.fator_conversao,
+              codigo_barras: produto.codigo_barras,
               categorias: null,
               estoque: { saldo_atual: 0 },
             }])
@@ -241,6 +246,7 @@ export function BuscaProduto({ onAdicionar, permitirCriar = false }: Props) {
               preco_venda_padrao: produto.preco_venda_padrao,
               embalagem: produto.embalagem,
               fator_conversao: produto.fator_conversao,
+              codigo_barras: produto.codigo_barras,
               categorias: null,
               estoque: { saldo_atual: 0 },
             })
@@ -271,6 +277,7 @@ function CriarProdutoRapido({
   onCriado: (produto: {
     id: string; nome: string; marca: string | null
     preco_venda_padrao: number; embalagem: string; fator_conversao: number
+    codigo_barras: string | null
   }) => void
 }) {
   const [categorias, setCategorias] = useState<CategoriaOpcao[]>([])
@@ -318,7 +325,7 @@ function CriarProdutoRapido({
       toast.error(resultado.error ?? 'Erro ao cadastrar produto')
       return
     }
-    toast.success(`Produto "${resultado.produto.nome}" cadastrado`)
+    toast.success(`Produto "${resultado.produto.nome}" cadastrado (código ${resultado.produto.codigo_barras})`)
     onCriado(resultado.produto)
   }
 

@@ -153,11 +153,19 @@ export function ProdutoForm({
               placeholder="Brahma"
             />
           </Campo>
-          <Campo label="Código de barras">
+          <Campo
+            label="Código do produto"
+            ajuda={
+              modo === 'novo'
+                ? 'Deixe em branco pra gerar automático (ex: CER-0001, pelo padrão da categoria).'
+                : undefined
+            }
+          >
             <Input
               value={form.codigo_barras}
               onChange={(e) => set('codigo_barras', e.target.value)}
-              placeholder="7891149101023"
+              placeholder="CER-0001"
+              className="font-mono"
             />
           </Campo>
           <Campo label="Categoria" obrigatorio erro={erros.categoria_id} full>
