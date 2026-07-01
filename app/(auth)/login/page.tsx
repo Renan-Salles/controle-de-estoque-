@@ -43,15 +43,23 @@ export default function LoginPage() {
     }
     setLoading(true)
     const supabase = createClient()
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password: senha,
     })
-    setLoading(false)
     if (error) {
+      setLoading(false)
       setErro(error.message)
       return
     }
+    // Confirmação de email desativada no projeto: signUp já devolve sessão,
+    // então entra direto sem passar pela tela de login de novo.
+    if (data.session) {
+      router.push('/dashboard')
+      router.refresh()
+      return
+    }
+    setLoading(false)
     setSucesso('Conta criada! Verifique seu email para confirmar e depois faça login.')
     setModo('login')
   }
