@@ -29,6 +29,7 @@ import {
 } from '@/lib/actions/estoque'
 import type { PosicaoEstoque } from '@/types'
 import { PageHeader } from '@/components/ui-kit/PageHeader'
+import { EstoqueTabs } from '@/components/estoque/EstoqueTabs'
 import {
   Tabela,
   TabelaHead,
@@ -252,6 +253,8 @@ export default function EstoquePage() {
           </Link>
         </div>
       </PageHeader>
+
+      <EstoqueTabs />
 
       {/* Filtros como segmented control */}
       <div className="mb-4 flex items-center justify-between gap-3">
