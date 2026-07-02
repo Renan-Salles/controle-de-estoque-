@@ -42,12 +42,13 @@ const FILTROS = [
   { chave: '', rotulo: 'Todas' },
   { chave: 'vendas', rotulo: 'Vendas' },
   { chave: 'entradas', rotulo: 'Entradas' },
+  { chave: 'pendentes', rotulo: 'Pedidos em andamento' },
   { chave: 'aguardando-entrega', rotulo: 'Aguardando entrega' },
   { chave: 'aguardando-retirada', rotulo: 'Aguardando retirada' },
 ] as const
 
-type FiltroChave = '' | 'vendas' | 'entradas' | 'aguardando-entrega' | 'aguardando-retirada'
-const CHAVES_VALIDAS: readonly string[] = ['vendas', 'entradas', 'aguardando-entrega', 'aguardando-retirada']
+type FiltroChave = '' | 'vendas' | 'entradas' | 'pendentes' | 'aguardando-entrega' | 'aguardando-retirada'
+const CHAVES_VALIDAS: readonly string[] = ['vendas', 'entradas', 'pendentes', 'aguardando-entrega', 'aguardando-retirada']
 
 export default async function MovimentacoesPage({
   searchParams,
@@ -97,7 +98,11 @@ export default async function MovimentacoesPage({
   let linhas: LinhaMov[]
   if (filtroAtivo === 'vendas') linhas = linhasVenda
   else if (filtroAtivo === 'entradas') linhas = linhasEntrada
-  else if (filtroAtivo === 'aguardando-entrega') {
+  else if (filtroAtivo === 'pendentes') {
+    linhas = linhasVenda.filter(
+      (l) => (l.tipoFulfillment === 'entrega' || l.tipoFulfillment === 'retirada') && !l.concluidoEm,
+    )
+  } else if (filtroAtivo === 'aguardando-entrega') {
     linhas = linhasVenda.filter((l) => l.tipoFulfillment === 'entrega' && !l.concluidoEm)
   } else if (filtroAtivo === 'aguardando-retirada') {
     linhas = linhasVenda.filter((l) => l.tipoFulfillment === 'retirada' && !l.concluidoEm)
@@ -149,11 +154,13 @@ export default async function MovimentacoesPage({
               ? 'Nenhuma venda ainda'
               : filtroAtivo === 'entradas'
                 ? 'Nenhuma entrada ainda'
-                : filtroAtivo === 'aguardando-entrega'
-                  ? 'Nenhuma entrega pendente'
-                  : filtroAtivo === 'aguardando-retirada'
-                    ? 'Nenhuma retirada pendente'
-                    : 'Nenhuma movimentação ainda'
+                : filtroAtivo === 'pendentes'
+                  ? 'Nenhum pedido em andamento'
+                  : filtroAtivo === 'aguardando-entrega'
+                    ? 'Nenhuma entrega pendente'
+                    : filtroAtivo === 'aguardando-retirada'
+                      ? 'Nenhuma retirada pendente'
+                      : 'Nenhuma movimentação ainda'
           }
           descricao="Registre uma venda ou uma compra de estoque para começar."
           acao={

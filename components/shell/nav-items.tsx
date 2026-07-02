@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import {
   LayoutDashboard,
   Plus,
@@ -16,6 +17,7 @@ import {
   ShoppingCart,
   ChevronDown,
   UserCog,
+  PackageCheck,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -36,6 +38,15 @@ const ITEM_DASHBOARD: Item = { href: '/dashboard', label: 'Dashboard', icon: Lay
 const ITEM_FINANCEIRO: Item = { href: '/financeiro/resultado', label: 'Financeiro', icon: DollarSign }
 const ITEM_MOVIMENTACOES: Item = { href: '/movimentacoes', label: 'Movimentações', icon: ArrowRightLeft }
 const ITEM_ESTOQUE: Item = { href: '/estoque', label: 'Estoque', icon: Boxes }
+
+// Fica fora do NAV[] normal (que so entende paths, nao query string) porque a
+// rota e a mesma de Movimentacoes com um filtro (?tipo=pendentes) -- precisa
+// de logica propria de "ativo" pra nao acender junto com Movimentacoes.
+export const ITEM_PEDIDOS_PENDENTES: Item = {
+  href: '/movimentacoes?tipo=pendentes',
+  label: 'Pedidos em andamento',
+  icon: PackageCheck,
+}
 
 const GRUPO_CADASTROS: Grupo = {
   titulo: 'Cadastros',
@@ -180,10 +191,13 @@ export function LinkItem({
   item,
   ativo,
   onNavegar,
+  selo,
 }: {
   item: Item
   ativo: boolean
   onNavegar?: () => void
+  /** Numero pra destacar (ex. contagem de pedidos pendentes). Sem selo quando 0/undefined. */
+  selo?: number
 }) {
   const Icone = item.icon
   return (
@@ -205,7 +219,12 @@ export function LinkItem({
         className={cn('size-[18px] shrink-0', ativo ? 'text-brand' : '')}
         strokeWidth={1.5}
       />
-      <span className="truncate">{item.label}</span>
+      <span className="flex-1 truncate">{item.label}</span>
+      {!!selo && (
+        <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-info px-1.5 text-[11px] font-semibold text-white">
+          {selo}
+        </span>
+      )}
     </Link>
   )
 }
@@ -305,17 +324,23 @@ export function NavConteudo({
   onNavegar,
   itensVisiveis = null,
   isAdmin = false,
+  pedidosPendentes = 0,
 }: {
   pathname: string
   onNavegar?: () => void
   // null = sem restrição (mostra tudo). Array = só os hrefs do cargo.
   itensVisiveis?: string[] | null
   isAdmin?: boolean
+  /** Contagem de entregas/retiradas ainda não confirmadas, pro selo do item. */
+  pedidosPendentes?: number
 }) {
   const novoAtivo = pathname === ITEM_NOVA_MOVIMENTACAO.href
   const { aberta, alternar } = useSecoesAbertas(pathname)
+  const searchParams = useSearchParams()
 
   const novoVisivel = itemVisivel(ITEM_NOVA_MOVIMENTACAO.href, itensVisiveis)
+  // Mesma rota de Movimentacoes com filtro: so um dos dois fica "ativo" por vez.
+  const pendentesAtivo = pathname === '/movimentacoes' && searchParams.get('tipo') === 'pendentes'
 
   return (
     <>
@@ -327,13 +352,24 @@ export function NavConteudo({
         {NAV.map((bloco) => {
           if (bloco.tipo === 'item') {
             if (!itemVisivel(bloco.item.href, itensVisiveis)) return null
+            const ehMovimentacoes = bloco.item.href === ITEM_MOVIMENTACOES.href
             return (
               <div key={bloco.item.href} className="mb-1.5">
                 <LinkItem
                   item={bloco.item}
-                  ativo={rotaAtiva(pathname, bloco.item.href)}
+                  ativo={ehMovimentacoes ? rotaAtiva(pathname, bloco.item.href) && !pendentesAtivo : rotaAtiva(pathname, bloco.item.href)}
                   onNavegar={onNavegar}
                 />
+                {ehMovimentacoes && (
+                  <div className="mt-1.5">
+                    <LinkItem
+                      item={ITEM_PEDIDOS_PENDENTES}
+                      ativo={pendentesAtivo}
+                      onNavegar={onNavegar}
+                      selo={pedidosPendentes}
+                    />
+                  </div>
+                )}
               </div>
             )
           }

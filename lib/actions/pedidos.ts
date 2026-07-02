@@ -277,6 +277,23 @@ export async function listarVendas() {
   return data ?? []
 }
 
+// Pedidos de entrega/retirada ainda nao confirmados como
+// entregues/retirados, do local ativo. Mesmo criterio dos filtros
+// "Aguardando entrega/retirada" em /movimentacoes, somado.
+export async function contarPedidosPendentes(): Promise<number> {
+  const localId = await getLocalAtivoId()
+  const supabase = await createClient()
+  const { count, error } = await supabase
+    .from('pedidos')
+    .select('id', { count: 'exact', head: true })
+    .eq('local_id', localId)
+    .eq('status', 'concluida')
+    .in('tipo_fulfillment', ['entrega', 'retirada'])
+    .is('concluido_em', null)
+  if (error) throw error
+  return count ?? 0
+}
+
 // Confirma que o pagamento da entrega/retirada foi recebido. Independente
 // da conclusão (pode confirmar pagamento antes ou depois de entregar).
 export async function marcarPagoPedido(pedidoId: string) {

@@ -19,10 +19,12 @@ export function MobileNav({
   localNome,
   itensVisiveis = null,
   isAdmin = false,
+  pedidosPendentes = 0,
 }: {
   localNome: string
   itensVisiveis?: string[] | null
   isAdmin?: boolean
+  pedidosPendentes?: number
 }) {
   const pathname = usePathname()
   const [aberto, setAberto] = useState(false)
@@ -75,6 +77,7 @@ export function MobileNav({
           onNavegar={() => setAberto(false)}
           itensVisiveis={itensVisiveis}
           isAdmin={isAdmin}
+          pedidosPendentes={pedidosPendentes}
         />
       </SheetContent>
     </Sheet>

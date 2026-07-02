@@ -8,6 +8,7 @@ import { Toaster } from 'sonner'
 import { listarLocais, getLocalAtivo } from '@/lib/local'
 import { getCargoUsuario, getNomePerfil, getLocalIdUsuario } from '@/lib/permissoes'
 import { rotaPermitida } from '@/lib/nav-catalogo'
+import { contarPedidosPendentes } from '@/lib/actions/pedidos'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -16,12 +17,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [locaisTodos, localAtivo, cargo, nomePerfil, localIdUsuario] = await Promise.all([
+  const [locaisTodos, localAtivo, cargo, nomePerfil, localIdUsuario, pedidosPendentes] = await Promise.all([
     listarLocais(),
     getLocalAtivo(),
     getCargoUsuario(),
     getNomePerfil(),
     getLocalIdUsuario(),
+    contarPedidosPendentes(),
   ])
 
   // Trava de rota por cargo (permissão real, não só esconder botão). O pathname
@@ -43,7 +45,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar localNome={localAtivo.nome} itensVisiveis={itensVisiveis} isAdmin={isAdmin} />
+      <Sidebar
+        localNome={localAtivo.nome}
+        itensVisiveis={itensVisiveis}
+        isAdmin={isAdmin}
+        pedidosPendentes={pedidosPendentes}
+      />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar
           email={user.email ?? 'usuário'}
@@ -53,6 +60,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           localNome={localAtivo.nome}
           itensVisiveis={itensVisiveis}
           isAdmin={isAdmin}
+          pedidosPendentes={pedidosPendentes}
         />
         <main className="min-w-0 flex-1 overflow-x-hidden px-6 py-5">
           <PageTransition>{children}</PageTransition>

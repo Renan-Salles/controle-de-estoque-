@@ -8,10 +8,12 @@ export function Sidebar({
   localNome,
   itensVisiveis = null,
   isAdmin = false,
+  pedidosPendentes = 0,
 }: {
   localNome: string
   itensVisiveis?: string[] | null
   isAdmin?: boolean
+  pedidosPendentes?: number
 }) {
   const pathname = usePathname()
   const logo = logoPartes(localNome)
@@ -32,7 +34,12 @@ export function Sidebar({
       </div>
 
       {/* Navegação compartilhada com o drawer mobile */}
-      <NavConteudo pathname={pathname} itensVisiveis={itensVisiveis} isAdmin={isAdmin} />
+      <NavConteudo
+        pathname={pathname}
+        itensVisiveis={itensVisiveis}
+        isAdmin={isAdmin}
+        pedidosPendentes={pedidosPendentes}
+      />
     </aside>
   )
 }

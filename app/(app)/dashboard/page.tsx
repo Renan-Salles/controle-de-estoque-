@@ -12,6 +12,7 @@ import {
   TrendingUp,
   Star,
   HandCoins,
+  Truck,
   type LucideIcon,
 } from 'lucide-react'
 import Link from 'next/link'
@@ -20,6 +21,7 @@ import { GraficoVendas, type PontoVenda } from '@/components/dashboard/GraficoVe
 import { getDashStats } from '@/lib/actions/dashboard'
 import { getDre } from '@/lib/actions/dre'
 import { buscarResumoFiado } from '@/lib/actions/financeiro'
+import { contarPedidosPendentes } from '@/lib/actions/pedidos'
 import { formatarReal, hojeBrasil, mesAtualBrasil, addDias } from '@/lib/formatos'
 
 export default async function DashboardPage() {
@@ -41,6 +43,7 @@ export default async function DashboardPage() {
     stats,
     dre,
     resumoFiado,
+    qtdPendentes,
   ] = await Promise.all([
     supabase.from('pedidos').select('total').gte('data_pedido', `${hoje}T00:00:00`).eq('status', 'concluida').eq('local_id', localId) as unknown as Promise<{ data: RowTotal[] }>,
     supabase.from('v_posicao_estoque').select('id').in('status_estoque', ['critico', 'ruptura']).eq('local_id', localId) as unknown as Promise<{ data: RowId[] }>,
@@ -48,6 +51,7 @@ export default async function DashboardPage() {
     getDashStats(),
     getDre(),
     buscarResumoFiado(),
+    contarPedidosPendentes(),
   ])
 
   const receitaHoje = (pedidosHoje ?? []).reduce((acc, p) => acc + (p.total ?? 0), 0)
@@ -217,6 +221,30 @@ export default async function DashboardPage() {
           </div>
           <span className="inline-flex items-center gap-1 text-[13px] font-medium text-err">
             Ver estoque
+            <ArrowUpRight className="size-4 u-motion group-hover:translate-x-0.5 group-hover:-translate-y-0.5" strokeWidth={1.5} />
+          </span>
+        </Link>
+      )}
+
+      {/* Pedidos de entrega/retirada ainda não confirmados */}
+      {qtdPendentes > 0 && (
+        <Link
+          href="/movimentacoes?tipo=pendentes"
+          className="u-motion u-fade-in group mb-5 flex items-center gap-3 rounded-lg border border-info/30 bg-info/[0.07] px-4 py-3 hover:bg-info/10"
+        >
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-info/15 text-info">
+            <Truck className="size-4" strokeWidth={1.5} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-text">
+              {qtdPendentes} pedido{qtdPendentes > 1 ? 's' : ''} em andamento
+            </p>
+            <p className="text-[13px] text-text-muted">
+              Aguardando confirmação de entrega ou retirada.
+            </p>
+          </div>
+          <span className="inline-flex items-center gap-1 text-[13px] font-medium text-info">
+            Ver pedidos
             <ArrowUpRight className="size-4 u-motion group-hover:translate-x-0.5 group-hover:-translate-y-0.5" strokeWidth={1.5} />
           </span>
         </Link>

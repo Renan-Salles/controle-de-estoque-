@@ -146,7 +146,7 @@ export function ClienteForm({
                 </SelectContent>
               </Select>
             </Campo>
-            <Campo label="CPF / CNPJ">
+            <Campo label="CPF / CNPJ (opcional)">
               <Input
                 value={form.cpf_cnpj}
                 onChange={(e) => set('cpf_cnpj', e.target.value)}
