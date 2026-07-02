@@ -1,8 +1,17 @@
 'use server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getLocalAtivoId } from '@/lib/local'
-import { addDias } from '@/lib/formatos'
+import { addDias, hojeBrasil, mesAtualBrasil } from '@/lib/formatos'
 import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
+
+const ContaPagarSchema = z.object({
+  categoria: z.string().min(1, 'Categoria obrigatória'),
+  descricao: z.string().min(2, 'Descrição obrigatória'),
+  valor: z.number().positive('Valor deve ser maior que zero'),
+  data_vencimento: z.string().min(1, 'Vencimento obrigatório'),
+  observacoes: z.string().optional(),
+})
 
 export async function buscarContasPagar(status?: string) {
   const localId = await getLocalAtivoId()
@@ -18,21 +27,20 @@ export async function buscarContasPagar(status?: string) {
   return data ?? []
 }
 
-export async function criarContaPagar(data: {
-  categoria: string
-  descricao: string
-  valor: number
-  data_vencimento: string
-  observacoes?: string
-}) {
+export async function criarContaPagar(data: Record<string, unknown>) {
+  const parsed = ContaPagarSchema.safeParse(data)
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Não autenticado' }
   const localId = await getLocalAtivoId()
   const serviceClient = await createServiceClient()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (serviceClient.from('contas_pagar') as any).insert({ ...data, local_id: localId })
+  const { data: conta, error } = await (serviceClient.from('contas_pagar') as
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    any).insert({ ...parsed.data, local_id: localId }).select('id').single()
   if (error) return { error: error.message }
+  if (!conta) return { error: 'Não foi possível criar a conta a pagar.' }
   revalidatePath('/financeiro')
   return { success: true }
 }
@@ -49,7 +57,7 @@ export async function buscarFormasPagamento(periodo: 'mes' | 'tudo' = 'mes') {
     .eq('local_id', localId)
 
   if (periodo === 'mes') {
-    const inicioMes = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`
+    const inicioMes = `${mesAtualBrasil()}-01`
     query = query.gte('data_pedido', `${inicioMes}T00:00:00`)
   }
 
@@ -76,10 +84,9 @@ export async function buscarFormasPagamento(periodo: 'mes' | 'tudo' = 'mes') {
   }
 }
 
-// Helper: primeiro dia do mês corrente em ISO date (YYYY-MM-01).
+// Helper: primeiro dia do mês corrente em ISO date (YYYY-MM-01), fuso Brasil.
 function inicioMesAtual() {
-  const agora = new Date()
-  return `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-01`
+  return `${mesAtualBrasil()}-01`
 }
 
 // Resultado do mês (DRE simplificada) do local ativo.
@@ -177,8 +184,7 @@ export async function buscarCaixaDia() {
   const localId = await getLocalAtivoId()
   const supabase = await createClient()
 
-  const agora = new Date()
-  const hoje = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`
+  const hoje = hojeBrasil()
 
   const { data, error } = await supabase
     .from('pedidos')
@@ -253,12 +259,13 @@ export async function marcarContaReceberPaga(id: string) {
   const conta = contaRaw as { valor: number } | null
   if (!conta) return { error: 'Conta não encontrada' }
 
-  const hoje = new Date().toISOString().split('T')[0]
+  const hoje = hojeBrasil()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase.from('contas_receber') as any)
-    .update({ status: 'pago', valor_pago: conta.valor, data_pagamento: hoje })
+  const { error, count } = await (supabase.from('contas_receber') as any)
+    .update({ status: 'pago', valor_pago: conta.valor, data_pagamento: hoje }, { count: 'exact' })
     .eq('id', id)
   if (error) return { error: error.message }
+  if (count === 0) return { error: 'Conta não encontrada ou você não tem acesso a ela.' }
 
   revalidatePath('/financeiro/a-receber')
   revalidatePath('/dashboard')
@@ -270,7 +277,7 @@ export async function marcarContaReceberPaga(id: string) {
 export async function buscarResumoFiado() {
   const localId = await getLocalAtivoId()
   const supabase = await createClient()
-  const hoje = new Date().toISOString().split('T')[0]
+  const hoje = hojeBrasil()
   const em3dias = addDias(hoje, 3)
 
   const { data } = await supabase
