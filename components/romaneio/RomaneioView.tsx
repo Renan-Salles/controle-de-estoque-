@@ -1,11 +1,14 @@
 import { formatarReal, formatarData } from '@/lib/formatos'
-import { rotuloPagamento } from '@/lib/pedido-labels'
+import { rotuloPagamento, rotuloFulfillment } from '@/lib/pedido-labels'
 
 interface Props {
   pedido: {
     numero_pedido: number
     data_pedido: string
     total: number
+    subtotal: number
+    frete: number | null
+    tipo_fulfillment: string
     forma_pagamento: string
     prazo_pagamento_dias?: number
     observacoes: string | null
@@ -15,6 +18,7 @@ interface Props {
       telefone: string | null
       endereco: Record<string, string> | null
     } | null
+    entregador: { nome: string } | null
     pedido_itens: Array<{
       quantidade_pedida: number
       preco_unitario: number
@@ -112,12 +116,22 @@ export function RomaneioView({ pedido }: Props) {
           }}
         >
           <p style={{ fontSize: '15px', fontWeight: 700 }}>
-            {pedido.clientes?.nome ?? 'Consumidor não identificado (venda de balcão)'}
+            {pedido.clientes?.nome ?? 'Consumidor não identificado'}
           </p>
           <div
             className="mt-1 flex flex-wrap gap-x-8 gap-y-1"
             style={{ color: '#222' }}
           >
+            <span>
+              <strong style={{ color: cinza, fontWeight: 600 }}>Tipo: </strong>
+              {rotuloFulfillment(pedido.tipo_fulfillment)}
+            </span>
+            {pedido.entregador?.nome && (
+              <span>
+                <strong style={{ color: cinza, fontWeight: 600 }}>Entregador: </strong>
+                {pedido.entregador.nome}
+              </span>
+            )}
             {pedido.clientes?.telefone && (
               <span>
                 <strong style={{ color: cinza, fontWeight: 600 }}>Telefone: </strong>
@@ -126,7 +140,7 @@ export function RomaneioView({ pedido }: Props) {
             )}
             {endStr && (
               <span>
-                <strong style={{ color: cinza, fontWeight: 600 }}>Entrega: </strong>
+                <strong style={{ color: cinza, fontWeight: 600 }}>Endereço: </strong>
                 {endStr}
               </span>
             )}
@@ -198,6 +212,12 @@ export function RomaneioView({ pedido }: Props) {
             minWidth: '64mm',
           }}
         >
+          {!!pedido.frete && (
+            <div className="mb-2" style={{ color: '#222', fontSize: '11px' }}>
+              <p>Subtotal: {formatarReal(pedido.subtotal)}</p>
+              <p>Frete: {formatarReal(pedido.frete)}</p>
+            </div>
+          )}
           <p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: cinza, fontWeight: 700 }}>
             Total do pedido
           </p>
