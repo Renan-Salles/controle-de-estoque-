@@ -16,7 +16,6 @@ import { EstadoVazio } from '@/components/ui-kit/EstadoVazio'
 import { Money } from '@/components/ui-kit/Money'
 import { cn } from '@/lib/utils'
 
-import { FinanceiroTabs } from '@/components/financeiro/FinanceiroTabs'
 import {
   GraficoFormas,
   type PontoForma,
@@ -192,8 +191,6 @@ export default function FormasPagamentoPage() {
 
   return (
     <div className="px-6 py-5">
-      <FinanceiroTabs />
-
       <PageHeader
         titulo="Formas de pagamento"
         subtitulo="Quanto entrou em cada forma e quais os clientes mais usam."

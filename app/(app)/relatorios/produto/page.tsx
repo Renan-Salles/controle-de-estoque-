@@ -16,7 +16,6 @@ import { EstadoVazio } from '@/components/ui-kit/EstadoVazio'
 import { Money } from '@/components/ui-kit/Money'
 import { formatarNumero, formatarReal, hojeBrasil } from '@/lib/formatos'
 import { FiltroPeriodo } from '@/components/relatorios/FiltroPeriodo'
-import { RelatoriosTabs } from '@/components/relatorios/RelatoriosTabs'
 import { CardLinha } from '@/components/ui-kit/CardLinha'
 
 function mesCorrente() {
@@ -63,7 +62,6 @@ export default function RelatorioProdutoPage() {
 
   return (
     <div className="px-6 py-5">
-      <RelatoriosTabs />
       <PageHeader
         titulo="Vendas por produto"
         subtitulo="Ranking de unidades e faturamento no período."

@@ -16,16 +16,22 @@ export type NavCatalogoItem = { href: string; label: string; grupo: string }
 export const NAV_CATALOGO: NavCatalogoItem[] = [
   { href: '/dashboard', label: 'Dashboard', grupo: 'Geral' },
   { href: '/movimentacoes/nova', label: 'Nova Movimentação', grupo: 'Geral' },
-  { href: '/movimentacoes', label: 'Movimentações', grupo: 'Vendas' },
-  { href: '/clientes', label: 'Clientes', grupo: 'Cadastros' },
-  { href: '/estoque', label: 'Posição de estoque', grupo: 'Estoque' },
-  { href: '/estoque/reposicao', label: 'Reposição', grupo: 'Estoque' },
-  { href: '/produtos', label: 'Produtos', grupo: 'Cadastros' },
-  { href: '/fornecedores', label: 'Fornecedores', grupo: 'Cadastros' },
-  { href: '/financeiro/resultado', label: 'Financeiro (resultado, contas, formas)', grupo: 'Financeiro' },
+  { href: '/pedidos', label: 'Pedidos', grupo: 'Operação' },
+  { href: '/movimentacoes', label: 'Movimentações', grupo: 'Operação' },
+  { href: '/estoque', label: 'Posição de estoque', grupo: 'Operação' },
+  { href: '/estoque/reposicao', label: 'Reposição', grupo: 'Operação' },
+  { href: '/clientes', label: 'Clientes', grupo: 'Cadastro' },
+  { href: '/produtos', label: 'Produtos', grupo: 'Cadastro' },
+  { href: '/fornecedores', label: 'Fornecedores', grupo: 'Cadastro' },
   { href: '/relatorios', label: 'Vendas por período', grupo: 'Relatórios' },
   { href: '/relatorios/produto', label: 'Vendas por produto', grupo: 'Relatórios' },
   { href: '/relatorios/cliente', label: 'Vendas por cliente', grupo: 'Relatórios' },
+  { href: '/financeiro/relatorios', label: 'Faturamento & ABC', grupo: 'Relatórios' },
+  { href: '/financeiro/resultado', label: 'Resultado', grupo: 'Relatórios' },
+  { href: '/financeiro/a-pagar', label: 'A pagar', grupo: 'Relatórios' },
+  { href: '/financeiro/a-receber', label: 'A receber', grupo: 'Relatórios' },
+  { href: '/financeiro/custos-fixos', label: 'Custos Fixos', grupo: 'Relatórios' },
+  { href: '/financeiro/formas-pagamento', label: 'Formas de pagamento', grupo: 'Relatórios' },
 ]
 
 // Pode acessar a rota? Admin e cargo nulo (fail-open) liberam tudo. Dashboard é
@@ -34,18 +40,10 @@ export const NAV_CATALOGO: NavCatalogoItem[] = [
 export function rotaPermitida(pathname: string, cargo: Cargo | null): boolean {
   if (!cargo || cargo.admin) return true
   if (pathname === '/' || pathname.startsWith('/dashboard')) return true
-  // O detalhe/romaneio de um pedido é parte de Movimentações; quem vê
-  // Movimentações abre a venda (o botão "Pedidos" foi unificado nele).
+  // O detalhe/romaneio de um pedido e alcancado tanto por Pedidos (lista nova)
+  // quanto por Movimentacoes (extrato financeiro) -- duas lentes sobre a mesma
+  // venda, ver docs/superpowers/specs/2026-07-02-reorganizacao-nav-pedidos-design.md.
   if (pathname.startsWith('/pedidos') && cargo.itens_visiveis.includes('/movimentacoes')) {
-    return true
-  }
-  // Financeiro é um botão só (/financeiro/resultado); libera todas as sub-telas
-  // (a pagar, formas de pagamento, faturamento) que as abas internas trocam.
-  if (pathname.startsWith('/financeiro') && cargo.itens_visiveis.includes('/financeiro/resultado')) {
-    return true
-  }
-  // Faturamento & ABC também é alcançado pelas abas de Relatórios.
-  if (pathname === '/financeiro/relatorios' && cargo.itens_visiveis.includes('/relatorios')) {
     return true
   }
   return cargo.itens_visiveis.some(

@@ -38,7 +38,6 @@ import { SkeletonLinhas } from '@/components/ui-kit/SkeletonLinhas'
 import { Money } from '@/components/ui-kit/Money'
 import { formatarData, hojeBrasil } from '@/lib/formatos'
 
-import { FinanceiroTabs } from '@/components/financeiro/FinanceiroTabs'
 import { KpiFinanceiro } from '@/components/financeiro/KpiFinanceiro'
 import { FiltroStatus, type OpcaoFiltro } from '@/components/financeiro/FiltroStatus'
 
@@ -172,8 +171,6 @@ export default function ContasPagarPage() {
 
   return (
     <div className="px-6 py-5">
-      <FinanceiroTabs />
-
       <PageHeader
         titulo="Contas a pagar"
         subtitulo="Despesas do depósito: mercadoria, aluguel, salários e custos do mês."

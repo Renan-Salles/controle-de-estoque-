@@ -21,7 +21,6 @@ import { SkeletonLinhas } from '@/components/ui-kit/SkeletonLinhas'
 import { Money } from '@/components/ui-kit/Money'
 import { formatarData, addDias, hojeBrasil } from '@/lib/formatos'
 
-import { FinanceiroTabs } from '@/components/financeiro/FinanceiroTabs'
 import { KpiFinanceiro } from '@/components/financeiro/KpiFinanceiro'
 import { FiltroStatus, type OpcaoFiltro } from '@/components/financeiro/FiltroStatus'
 
@@ -95,8 +94,6 @@ export default function ContasReceberPage() {
 
   return (
     <div className="px-6 py-5">
-      <FinanceiroTabs />
-
       <PageHeader
         titulo="Fiado / A receber"
         subtitulo="Vendas fiado em aberto, com prazo escolhido na venda e aviso de vencimento."

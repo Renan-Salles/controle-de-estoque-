@@ -17,7 +17,6 @@ import { EstadoVazio } from '@/components/ui-kit/EstadoVazio'
 import { Money } from '@/components/ui-kit/Money'
 import { formatarNumero } from '@/lib/formatos'
 
-import { FinanceiroTabs } from '@/components/financeiro/FinanceiroTabs'
 import {
   GraficoFaturamento,
   type PontoFaturamento,
@@ -79,8 +78,6 @@ export default async function RelatoriosPage() {
 
   return (
     <div className="px-6 py-5">
-      <FinanceiroTabs />
-
       <PageHeader
         titulo="Relatórios"
         subtitulo="Visão de faturamento mês a mês e os produtos que mais pesam no caixa."

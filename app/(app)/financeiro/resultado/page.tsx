@@ -1,6 +1,5 @@
 ﻿import { Suspense } from 'react'
 import { PageHeader } from '@/components/ui-kit/PageHeader'
-import { FinanceiroTabs } from '@/components/financeiro/FinanceiroTabs'
 import { getDre } from '@/lib/actions/dre'
 import { formatarReal, mesAtualBrasil } from '@/lib/formatos'
 import { MesSeletor } from './MesSeletor'
@@ -35,8 +34,6 @@ export default async function ResultadoPage({
 
   return (
     <div className="px-6 py-5">
-      <FinanceiroTabs />
-
       <PageHeader titulo="Resultado" subtitulo="Demonstrativo de resultado do mês." />
 
       <div className="space-y-5">

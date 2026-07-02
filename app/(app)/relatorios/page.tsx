@@ -16,7 +16,6 @@ import { EstadoVazio } from '@/components/ui-kit/EstadoVazio'
 import { Money } from '@/components/ui-kit/Money'
 import { formatarNumero, hojeBrasil } from '@/lib/formatos'
 import { FiltroPeriodo } from '@/components/relatorios/FiltroPeriodo'
-import { RelatoriosTabs } from '@/components/relatorios/RelatoriosTabs'
 import { CardLinha } from '@/components/ui-kit/CardLinha'
 
 function mesCorrente() {
@@ -61,7 +60,6 @@ export default function RelatorioPeriodoPage() {
 
   return (
     <div className="px-6 py-5">
-      <RelatoriosTabs />
       <PageHeader
         titulo="Vendas por período"
         subtitulo="Faturamento e pedidos no intervalo escolhido."
