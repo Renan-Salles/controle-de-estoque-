@@ -310,6 +310,7 @@ export async function marcarPagoPedido(pedidoId: string) {
 
   revalidatePath(`/pedidos/${pedidoId}`)
   revalidatePath('/movimentacoes')
+  revalidatePath('/pedidos')
   return { success: true as const }
 }
 
@@ -328,5 +329,67 @@ export async function marcarConcluidoPedido(pedidoId: string) {
 
   revalidatePath(`/pedidos/${pedidoId}`)
   revalidatePath('/movimentacoes')
+  revalidatePath('/pedidos')
   return { success: true as const }
+}
+
+// Marca que o entregador saiu para a entrega (so tipo_fulfillment
+// 'entrega' -- retirada nao tem trajeto). Junto com concluido_em da
+// pra calcular quanto tempo a entrega levou.
+export async function marcarSaiuEntregaPedido(pedidoId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Nao autenticado' }
+
+  const serviceClient = await createServiceClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error, count } = await (serviceClient.from('pedidos') as any)
+    .update({ saiu_entrega_em: new Date().toISOString() }, { count: 'exact' })
+    .eq('id', pedidoId)
+    .eq('tipo_fulfillment', 'entrega')
+  if (error) return { error: error.message }
+  if (count === 0) return { error: 'Pedido não encontrado ou não é uma entrega.' }
+
+  revalidatePath(`/pedidos/${pedidoId}`)
+  revalidatePath('/pedidos')
+  return { success: true as const }
+}
+
+// Aba "Em andamento" de /pedidos: mesmo criterio que ja usava
+// contarPedidosPendentes(), agora retornando as linhas tambem.
+export async function listarPedidosEmAndamento() {
+  const localId = await getLocalAtivoId()
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('pedidos')
+    .select(
+      'id, numero_pedido, tipo_fulfillment, data_pedido, saiu_entrega_em, clientes(nome), entregador:profiles!pedidos_entregador_id_fkey(nome)',
+    )
+    .eq('local_id', localId)
+    .eq('status', 'concluida')
+    .in('tipo_fulfillment', ['entrega', 'retirada'])
+    .is('concluido_em', null)
+    .order('data_pedido', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+// Aba "Concluidos" de /pedidos: historico operacional (quem entregou,
+// quanto tempo levou) -- sem valor/pagamento, isso e papel do extrato
+// em Movimentacoes.
+export async function listarPedidosConcluidos() {
+  const localId = await getLocalAtivoId()
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('pedidos')
+    .select(
+      'id, numero_pedido, tipo_fulfillment, data_pedido, concluido_em, saiu_entrega_em, clientes(nome), entregador:profiles!pedidos_entregador_id_fkey(nome)',
+    )
+    .eq('local_id', localId)
+    .eq('status', 'concluida')
+    .not('concluido_em', 'is', null)
+    .order('concluido_em', { ascending: false })
+    .limit(200)
+  if (error) throw error
+  return data ?? []
 }
