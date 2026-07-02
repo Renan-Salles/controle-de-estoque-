@@ -2,6 +2,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getLocalAtivoId } from '@/lib/local'
 import { getTotalCustosFixosMes } from '@/lib/actions/custos-fixos'
+import { mesAtualBrasil } from '@/lib/formatos'
 
 export type DreData = {
   receita_bruta: number
@@ -17,7 +18,7 @@ export type DreData = {
 export async function getDre(mes?: string): Promise<DreData> {
   const localId = await getLocalAtivoId()
   const supabase = await createClient()
-  const mesFiltro = (mes ?? new Date().toISOString().slice(0, 7)) + '-01'
+  const mesFiltro = (mes ?? mesAtualBrasil()) + '-01'
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data } = await (supabase as any).rpc('calcular_dre', {

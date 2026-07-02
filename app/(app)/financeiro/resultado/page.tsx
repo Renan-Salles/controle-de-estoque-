@@ -2,7 +2,7 @@
 import { PageHeader } from '@/components/ui-kit/PageHeader'
 import { FinanceiroTabs } from '@/components/financeiro/FinanceiroTabs'
 import { getDre } from '@/lib/actions/dre'
-import { formatarReal } from '@/lib/formatos'
+import { formatarReal, mesAtualBrasil } from '@/lib/formatos'
 import { MesSeletor } from './MesSeletor'
 
 function LinhaDRE({ label, valor, pct, destaque, negativo }: {
@@ -30,7 +30,7 @@ export default async function ResultadoPage({
 }) {
   const { mes } = await searchParams
   const dre = await getDre(mes)
-  const mesAtual = mes ?? new Date().toISOString().slice(0, 7)
+  const mesAtual = mes ?? mesAtualBrasil()
   const labelMes = new Date(mesAtual + '-15').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
 
   return (

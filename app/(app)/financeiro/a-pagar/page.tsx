@@ -36,7 +36,7 @@ import { StatusPill } from '@/components/ui-kit/StatusPill'
 import { EstadoVazio } from '@/components/ui-kit/EstadoVazio'
 import { SkeletonLinhas } from '@/components/ui-kit/SkeletonLinhas'
 import { Money } from '@/components/ui-kit/Money'
-import { formatarData } from '@/lib/formatos'
+import { formatarData, hojeBrasil } from '@/lib/formatos'
 
 import { FinanceiroTabs } from '@/components/financeiro/FinanceiroTabs'
 import { KpiFinanceiro } from '@/components/financeiro/KpiFinanceiro'
@@ -122,7 +122,7 @@ export default function ContasPagarPage() {
     carregar()
   }, [carregar])
 
-  const hoje = new Date().toISOString().split('T')[0]
+  const hoje = hojeBrasil()
 
   function set<K extends keyof typeof FORM_VAZIO>(
     campo: K,

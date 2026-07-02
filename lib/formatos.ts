@@ -45,6 +45,23 @@ export function formatarData(
   return FMT_DATA.format(data)
 }
 
+// new Date().toISOString() usa UTC. Servidor (Vercel) roda em UTC, mas o
+// negocio e no fuso de Brasilia (UTC-3): das 21h as 23h59 no Brasil, UTC ja
+// virou o dia seguinte. "Hoje"/"mes atual" calculado com toISOString() fica
+// adiantado nesse intervalo -- exatamente o horario de pico do balcao.
+// hojeBrasil()/mesAtualBrasil() sao a fonte unica de "que dia e hoje" pro
+// servidor; nunca usar new Date().toISOString().split('T')[0] direto.
+
+/** Data de "hoje" (YYYY-MM-DD) no fuso de Brasilia, nao UTC do servidor. */
+export function hojeBrasil(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date())
+}
+
+/** Mes atual (YYYY-MM) no fuso de Brasilia. */
+export function mesAtualBrasil(): string {
+  return hojeBrasil().slice(0, 7)
+}
+
 /** Soma dias a uma data (YYYY-MM-DD) e devolve YYYY-MM-DD. */
 export function addDias(dataISO: string, dias: number): string {
   const d = new Date(`${dataISO}T00:00:00`)

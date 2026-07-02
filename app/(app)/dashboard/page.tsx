@@ -20,15 +20,15 @@ import { GraficoVendas, type PontoVenda } from '@/components/dashboard/GraficoVe
 import { getDashStats } from '@/lib/actions/dashboard'
 import { getDre } from '@/lib/actions/dre'
 import { buscarResumoFiado } from '@/lib/actions/financeiro'
-import { formatarReal } from '@/lib/formatos'
+import { formatarReal, hojeBrasil, mesAtualBrasil, addDias } from '@/lib/formatos'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
   const local = await getLocalAtivo()
   const localId = local.id
 
-  const hoje = new Date().toISOString().split('T')[0]
-  const inicioMes = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`
+  const hoje = hojeBrasil()
+  const inicioMes = `${mesAtualBrasil()}-01`
 
   type RowTotal = { total: number }
   type RowId = { id: string }
@@ -59,9 +59,8 @@ export default async function DashboardPage() {
 
   // Série dos últimos 7 dias para o gráfico (recharts no client).
   const dadosGrafico: PontoVenda[] = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date()
-    d.setDate(d.getDate() - (6 - i))
-    const dStr = d.toISOString().split('T')[0]
+    const dStr = addDias(hoje, -(6 - i))
+    const d = new Date(`${dStr}T12:00:00`)
     const total = (pedidosMes ?? [])
       .filter((p) => p.data_pedido.startsWith(dStr))
       .reduce((acc, p) => acc + (p.total ?? 0), 0)

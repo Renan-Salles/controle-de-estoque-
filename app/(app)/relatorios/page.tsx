@@ -14,13 +14,13 @@ import {
 } from '@/components/ui-kit/tabela'
 import { EstadoVazio } from '@/components/ui-kit/EstadoVazio'
 import { Money } from '@/components/ui-kit/Money'
-import { formatarNumero } from '@/lib/formatos'
+import { formatarNumero, hojeBrasil } from '@/lib/formatos'
 import { FiltroPeriodo } from '@/components/relatorios/FiltroPeriodo'
 import { RelatoriosTabs } from '@/components/relatorios/RelatoriosTabs'
 import { CardLinha } from '@/components/ui-kit/CardLinha'
 
 function mesCorrente() {
-  const hoje = new Date().toISOString().slice(0, 10)
+  const hoje = hojeBrasil()
   const ini = hoje.slice(0, 8) + '01'
   return { ini, fim: hoje }
 }

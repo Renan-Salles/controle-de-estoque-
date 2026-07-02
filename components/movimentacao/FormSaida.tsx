@@ -24,7 +24,7 @@ import { registrarVenda, buscarPedidoParaCupom } from '@/lib/actions/pedidos'
 import { buscarClientePorId } from '@/lib/actions/clientes'
 import { buscarMaisVendidos, type MaisVendido } from '@/lib/actions/produtos'
 import { listarUsuariosComCargo, type UsuarioComCargo } from '@/lib/actions/cargos'
-import { formatarReal, formatarData, addDias } from '@/lib/formatos'
+import { formatarReal, formatarData, addDias, hojeBrasil } from '@/lib/formatos'
 import { rotuloPagamento } from '@/lib/pedido-labels'
 import { Money } from '@/components/ui-kit/Money'
 import {
@@ -708,7 +708,7 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
                   />
                   <p className="text-xs text-text-muted">
                     Vence em{' '}
-                    {formatarData(addDias(new Date().toISOString().split('T')[0], Number(prazoDias) || 0))}
+                    {formatarData(addDias(hojeBrasil(), Number(prazoDias) || 0))}
                   </p>
                 </>
               )}

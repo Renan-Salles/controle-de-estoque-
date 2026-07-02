@@ -1,6 +1,7 @@
 'use server'
 import { createClient } from '@/lib/supabase/server'
 import { getLocalAtivoId } from '@/lib/local'
+import { hojeBrasil, mesAtualBrasil } from '@/lib/formatos'
 
 export type DashStats = {
   vendaHoje: number
@@ -13,8 +14,8 @@ export type DashStats = {
 export async function getDashStats(): Promise<DashStats> {
   const localId = await getLocalAtivoId()
   const supabase = await createClient()
-  const hoje = new Date().toISOString().slice(0, 10)
-  const inicioMes = new Date().toISOString().slice(0, 7) + '-01'
+  const hoje = hojeBrasil()
+  const inicioMes = mesAtualBrasil() + '-01'
 
   const [rHoje, rMes, rVip] = await Promise.all([
     supabase

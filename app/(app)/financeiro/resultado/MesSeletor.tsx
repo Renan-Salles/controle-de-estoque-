@@ -1,10 +1,11 @@
 'use client'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { mesAtualBrasil } from '@/lib/formatos'
 
 export function MesSeletor() {
   const router = useRouter()
   const sp = useSearchParams()
-  const mes = sp.get('mes') ?? new Date().toISOString().slice(0, 7)
+  const mes = sp.get('mes') ?? mesAtualBrasil()
   return (
     <input
       type="month"
