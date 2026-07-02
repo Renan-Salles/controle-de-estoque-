@@ -54,7 +54,10 @@ export async function criarFornecedor(data: Record<string, unknown>) {
     .from('fornecedores')
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .insert({ ...montar(parsed.data), local_id: localId } as any)
-  if (error) return { error: error.message }
+  if (error) {
+    if (error.code === '23505') return { error: 'Já existe um fornecedor com esse nome neste local.' }
+    return { error: error.message }
+  }
 
   revalidatePath('/fornecedores')
   return { success: true }
@@ -67,14 +70,19 @@ export async function atualizarFornecedor(
   const parsed = FornecedorSchema.safeParse(data)
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
+  const localId = await getLocalAtivoId()
   const supabase = await createClient()
-  const { error } = await (
+  const { error, count } = await (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     supabase.from('fornecedores') as any
   )
-    .update(montar(parsed.data))
-    .eq('id', id)
-  if (error) return { error: error.message }
+    .update(montar(parsed.data), { count: 'exact' })
+    .eq('id', id).eq('local_id', localId)
+  if (error) {
+    if (error.code === '23505') return { error: 'Já existe um fornecedor com esse nome neste local.' }
+    return { error: error.message }
+  }
+  if (count === 0) return { error: 'Fornecedor não encontrado neste local.' }
 
   revalidatePath('/fornecedores')
   revalidatePath(`/fornecedores/${id}`)
@@ -115,7 +123,18 @@ export async function cadastrarFornecedorRapido(nome: string) {
     .insert({ nome: limpo, status: 'ativo', endereco: {}, local_id: localId })
     .select('id, nome')
     .single()
-  if (error) return { error: error.message }
+  if (error) {
+    if (error.code === '23505') {
+      const { data: existente } = await supabase
+        .from('fornecedores')
+        .select('id, nome')
+        .eq('local_id', localId)
+        .ilike('nome', limpo)
+        .single()
+      if (existente) return { fornecedor: existente as { id: string; nome: string } }
+    }
+    return { error: error.message }
+  }
   revalidatePath('/fornecedores')
   return { fornecedor: data as { id: string; nome: string } }
 }

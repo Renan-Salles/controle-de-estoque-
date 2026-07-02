@@ -33,7 +33,10 @@ export async function criarCliente(data: Record<string, unknown>) {
     endereco: { rua: endereco_rua, numero: endereco_numero, bairro: endereco_bairro, cidade: endereco_cidade },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any)
-  if (error) return { error: error.message }
+  if (error) {
+    if (error.code === '23505') return { error: 'Já existe um cliente com esse nome neste local.' }
+    return { error: error.message }
+  }
   revalidatePath('/clientes')
   return { success: true }
 }
@@ -43,15 +46,20 @@ export async function atualizarCliente(id: string, data: Record<string, unknown>
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
   const { endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, ...resto } = parsed.data
+  const localId = await getLocalAtivoId()
   const supabase = await createClient()
-  const { error } = await (
+  const { error, count } = await (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     supabase.from('clientes') as any
   ).update({
     ...resto,
     endereco: { rua: endereco_rua, numero: endereco_numero, bairro: endereco_bairro, cidade: endereco_cidade },
-  }).eq('id', id)
-  if (error) return { error: error.message }
+  }, { count: 'exact' }).eq('id', id).eq('local_id', localId)
+  if (error) {
+    if (error.code === '23505') return { error: 'Já existe um cliente com esse nome neste local.' }
+    return { error: error.message }
+  }
+  if (count === 0) return { error: 'Cliente não encontrado neste local.' }
   revalidatePath('/clientes')
   revalidatePath(`/clientes/${id}`)
   return { success: true }
@@ -119,7 +127,23 @@ export async function cadastrarClienteRapido(nome: string) {
     })
     .select('id, nome, telefone, forma_pagamento_padrao')
     .single()
-  if (error) return { error: error.message }
+  if (error) {
+    // Corrida (duas pessoas cadastrando o mesmo nome quase junto) ou nome ja
+    // existente: devolve o cliente que ja existe em vez de erro, senao
+    // fragmenta o historico do cliente em dois registros.
+    if (error.code === '23505') {
+      const { data: existente } = await supabase
+        .from('clientes')
+        .select('id, nome, telefone, forma_pagamento_padrao')
+        .eq('local_id', localId)
+        .ilike('nome', limpo)
+        .single()
+      if (existente) {
+        return { cliente: existente as { id: string; nome: string; telefone: string | null; forma_pagamento_padrao: string } }
+      }
+    }
+    return { error: error.message }
+  }
   revalidatePath('/clientes')
   return { cliente: data as { id: string; nome: string; telefone: string | null; forma_pagamento_padrao: string } }
 }
