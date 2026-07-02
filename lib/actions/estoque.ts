@@ -29,27 +29,15 @@ export async function darEntrada(data: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Não autenticado' }
 
-  const { data: estoqueAtual } = await serviceClient
-    .from('estoque')
-    .select('saldo_atual, custo_medio')
-    .eq('produto_id', data.produto_id)
-    .single()
-
-  const atual = estoqueAtual as { saldo_atual: number; custo_medio: number } | null
-  const saldoAtual = atual?.saldo_atual ?? 0
-  const custoMedioAtual = atual?.custo_medio ?? 0
-  const novoSaldo = saldoAtual + data.quantidade
-
-  const novoCustoMedio = saldoAtual > 0
-    ? ((saldoAtual * custoMedioAtual) + (data.quantidade * data.custo_unitario)) / novoSaldo
-    : data.custo_unitario
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (serviceClient.from('estoque') as any).update({
-    saldo_atual: novoSaldo,
-    custo_medio: novoCustoMedio,
-    updated_at: new Date().toISOString(),
-  }).eq('produto_id', data.produto_id)
+  const { data: ajusteRaw, error: errAjuste } = await (serviceClient as any).rpc('ajustar_estoque', {
+    p_produto_id: data.produto_id,
+    p_delta: data.quantidade,
+    p_novo_custo_unitario: data.custo_unitario,
+  })
+  if (errAjuste) return { error: `Falha ao dar entrada no estoque: ${errAjuste.message}` }
+  const ajuste = (ajusteRaw as { saldo_novo: number }[] | null)?.[0]
+  const novoSaldo = ajuste?.saldo_novo ?? 0
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (serviceClient.from('movimentacoes_estoque') as any).insert({
@@ -107,30 +95,28 @@ export async function ajustarEstoque(data: {
   } = await supabase.auth.getUser()
   if (!user) return { error: 'Não autenticado' }
 
-  const { data: estoqueAtual } = await serviceClient
-    .from('estoque')
-    .select('saldo_atual, custo_medio')
-    .eq('produto_id', data.produto_id)
-    .single()
+  // Acerto: a quantidade e o NOVO saldo absoluto (p_novo_saldo). Demais:
+  // quanto SAI (p_delta negativo). ajustar_estoque() trava a linha e calcula
+  // o delta de verdade dentro da transacao, sem depender de uma leitura
+  // previa que pode ficar desatualizada por uma corrida.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: ajusteRaw, error: errAjuste } = await (serviceClient as any).rpc('ajustar_estoque', {
+    p_produto_id: data.produto_id,
+    ...(data.tipo === 'acerto'
+      ? { p_novo_saldo: data.quantidade }
+      : { p_delta: -data.quantidade }),
+  })
+  if (errAjuste) {
+    if (errAjuste.message?.startsWith('ESTOQUE_INSUFICIENTE')) {
+      return { error: `Saldo insuficiente para essa saída.` }
+    }
+    return { error: errAjuste.message }
+  }
+  const ajuste = (ajusteRaw as { saldo_novo: number; custo_medio: number; delta_aplicado: number }[] | null)?.[0]
+  if (!ajuste) return { error: 'Falha ao ajustar estoque' }
+  if (ajuste.delta_aplicado === 0) return { error: 'Sem mudança no saldo' }
 
-  const atual = estoqueAtual as { saldo_atual: number; custo_medio: number } | null
-  const saldoAtual = atual?.saldo_atual ?? 0
-  const custoMedio = atual?.custo_medio ?? 0
-
-  // Acerto: a quantidade é o NOVO saldo absoluto. Demais: quanto SAI.
-  const delta =
-    data.tipo === 'acerto'
-      ? data.quantidade - saldoAtual
-      : -data.quantidade
-
-  if (delta === 0) return { error: 'Sem mudança no saldo' }
-
-  // Saída maior que o disponível não é permitida (não deixa negativo).
-  if (data.tipo !== 'acerto' && saldoAtual + delta < 0)
-    return { error: `Saldo insuficiente (atual: ${saldoAtual})` }
-
-  const novoSaldo = Math.max(0, saldoAtual + delta)
-
+  const novoSaldo = ajuste.saldo_novo
   const tipoMov =
     data.tipo === 'acerto' ? 'ajuste_inventario' : 'descarte'
   const obs = data.observacao
@@ -138,19 +124,11 @@ export async function ajustarEstoque(data: {
     : ROTULO_AJUSTE[data.tipo]
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (serviceClient.from('estoque') as any)
-    .update({
-      saldo_atual: novoSaldo,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('produto_id', data.produto_id)
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (serviceClient.from('movimentacoes_estoque') as any).insert({
     produto_id: data.produto_id,
     tipo: tipoMov,
-    quantidade: delta,
-    custo_unitario: custoMedio,
+    quantidade: ajuste.delta_aplicado,
+    custo_unitario: ajuste.custo_medio,
     saldo_apos: novoSaldo,
     usuario_id: user.id,
     observacao: obs,

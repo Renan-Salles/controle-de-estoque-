@@ -1,7 +1,7 @@
 'use server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getLocalAtivoId } from '@/lib/local'
-import { addDias } from '@/lib/formatos'
+import { addDias, hojeBrasil } from '@/lib/formatos'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -50,7 +50,7 @@ export async function registrarVenda(data: unknown) {
   const total = subtotal + frete
   const pago = tipo_fulfillment === 'balcao' ? true : (parsed.data.pago ?? false)
   const concluidoEm = tipo_fulfillment === 'balcao' ? new Date().toISOString() : null
-  const hoje = new Date().toISOString().split('T')[0]
+  const hoje = hojeBrasil()
   const prazoDias = forma_pagamento === 'fiado' ? (parsed.data.prazo_dias ?? 7) : 0
   const dataVencimento = forma_pagamento === 'fiado' ? addDias(hoje, prazoDias) : hoje
 
@@ -128,30 +128,31 @@ export async function registrarVenda(data: unknown) {
     if (errReceber) return { error: errReceber.message }
   }
 
+  // ajustar_estoque() trava a linha (SELECT ... FOR UPDATE) antes de ler e
+  // escrever: fecha a corrida que o padrao antigo (ler saldo, calcular em
+  // JS, escrever) tinha entre vendas concorrentes do mesmo produto.
   for (const item of itens) {
-    const { data: estoqueAtual } = await serviceClient
-      .from('estoque')
-      .select('saldo_atual, custo_medio')
-      .eq('produto_id', item.produto_id)
-      .single()
-
-    const saldoAtual = (estoqueAtual as { saldo_atual: number } | null)?.saldo_atual ?? 0
-    const custoMedio = (estoqueAtual as { custo_medio: number } | null)?.custo_medio ?? 0
-    const novoSaldo = saldoAtual - item.quantidade
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (serviceClient.from('estoque') as any).update({
-      saldo_atual: novoSaldo,
-      updated_at: new Date().toISOString(),
-    }).eq('produto_id', item.produto_id)
+    const { data: ajusteRaw, error: errAjuste } = await (serviceClient as any).rpc('ajustar_estoque', {
+      p_produto_id: item.produto_id,
+      p_delta: -item.quantidade,
+    })
+    if (errAjuste) {
+      // Pode acontecer mesmo com a pre-checagem acima (corrida entre a
+      // checagem e a baixa de verdade): venda ja foi criada, mas esse item
+      // nao pode ser baixado. Erro explicito em vez de deixar o saldo
+      // mentir.
+      return { error: `Falha ao baixar estoque: ${errAjuste.message}` }
+    }
+    const ajuste = (ajusteRaw as { saldo_novo: number; custo_medio: number }[] | null)?.[0]
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (serviceClient.from('movimentacoes_estoque') as any).insert({
       produto_id: item.produto_id,
       tipo: 'saida_venda',
       quantidade: -item.quantidade,
-      custo_unitario: custoMedio,
-      saldo_apos: novoSaldo,
+      custo_unitario: ajuste?.custo_medio ?? 0,
+      saldo_apos: ajuste?.saldo_novo ?? 0,
       referencia_tipo: 'pedido',
       referencia_id: venda.id,
       usuario_id: user.id,
@@ -211,29 +212,21 @@ export async function cancelarVenda(pedidoId: string) {
   const itens = (itensRaw ?? []) as { produto_id: string; quantidade_pedida: number }[]
 
   for (const item of itens) {
-    const { data: estoqueAtual } = await serviceClient
-      .from('estoque')
-      .select('saldo_atual, custo_medio')
-      .eq('produto_id', item.produto_id)
-      .single()
-
-    const saldoAtual = (estoqueAtual as { saldo_atual: number } | null)?.saldo_atual ?? 0
-    const custoMedio = (estoqueAtual as { custo_medio: number } | null)?.custo_medio ?? 0
-    const novoSaldo = saldoAtual + item.quantidade_pedida
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (serviceClient.from('estoque') as any).update({
-      saldo_atual: novoSaldo,
-      updated_at: new Date().toISOString(),
-    }).eq('produto_id', item.produto_id)
+    const { data: ajusteRaw, error: errAjuste } = await (serviceClient as any).rpc('ajustar_estoque', {
+      p_produto_id: item.produto_id,
+      p_delta: item.quantidade_pedida,
+    })
+    if (errAjuste) return { error: `Falha ao devolver estoque: ${errAjuste.message}` }
+    const ajuste = (ajusteRaw as { saldo_novo: number; custo_medio: number }[] | null)?.[0]
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (serviceClient.from('movimentacoes_estoque') as any).insert({
       produto_id: item.produto_id,
       tipo: 'devolucao_cliente',
       quantidade: item.quantidade_pedida,
-      custo_unitario: custoMedio,
-      saldo_apos: novoSaldo,
+      custo_unitario: ajuste?.custo_medio ?? 0,
+      saldo_apos: ajuste?.saldo_novo ?? 0,
       referencia_tipo: 'pedido',
       referencia_id: pedidoId,
       usuario_id: user.id,
@@ -249,10 +242,17 @@ export async function cancelarVenda(pedidoId: string) {
 
   // Se era fiado, cancela a conta a receber junto (a nao ser que ja tenha sido paga).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (serviceClient.from('contas_receber') as any)
+  const { error: errReceber } = await (serviceClient.from('contas_receber') as any)
     .update({ status: 'cancelado' })
     .eq('pedido_id', pedidoId)
     .neq('status', 'pago')
+  // Venda ja foi cancelada e estoque ja voltou (idempotente: proxima chamada
+  // cai no "Venda já cancelada" acima), entao um erro aqui vira aviso, nao
+  // reverte o que ja foi feito -- mas o usuario precisa saber que a conta a
+  // receber pode ter ficado aberta.
+  if (errReceber) {
+    return { error: `Venda cancelada, mas a conta a receber vinculada não pôde ser atualizada: ${errReceber.message}` }
+  }
 
   revalidatePath('/movimentacoes')
   revalidatePath('/estoque')

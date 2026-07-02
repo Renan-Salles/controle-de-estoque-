@@ -33,25 +33,16 @@ export async function registrarEntrada(data: unknown) {
     : parsed.data.observacoes || 'Compra de mercadoria'
 
   for (const item of parsed.data.itens) {
-    const { data: est } = await service
-      .from('estoque')
-      .select('saldo_atual, custo_medio')
-      .eq('produto_id', item.produto_id)
-      .single()
-
-    const saldo = (est as { saldo_atual: number } | null)?.saldo_atual ?? 0
-    const custoMedioAtual = (est as { custo_medio: number } | null)?.custo_medio ?? 0
-    const novoSaldo = saldo + item.quantidade
-    const novoCusto = saldo > 0
-      ? (saldo * custoMedioAtual + item.quantidade * item.custo_unitario) / novoSaldo
-      : item.custo_unitario
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (service.from('estoque') as any).update({
-      saldo_atual: novoSaldo,
-      custo_medio: novoCusto,
-      updated_at: new Date().toISOString(),
-    }).eq('produto_id', item.produto_id)
+    const { data: ajusteRaw, error: errAjuste } = await (service as any).rpc('ajustar_estoque', {
+      p_produto_id: item.produto_id,
+      p_delta: item.quantidade,
+      p_novo_custo_unitario: item.custo_unitario,
+    })
+    if (errAjuste) return { error: `Falha ao dar entrada no estoque: ${errAjuste.message}` }
+    const ajuste = (ajusteRaw as { saldo_novo: number; custo_medio: number }[] | null)?.[0]
+    const novoSaldo = ajuste?.saldo_novo ?? 0
+    const novoCusto = ajuste?.custo_medio ?? item.custo_unitario
 
     // Preço de venda ainda em aberto (0) e o dono já deixou uma margem alvo:
     // sugere o preço agora que o custo real chegou. Nunca mexe se já tem
@@ -64,10 +55,13 @@ export async function registrarEntrada(data: unknown) {
     const produtoInfo = prod as { preco_venda_padrao: number; margem_alvo_pct: number | null } | null
     if (produtoInfo && Number(produtoInfo.preco_venda_padrao) === 0 && produtoInfo.margem_alvo_pct) {
       const precoSugerido = Math.round(novoCusto * (1 + Number(produtoInfo.margem_alvo_pct) / 100) * 100) / 100
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (service.from('produtos') as any)
+      const { error: errPreco } = await (
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        service.from('produtos') as any
+      )
         .update({ preco_venda_padrao: precoSugerido })
         .eq('id', item.produto_id)
+      if (errPreco) return { error: `Entrada registrada, mas não foi possível sugerir o preço: ${errPreco.message}` }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
