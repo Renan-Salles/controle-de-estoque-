@@ -69,8 +69,9 @@ export async function atualizarCargo(
   if (input.itens_visiveis !== undefined) patch.itens_visiveis = input.itens_visiveis
   if (input.ativo !== undefined) patch.ativo = !!input.ativo
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (s.from('cargos') as any).update(patch).eq('id', id)
+  const { error, count } = await (s.from('cargos') as any).update(patch, { count: 'exact' }).eq('id', id)
   if (error) return { error: error.message }
+  if (count === 0) return { error: 'Cargo não encontrado.' }
   revalidatePath('/configuracoes/cargos')
   return { success: true }
 }
@@ -79,15 +80,16 @@ export async function excluirCargo(id: string) {
   if (!(await ehAdmin())) return { error: 'Sem permissão' }
   const s = await createServiceClient()
   // Não exclui cargo com usuários vinculados (evita deixar gente sem cargo).
-  const { count } = await s
+  const { count: vinculados } = await s
     .from('profiles')
     .select('id', { count: 'exact', head: true })
     .eq('cargo_id', id)
-  if (count && count > 0)
+  if (vinculados && vinculados > 0)
     return { error: 'Esse cargo tem usuários. Mude-os de cargo antes de excluir.' }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (s.from('cargos') as any).delete().eq('id', id)
+  const { error, count } = await (s.from('cargos') as any).delete({ count: 'exact' }).eq('id', id)
   if (error) return { error: error.message }
+  if (count === 0) return { error: 'Cargo não encontrado.' }
   revalidatePath('/configuracoes/cargos')
   return { success: true }
 }
@@ -103,8 +105,9 @@ export async function atualizarUsuario(
   if (input.cargo_id !== undefined) patch.cargo_id = input.cargo_id
   if (input.status !== undefined) patch.status = input.status
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (s.from('profiles') as any).update(patch).eq('id', id)
+  const { error, count } = await (s.from('profiles') as any).update(patch, { count: 'exact' }).eq('id', id)
   if (error) return { error: error.message }
+  if (count === 0) return { error: 'Usuário não encontrado.' }
   revalidatePath('/configuracoes/usuarios')
   return { success: true }
 }

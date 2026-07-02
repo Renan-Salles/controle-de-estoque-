@@ -58,20 +58,25 @@ export async function criarCustoFixo(raw: Record<string, unknown>) {
 export async function atualizarCustoFixo(id: string, raw: Record<string, unknown>) {
   const parsed = Schema.safeParse(raw)
   if (!parsed.success) return { error: parsed.error.issues[0].message }
+  const localId = await getLocalAtivoId()
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase.from('custos_fixos') as any)
-    .update(parsed.data).eq('id', id)
+  const { error, count } = await (supabase.from('custos_fixos') as any)
+    .update(parsed.data, { count: 'exact' }).eq('id', id).eq('local_id', localId)
   if (error) return { error: error.message }
+  if (count === 0) return { error: 'Custo fixo não encontrado neste local.' }
   revalidatePath('/financeiro/custos-fixos')
   return { success: true }
 }
 
 export async function deletarCustoFixo(id: string) {
+  const localId = await getLocalAtivoId()
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase.from('custos_fixos') as any).delete().eq('id', id)
+  const { error, count } = await (supabase.from('custos_fixos') as any)
+    .delete({ count: 'exact' }).eq('id', id).eq('local_id', localId)
   if (error) return { error: error.message }
+  if (count === 0) return { error: 'Custo fixo não encontrado neste local.' }
   revalidatePath('/financeiro/custos-fixos')
   return { success: true }
 }
