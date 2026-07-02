@@ -13,7 +13,10 @@ const FMT_DATA = new Intl.DateTimeFormat('pt-BR', {
   day: '2-digit',
   month: '2-digit',
   year: 'numeric',
+  timeZone: 'America/Sao_Paulo',
 })
+
+const RE_DATA_PURA = /^\d{4}-\d{2}-\d{2}$/
 
 /** Formata como R$ X.XXX,XX (vírgula decimal, ponto de milhar). */
 export function formatarReal(n: number | null | undefined): string {
@@ -40,7 +43,17 @@ export function formatarData(
   d: Date | string | number | null | undefined,
 ): string {
   if (d == null || d === '') return ''
-  const data = d instanceof Date ? d : new Date(d)
+  // Data pura (YYYY-MM-DD, sem hora, ex. data_vencimento/data_emissao): o
+  // Date nativo interpreta como meia-noite UTC, que formatada em
+  // America/Sao_Paulo (UTC-3) vira o dia anterior. Ancora ao meio-dia pra
+  // ficar imune ao fuso -- so timestamp de verdade (com hora) usa o valor
+  // como veio, convertido certo pro fuso do negocio.
+  const data =
+    typeof d === 'string' && RE_DATA_PURA.test(d)
+      ? new Date(`${d}T12:00:00`)
+      : d instanceof Date
+        ? d
+        : new Date(d)
   if (Number.isNaN(data.getTime())) return ''
   return FMT_DATA.format(data)
 }

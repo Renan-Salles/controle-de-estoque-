@@ -32,12 +32,17 @@ export type LinhaMov = {
   concluidoEm?: string | null
 }
 
+// timeZone explicito: sem isso, formata no fuso local do runtime -- servidor
+// (Vercel, UTC) e navegador (Brasil, UTC-3) dao horas diferentes pro mesmo
+// instante, e o React reclama de mismatch de hidratacao (o texto renderizado
+// no servidor nao bate com o que o client calcula ao hidratar).
 const FMT_DATA_HORA = new Intl.DateTimeFormat('pt-BR', {
   day: '2-digit',
   month: '2-digit',
   year: 'numeric',
   hour: '2-digit',
   minute: '2-digit',
+  timeZone: 'America/Sao_Paulo',
 })
 
 function dataHora(d: string): string {

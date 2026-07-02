@@ -30,7 +30,7 @@ export async function GET(
 
   const local = await getLocalAtivo()
   const subtitulo = `Período: ${br(ini)} a ${br(fim)}`
-  const rodape = `Emitido em ${new Date().toLocaleDateString('pt-BR')}`
+  const rodape = `Emitido em ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`
 
   let titulo = ''
   let colunas: ColunaPdf[] = []
