@@ -18,6 +18,15 @@ const FMT_DATA = new Intl.DateTimeFormat('pt-BR', {
 
 const RE_DATA_PURA = /^\d{4}-\d{2}-\d{2}$/
 
+const FMT_DATA_HORA = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  timeZone: 'America/Sao_Paulo',
+})
+
 /** Formata como R$ X.XXX,XX (vírgula decimal, ponto de milhar). */
 export function formatarReal(n: number | null | undefined): string {
   return FMT_REAL.format(n ?? 0)
@@ -56,6 +65,23 @@ export function formatarData(
         : new Date(d)
   if (Number.isNaN(data.getTime())) return ''
   return FMT_DATA.format(data)
+}
+
+/**
+ * Formata data+hora como DD/MM/AAAA HH:MM, sempre timestamp de verdade
+ * (nunca data pura) -- usado pra momentos como "saiu para entrega" e
+ * "confirmado em", nao pra datas de vencimento/emissao (essas usam
+ * formatarData). timeZone explicito: sem isso, servidor (UTC) e
+ * navegador (Brasil) formatam hora diferente pro mesmo instante e o
+ * React acusa mismatch de hidratacao.
+ */
+export function formatarDataHora(
+  d: Date | string | number | null | undefined,
+): string {
+  if (d == null || d === '') return ''
+  const data = d instanceof Date ? d : new Date(d)
+  if (Number.isNaN(data.getTime())) return ''
+  return FMT_DATA_HORA.format(data)
 }
 
 // new Date().toISOString() usa UTC. Servidor (Vercel) roda em UTC, mas o

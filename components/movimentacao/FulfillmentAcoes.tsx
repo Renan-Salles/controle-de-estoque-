@@ -2,23 +2,30 @@
 import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { CheckCircle2, Wallet } from 'lucide-react'
-import { marcarPagoPedido, marcarConcluidoPedido } from '@/lib/actions/pedidos'
+import { CheckCircle2, Truck, Wallet } from 'lucide-react'
+import {
+  marcarPagoPedido,
+  marcarConcluidoPedido,
+  marcarSaiuEntregaPedido,
+} from '@/lib/actions/pedidos'
 
 export function FulfillmentAcoes({
   pedidoId,
   tipoFulfillment,
   pago,
   concluidoEm,
+  saiuEntregaEm,
 }: {
   pedidoId: string
   tipoFulfillment: string
   pago: boolean
   concluidoEm: string | null
+  saiuEntregaEm: string | null
 }) {
   const router = useRouter()
   const [pendentePago, startPago] = useTransition()
   const [pendenteConcluido, startConcluido] = useTransition()
+  const [pendenteSaiu, startSaiu] = useTransition()
 
   function confirmarPago() {
     startPago(async () => {
@@ -44,6 +51,18 @@ export function FulfillmentAcoes({
     })
   }
 
+  function confirmarSaiu() {
+    startSaiu(async () => {
+      const r = await marcarSaiuEntregaPedido(pedidoId)
+      if (r.error) {
+        toast.error(r.error)
+        return
+      }
+      toast.success('Saída para entrega registrada')
+      router.refresh()
+    })
+  }
+
   if (pago && concluidoEm) return null
 
   return (
@@ -57,6 +76,17 @@ export function FulfillmentAcoes({
         >
           <Wallet className="size-4" strokeWidth={1.5} />
           {pendentePago ? 'Confirmando...' : 'Marcar como pago'}
+        </button>
+      )}
+      {tipoFulfillment === 'entrega' && !saiuEntregaEm && !concluidoEm && (
+        <button
+          type="button"
+          onClick={confirmarSaiu}
+          disabled={pendenteSaiu}
+          className="u-motion inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-text hover:border-brand/50 hover:text-brand disabled:pointer-events-none disabled:opacity-50"
+        >
+          <Truck className="size-4" strokeWidth={1.5} />
+          {pendenteSaiu ? 'Marcando...' : 'Marcar que saiu para entrega'}
         </button>
       )}
       {!concluidoEm && (

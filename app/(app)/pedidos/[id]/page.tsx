@@ -15,7 +15,7 @@ import {
   TabelaCell,
 } from '@/components/ui-kit/tabela'
 import { Money } from '@/components/ui-kit/Money'
-import { formatarData } from '@/lib/formatos'
+import { formatarData, formatarDataHora } from '@/lib/formatos'
 import { rotuloPagamento } from '@/lib/pedido-labels'
 
 type VendaComRelacoes = {
@@ -33,6 +33,7 @@ type VendaComRelacoes = {
   frete: number
   pago: boolean
   concluido_em: string | null
+  saiu_entrega_em: string | null
   entregador: { nome: string } | null
   clientes: { nome: string; telefone: string | null } | null
   pedido_itens: {
@@ -77,7 +78,7 @@ export default async function VendaDetailPage({
   const { data: vendaRaw } = await supabase
     .from('pedidos')
     .select(
-      `id, numero_pedido, status, total, subtotal, data_pedido, forma_pagamento, prazo_pagamento_dias, data_vencimento, observacoes, tipo_fulfillment, frete, pago, concluido_em, entregador:profiles!pedidos_entregador_id_fkey(nome), clientes(nome, telefone), pedido_itens(quantidade_pedida, preco_unitario, total, produtos(nome, embalagem))`,
+      `id, numero_pedido, status, total, subtotal, data_pedido, forma_pagamento, prazo_pagamento_dias, data_vencimento, observacoes, tipo_fulfillment, frete, pago, concluido_em, saiu_entrega_em, entregador:profiles!pedidos_entregador_id_fkey(nome), clientes(nome, telefone), pedido_itens(quantidade_pedida, preco_unitario, total, produtos(nome, embalagem))`,
     )
     .eq('id', id)
     .single()
@@ -158,6 +159,7 @@ export default async function VendaDetailPage({
                 tipoFulfillment={venda.tipo_fulfillment}
                 pago={venda.pago}
                 concluidoEm={venda.concluido_em}
+                saiuEntregaEm={venda.saiu_entrega_em}
               />
             )}
           </div>
@@ -167,6 +169,12 @@ export default async function VendaDetailPage({
                 <span className="text-text-muted">Entregador: </span>
                 {venda.entregador?.nome ?? '-'}
               </div>
+              {venda.saiu_entrega_em && (
+                <div>
+                  <span className="text-text-muted">Saiu para entrega: </span>
+                  {formatarDataHora(venda.saiu_entrega_em)}
+                </div>
+              )}
               {venda.frete > 0 && (
                 <div>
                   <span className="text-text-muted">Frete: </span>
