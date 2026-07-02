@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
 import {
   LayoutDashboard,
   Plus,
@@ -18,6 +17,11 @@ import {
   ChevronDown,
   UserCog,
   PackageCheck,
+  TrendingUp,
+  ArrowUpFromLine,
+  HandCoins,
+  ReceiptText,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -30,26 +34,21 @@ export type Item = { href: string; label: string; icon: LucideIcon }
 export type Grupo = { titulo: string; icone: LucideIcon; itens: Item[] }
 
 // Um bloco da navegação é um item solto (link direto) ou um grupo colapsável.
-// Financeiro é item solto: abre o Resultado e as abas internas cuidam do resto
-// (evita 4 sub-botões na esquerda + abas repetidas em cima).
 export type Bloco = { tipo: 'item'; item: Item } | { tipo: 'grupo'; grupo: Grupo }
 
 const ITEM_DASHBOARD: Item = { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }
-const ITEM_FINANCEIRO: Item = { href: '/financeiro/resultado', label: 'Financeiro', icon: DollarSign }
+export const ITEM_PEDIDOS: Item = { href: '/pedidos', label: 'Pedidos', icon: PackageCheck }
 const ITEM_MOVIMENTACOES: Item = { href: '/movimentacoes', label: 'Movimentações', icon: ArrowRightLeft }
 const ITEM_ESTOQUE: Item = { href: '/estoque', label: 'Estoque', icon: Boxes }
 
-// Fica fora do NAV[] normal (que so entende paths, nao query string) porque a
-// rota e a mesma de Movimentacoes com um filtro (?tipo=pendentes) -- precisa
-// de logica propria de "ativo" pra nao acender junto com Movimentacoes.
-export const ITEM_PEDIDOS_PENDENTES: Item = {
-  href: '/movimentacoes?tipo=pendentes',
-  label: 'Pedidos em andamento',
-  icon: PackageCheck,
+const GRUPO_OPERACAO: Grupo = {
+  titulo: 'Operação',
+  icone: ArrowRightLeft,
+  itens: [ITEM_PEDIDOS, ITEM_MOVIMENTACOES, ITEM_ESTOQUE],
 }
 
-const GRUPO_CADASTROS: Grupo = {
-  titulo: 'Cadastros',
+const GRUPO_CADASTRO: Grupo = {
+  titulo: 'Cadastro',
   icone: ShoppingCart,
   itens: [
     { href: '/clientes', label: 'Clientes', icon: Users },
@@ -60,23 +59,34 @@ const GRUPO_CADASTROS: Grupo = {
 
 const ITEM_EQUIPE: Item = { href: '/equipe', label: 'Equipe', icon: UserCog }
 
+// Vendas (relatorios/*) + Financeiro (financeiro/*, absorvido aqui pra nao
+// deixar "Financeiro" como item solto) numa lista so, com sub-rotulo visual
+// separando os dois blocos (ver GrupoColapsavel).
 const GRUPO_RELATORIOS: Grupo = {
   titulo: 'Relatórios',
   icone: BarChart3,
   itens: [
-    { href: '/relatorios', label: 'Vendas por período', icon: BarChart3 },
+    { href: '/relatorios', label: 'Por período', icon: BarChart3 },
     { href: '/relatorios/produto', label: 'Por produto', icon: Package },
     { href: '/relatorios/cliente', label: 'Por cliente', icon: Users },
+    { href: '/financeiro/relatorios', label: 'Faturamento & ABC', icon: TrendingUp },
+    { href: '/financeiro/resultado', label: 'Resultado', icon: DollarSign },
+    { href: '/financeiro/a-pagar', label: 'A pagar', icon: ArrowUpFromLine },
+    { href: '/financeiro/a-receber', label: 'A receber', icon: HandCoins },
+    { href: '/financeiro/custos-fixos', label: 'Custos Fixos', icon: ReceiptText },
+    { href: '/financeiro/formas-pagamento', label: 'Formas de pagamento', icon: Wallet },
   ],
 }
+
+// Primeiro item financeiro dentro de Relatorios -- marca onde entra o
+// sub-rotulo "FINANCEIRO" (ver GrupoColapsavel).
+const PRIMEIRO_HREF_FINANCEIRO = '/financeiro/relatorios'
 
 // Ordem da sidebar (itens soltos e grupos intercalados).
 export const NAV: Bloco[] = [
   { tipo: 'item', item: ITEM_DASHBOARD },
-  { tipo: 'item', item: ITEM_MOVIMENTACOES },
-  { tipo: 'grupo', grupo: GRUPO_CADASTROS },
-  { tipo: 'item', item: ITEM_ESTOQUE },
-  { tipo: 'item', item: ITEM_FINANCEIRO },
+  { tipo: 'grupo', grupo: GRUPO_OPERACAO },
+  { tipo: 'grupo', grupo: GRUPO_CADASTRO },
   { tipo: 'grupo', grupo: GRUPO_RELATORIOS },
 ]
 
@@ -121,8 +131,6 @@ export function rotaAtiva(pathname: string, href: string) {
   if (href === '/dashboard') return pathname === '/dashboard'
   if (href === '/estoque') return pathname.startsWith('/estoque')
   if (href === '/relatorios') return pathname === '/relatorios'
-  // Item Financeiro fica ativo em qualquer sub-rota /financeiro (as abas trocam a tela).
-  if (href === '/financeiro/resultado') return pathname.startsWith('/financeiro')
   if (href === '/movimentacoes')
     return pathname === '/movimentacoes' || /^\/movimentacoes\/(?!nova)/.test(pathname)
   return pathname === href || pathname.startsWith(href + '/')
@@ -255,6 +263,21 @@ export function NovaMovimentacaoLink({
   )
 }
 
+// Rótulo de sub-seção dentro de um grupo (ex. "VENDAS"/"FINANCEIRO" dentro
+// de Relatórios) -- só um cabeçalho visual, não colapsa nada.
+function RotuloSecao({ texto, topo = false }: { texto: string; topo?: boolean }) {
+  return (
+    <p
+      className={cn(
+        'px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-text-muted/70',
+        topo ? 'pt-0.5' : 'pt-2.5',
+      )}
+    >
+      {texto}
+    </p>
+  )
+}
+
 // Seção colapsável: header clicável + lista que anima a altura via
 // grid-template-rows 0fr->1fr (barato, sem medir o DOM). Mostra um ponto quando
 // está fechada mas contém a rota ativa.
@@ -264,16 +287,20 @@ function GrupoColapsavel({
   onToggle,
   pathname,
   onNavegar,
+  pedidosPendentes = 0,
 }: {
   grupo: Grupo
   aberto: boolean
   onToggle: () => void
   pathname: string
   onNavegar?: () => void
+  /** Contagem de entregas/retiradas ainda não confirmadas, pro selo do item Pedidos. */
+  pedidosPendentes?: number
 }) {
   const Icone = grupo.icone
   const temAtivoFechado =
     !aberto && grupo.itens.some((i) => rotaAtiva(pathname, i.href))
+  const ehRelatorios = grupo.titulo === 'Relatórios'
   return (
     <div className="mb-1.5">
       <button
@@ -301,13 +328,19 @@ function GrupoColapsavel({
       >
         <div className="overflow-hidden">
           <div className="space-y-0.5 pb-1 pl-3 pt-0.5">
-            {grupo.itens.map((item) => (
-              <LinkItem
-                key={item.href}
-                item={item}
-                ativo={rotaAtiva(pathname, item.href)}
-                onNavegar={onNavegar}
-              />
+            {grupo.itens.map((item, i) => (
+              <div key={item.href}>
+                {ehRelatorios && i === 0 && <RotuloSecao texto="Vendas" topo />}
+                {ehRelatorios && item.href === PRIMEIRO_HREF_FINANCEIRO && (
+                  <RotuloSecao texto="Financeiro" />
+                )}
+                <LinkItem
+                  item={item}
+                  ativo={rotaAtiva(pathname, item.href)}
+                  onNavegar={onNavegar}
+                  selo={item.href === ITEM_PEDIDOS.href ? pedidosPendentes : undefined}
+                />
+              </div>
             ))}
           </div>
         </div>
@@ -336,11 +369,8 @@ export function NavConteudo({
 }) {
   const novoAtivo = pathname === ITEM_NOVA_MOVIMENTACAO.href
   const { aberta, alternar } = useSecoesAbertas(pathname)
-  const searchParams = useSearchParams()
 
   const novoVisivel = itemVisivel(ITEM_NOVA_MOVIMENTACAO.href, itensVisiveis)
-  // Mesma rota de Movimentacoes com filtro: so um dos dois fica "ativo" por vez.
-  const pendentesAtivo = pathname === '/movimentacoes' && searchParams.get('tipo') === 'pendentes'
 
   return (
     <>
@@ -352,24 +382,13 @@ export function NavConteudo({
         {NAV.map((bloco) => {
           if (bloco.tipo === 'item') {
             if (!itemVisivel(bloco.item.href, itensVisiveis)) return null
-            const ehMovimentacoes = bloco.item.href === ITEM_MOVIMENTACOES.href
             return (
               <div key={bloco.item.href} className="mb-1.5">
                 <LinkItem
                   item={bloco.item}
-                  ativo={ehMovimentacoes ? rotaAtiva(pathname, bloco.item.href) && !pendentesAtivo : rotaAtiva(pathname, bloco.item.href)}
+                  ativo={rotaAtiva(pathname, bloco.item.href)}
                   onNavegar={onNavegar}
                 />
-                {ehMovimentacoes && (
-                  <div className="mt-1.5">
-                    <LinkItem
-                      item={ITEM_PEDIDOS_PENDENTES}
-                      ativo={pendentesAtivo}
-                      onNavegar={onNavegar}
-                      selo={pedidosPendentes}
-                    />
-                  </div>
-                )}
               </div>
             )
           }
@@ -377,7 +396,7 @@ export function NavConteudo({
           const itens = bloco.grupo.itens.filter((i) =>
             itemVisivel(i.href, itensVisiveis),
           )
-          if (bloco.grupo.titulo === 'Cadastros' && isAdmin) {
+          if (bloco.grupo.titulo === 'Cadastro' && isAdmin) {
             itens.push(ITEM_EQUIPE)
           }
           if (itens.length === 0) return null
@@ -390,6 +409,7 @@ export function NavConteudo({
               onToggle={() => alternar(grupo.titulo)}
               pathname={pathname}
               onNavegar={onNavegar}
+              pedidosPendentes={pedidosPendentes}
             />
           )
         })}
