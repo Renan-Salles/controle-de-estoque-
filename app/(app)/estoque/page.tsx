@@ -21,7 +21,10 @@ import {
   ClipboardCheck,
   ShoppingBasket,
   Trash2,
+  ArrowRightLeft,
 } from 'lucide-react'
+import { TransferirDialog } from '@/components/estoque/TransferirDialog'
+import { dadosTransferencia } from '@/lib/actions/transferencias'
 import {
   buscarPosicaoEstoque,
   darEntrada,
@@ -93,6 +96,8 @@ export default function EstoquePage() {
   // Contagem de itens acabando (badge no botão de reposição)
   const [reposicaoCount, setReposicaoCount] = useState<number | null>(null)
   const [vencendo, setVencendo] = useState<ItemVencendo[]>([])
+  const [destinos, setDestinos] = useState<{ id: string; nome: string }[]>([])
+  const [transferindo, setTransferindo] = useState<{ id: string; nome: string; saldo: number } | null>(null)
 
   async function carregar(f: Filtro = filtro) {
     setLoading(true)
@@ -134,6 +139,10 @@ export default function EstoquePage() {
     carregar(filtroInicial)
     carregarReposicaoCount()
     carregarVencendo()
+    // Transferencia: so admin com mais de 1 local ve o botao.
+    dadosTransferencia()
+      .then((d) => setDestinos(d.admin ? d.destinos : []))
+      .catch(() => setDestinos([]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -275,6 +284,13 @@ export default function EstoquePage() {
 
       <EstoqueTabs />
 
+      <TransferirDialog
+        aberto={!!transferindo}
+        onOpenChange={(v) => !v && setTransferindo(null)}
+        produto={transferindo}
+        destinos={destinos}
+      />
+
       {/* Produtos com validade proxima (entradas com data preenchida) */}
       {vencendo.length > 0 && (
         <div className="mb-4 rounded-lg border border-warn/30 bg-warn/[0.06] px-4 py-3">
@@ -393,6 +409,17 @@ export default function EstoquePage() {
                       <SlidersHorizontal className="size-3.5" strokeWidth={1.5} />
                       Ajustar
                     </button>
+                    {destinos.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setTransferindo({ id: p.id, nome: p.nome, saldo: p.saldo_atual })}
+                        title="Transferir pra outro local"
+                        className="u-motion u-press inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-surface-2 px-2.5 text-[13px] font-medium text-text hover:border-brand/50 hover:text-brand"
+                      >
+                        <ArrowRightLeft className="size-3.5" strokeWidth={1.5} />
+                        Transferir
+                      </button>
+                    )}
                   </div>
                 </TabelaCell>
               </TabelaRow>
