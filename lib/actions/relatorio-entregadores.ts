@@ -76,3 +76,30 @@ export async function relatorioEntregadores(p: {
     }))
     .sort((a, b) => b.entregas - a.entregas)
 }
+
+// Tempo medio historico do entregador logado, sem filtro de periodo -- usado
+// como "estimativa" na tela dele (nao ha geolocalizacao/rota no sistema,
+// entao a estimativa e so a media do que ele mesmo costuma levar).
+export async function meuTempoMedioEntrega(): Promise<number | null> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data, error } = await supabase
+    .from('pedidos')
+    .select('saiu_entrega_em, concluido_em')
+    .eq('entregador_id', user.id)
+    .eq('tipo_fulfillment', 'entrega')
+    .eq('status', 'concluida')
+    .not('concluido_em', 'is', null)
+    .not('saiu_entrega_em', 'is', null)
+  if (error) throw new Error(error.message)
+
+  const tempos = ((data ?? []) as { saiu_entrega_em: string; concluido_em: string }[])
+    .map((r) => (new Date(r.concluido_em).getTime() - new Date(r.saiu_entrega_em).getTime()) / 60000)
+    .filter((min) => Number.isFinite(min) && min >= 0)
+  if (tempos.length === 0) return null
+  return Math.round(tempos.reduce((a, b) => a + b, 0) / tempos.length)
+}
