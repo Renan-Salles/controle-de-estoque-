@@ -22,6 +22,7 @@ import { getDashStats } from '@/lib/actions/dashboard'
 import { getDre } from '@/lib/actions/dre'
 import { buscarResumoFiado } from '@/lib/actions/financeiro'
 import { contarPedidosPendentes } from '@/lib/actions/pedidos'
+import { getMeta } from '@/lib/actions/metas'
 import { formatarReal, hojeBrasil, mesAtualBrasil, addDias } from '@/lib/formatos'
 import { ehEntregador } from '@/lib/permissoes'
 import { TelaEntregador } from '@/components/entregador/TelaEntregador'
@@ -53,6 +54,7 @@ export default async function DashboardPage() {
     dre,
     resumoFiado,
     qtdPendentes,
+    metaMes,
   ] = await Promise.all([
     supabase.from('pedidos').select('total').gte('data_pedido', `${hoje}T00:00:00`).eq('status', 'concluida').eq('local_id', localId) as unknown as Promise<{ data: RowTotal[] }>,
     supabase.from('v_posicao_estoque').select('id').in('status_estoque', ['critico', 'ruptura']).eq('local_id', localId) as unknown as Promise<{ data: RowId[] }>,
@@ -61,6 +63,7 @@ export default async function DashboardPage() {
     getDre(),
     buscarResumoFiado(),
     contarPedidosPendentes(),
+    getMeta(),
   ])
 
   const receitaHoje = (pedidosHoje ?? []).reduce((acc, p) => acc + (p.total ?? 0), 0)
@@ -238,7 +241,7 @@ export default async function DashboardPage() {
       {/* Pedidos de entrega/retirada ainda não confirmados */}
       {qtdPendentes > 0 && (
         <Link
-          href="/movimentacoes?tipo=pendentes"
+          href="/pedidos"
           className="u-motion u-fade-in group mb-5 flex items-center gap-3 rounded-lg border border-info/30 bg-info/[0.07] px-4 py-3 hover:bg-info/10"
         >
           <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-info/15 text-info">
@@ -295,6 +298,33 @@ export default async function DashboardPage() {
             <ArrowUpRight className="size-4 u-motion group-hover:translate-x-0.5 group-hover:-translate-y-0.5" strokeWidth={1.5} />
           </span>
         </Link>
+      )}
+
+      {/* Meta do mês: barra de progresso (só quando ha meta cadastrada) */}
+      {metaMes != null && metaMes > 0 && (
+        <div className="u-fade-in mb-5 rounded-xl border border-border bg-surface p-5">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-text-muted">
+              Meta do mês
+            </p>
+            <p className="font-mono text-sm tabular-nums text-text-muted">
+              {formatarReal(receitaMes)} de {formatarReal(metaMes)}
+            </p>
+          </div>
+          <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-surface-2">
+            <div
+              className={`h-full rounded-full transition-[width] duration-700 ${
+                receitaMes >= metaMes ? 'bg-ok' : 'bg-brand'
+              }`}
+              style={{ width: `${Math.min(100, (receitaMes / metaMes) * 100)}%` }}
+            />
+          </div>
+          <p className="mt-2 text-[13px] text-text-muted">
+            {receitaMes >= metaMes
+              ? `Meta batida! ${(receitaMes / metaMes * 100).toFixed(0)}% do objetivo.`
+              : `${((receitaMes / metaMes) * 100).toFixed(0)}% da meta. Faltam ${formatarReal(metaMes - receitaMes)}.`}
+          </p>
+        </div>
       )}
 
       {/* KPIs — único lugar com cards (elevação justificada). Stagger via CSS. */}

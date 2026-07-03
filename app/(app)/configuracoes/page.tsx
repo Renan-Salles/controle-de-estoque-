@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ShieldCheck, Store } from 'lucide-react'
+import { ShieldCheck, Store, Target } from 'lucide-react'
 import { PageHeader } from '@/components/ui-kit/PageHeader'
 
 const CARDS = [
@@ -14,6 +14,12 @@ const CARDS = [
     icone: ShieldCheck,
     titulo: 'Cargos e permissões',
     descricao: 'Crie cargos e escolha quais botões cada um enxerga na sidebar.',
+  },
+  {
+    href: '/configuracoes/metas',
+    icone: Target,
+    titulo: 'Meta de vendas',
+    descricao: 'Defina a meta do mês e acompanhe o progresso no dashboard.',
   },
 ]
 
