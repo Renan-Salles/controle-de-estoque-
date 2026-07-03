@@ -164,6 +164,33 @@ export default function EquipePage() {
     )
   }
 
+  // Telefone do membro (habilita "avisar entregador no WhatsApp"). Salva no
+  // blur pra nao disparar um update por tecla.
+  function CampoTelefone({ u }: { u: UsuarioComCargo }) {
+    const [valor, setValor] = useState(u.telefone ?? '')
+    async function salvar() {
+      if ((u.telefone ?? '') === valor.trim()) return
+      const r = await atualizarUsuario(u.id, { telefone: valor })
+      if (r.error) {
+        toast.error(r.error)
+        return
+      }
+      setUsuarios((us) => us.map((x) => (x.id === u.id ? { ...x, telefone: valor.trim() || null } : x)))
+      toast.success('Telefone salvo')
+    }
+    return (
+      <input
+        value={valor}
+        onChange={(e) => setValor(e.target.value)}
+        onBlur={salvar}
+        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+        placeholder="(21) 99999-9999"
+        className="h-8 w-36 rounded-md border border-border bg-bg px-2 font-mono text-xs tabular-nums text-text outline-none placeholder:text-text-muted/50 focus-visible:border-brand"
+        aria-label={`Telefone de ${u.nome ?? 'membro'}`}
+      />
+    )
+  }
+
   function SelectStatus({ u }: { u: UsuarioComCargo }) {
     return (
       <Select value={u.status ?? 'ativo'} onValueChange={(v) => v && mudarStatus(u.id, v)}>
@@ -197,6 +224,7 @@ export default function EquipePage() {
                 <tr>
                   <TabelaHeadCell>Nome</TabelaHeadCell>
                   <TabelaHeadCell>Email</TabelaHeadCell>
+                  <TabelaHeadCell>Telefone</TabelaHeadCell>
                   <TabelaHeadCell>Cargo</TabelaHeadCell>
                   <TabelaHeadCell>Status</TabelaHeadCell>
                 </tr>
@@ -206,6 +234,9 @@ export default function EquipePage() {
                   <TabelaRow key={u.id}>
                     <TabelaCell className="font-medium">{u.nome ?? '-'}</TabelaCell>
                     <TabelaCell className="text-text-muted">{u.email ?? '-'}</TabelaCell>
+                    <TabelaCell>
+                      <CampoTelefone u={u} />
+                    </TabelaCell>
                     <TabelaCell>
                       <SelectCargo u={u} />
                     </TabelaCell>
@@ -224,6 +255,7 @@ export default function EquipePage() {
                 <p className="font-medium text-text">{u.nome ?? '-'}</p>
                 <p className="text-[13px] text-text-muted">{u.email ?? '-'}</p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <CampoTelefone u={u} />
                   <SelectCargo u={u} />
                   <SelectStatus u={u} />
                 </div>

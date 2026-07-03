@@ -35,8 +35,12 @@ type VendaComRelacoes = {
   pago: boolean
   concluido_em: string | null
   saiu_entrega_em: string | null
-  entregador: { nome: string } | null
-  clientes: { nome: string; telefone: string | null } | null
+  entregador: { nome: string; telefone: string | null } | null
+  clientes: {
+    nome: string
+    telefone: string | null
+    endereco: { rua?: string; numero?: string; bairro?: string; cidade?: string } | null
+  } | null
   pedido_itens: {
     quantidade_pedida: number
     preco_unitario: number
@@ -81,7 +85,7 @@ export default async function VendaDetailPage({
   const { data: vendaRaw } = await supabase
     .from('pedidos')
     .select(
-      `id, numero_pedido, status, total, subtotal, data_pedido, forma_pagamento, prazo_pagamento_dias, data_vencimento, observacoes, tipo_fulfillment, frete, pago, concluido_em, saiu_entrega_em, entregador:profiles!pedidos_entregador_id_fkey(nome), clientes(nome, telefone), pedido_itens(quantidade_pedida, preco_unitario, total, embalagem_nome, embalagem_unidades, produtos(nome, embalagem))`,
+      `id, numero_pedido, status, total, subtotal, data_pedido, forma_pagamento, prazo_pagamento_dias, data_vencimento, observacoes, tipo_fulfillment, frete, pago, concluido_em, saiu_entrega_em, entregador:profiles!pedidos_entregador_id_fkey(nome, telefone), clientes(nome, telefone, endereco), pedido_itens(quantidade_pedida, preco_unitario, total, embalagem_nome, embalagem_unidades, produtos(nome, embalagem))`,
     )
     .eq('id', id)
     .single()
@@ -91,6 +95,26 @@ export default async function VendaDetailPage({
 
   const numeroFmt = `#${String(venda.numero_pedido).padStart(4, '0')}`
   const cancelada = venda.status === 'cancelada'
+
+  // Aviso pro entregador no WhatsApp: resumo pronto da entrega (nº, cliente,
+  // endereço, valor, cobrar ou não). Só com telefone cadastrado na Equipe.
+  const telEntregador = venda.entregador?.telefone?.replace(/\D/g, '')
+  const linkAvisarEntregador = (() => {
+    if (venda.tipo_fulfillment !== 'entrega' || !telEntregador || venda.concluido_em) return null
+    const end = venda.clientes?.endereco
+    const endStr = [
+      [end?.rua, end?.numero].filter(Boolean).join(', '),
+      [end?.bairro, end?.cidade].filter(Boolean).join(', '),
+    ]
+      .filter(Boolean)
+      .join(' - ')
+    const msg =
+      `Nova entrega ${numeroFmt}: ${venda.clientes?.nome ?? 'venda de balcão'}` +
+      (endStr ? `, ${endStr}` : '') +
+      `. Total R$ ${venda.total.toFixed(2).replace('.', ',')}` +
+      (venda.pago ? ' (já pago).' : ' (cobrar na entrega).')
+    return `https://wa.me/55${telEntregador}?text=${encodeURIComponent(msg)}`
+  })()
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -162,9 +186,21 @@ export default async function VendaDetailPage({
           </div>
           <div className="grid grid-cols-1 gap-y-2 text-sm sm:grid-cols-2">
             {venda.tipo_fulfillment === 'entrega' && (
-              <div>
-                <span className="text-text-muted">Entregador: </span>
-                {venda.entregador?.nome ?? '-'}
+              <div className="flex items-center gap-2">
+                <span>
+                  <span className="text-text-muted">Entregador: </span>
+                  {venda.entregador?.nome ?? '-'}
+                </span>
+                {linkAvisarEntregador && (
+                  <a
+                    href={linkAvisarEntregador}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="u-motion inline-flex h-6 items-center gap-1 rounded-md border border-ok/30 bg-ok/10 px-2 text-[11px] font-semibold text-ok hover:border-ok/60"
+                  >
+                    Avisar no WhatsApp
+                  </a>
+                )}
               </div>
             )}
             {venda.tipo_fulfillment === 'entrega' && venda.saiu_entrega_em && (

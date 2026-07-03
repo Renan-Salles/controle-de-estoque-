@@ -26,13 +26,14 @@ export type UsuarioComCargo = {
   email: string | null
   status: string | null
   cargo_id: string | null
+  telefone: string | null
 }
 
 export async function listarUsuariosComCargo(): Promise<UsuarioComCargo[]> {
   const s = await createServiceClient()
   const { data } = await s
     .from('profiles')
-    .select('id, nome, email, status, cargo_id')
+    .select('id, nome, email, status, cargo_id, telefone')
     .order('created_at')
   return (data ?? []) as unknown as UsuarioComCargo[]
 }
@@ -96,7 +97,7 @@ export async function excluirCargo(id: string) {
 
 export async function atualizarUsuario(
   id: string,
-  input: { cargo_id?: string | null; status?: string },
+  input: { cargo_id?: string | null; status?: string; telefone?: string | null },
 ) {
   if (!(await ehAdmin())) return { error: 'Sem permissão' }
   const s = await createServiceClient()
@@ -104,6 +105,7 @@ export async function atualizarUsuario(
   const patch: any = {}
   if (input.cargo_id !== undefined) patch.cargo_id = input.cargo_id
   if (input.status !== undefined) patch.status = input.status
+  if (input.telefone !== undefined) patch.telefone = input.telefone?.trim() || null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error, count } = await (s.from('profiles') as any).update(patch, { count: 'exact' }).eq('id', id)
   if (error) return { error: error.message }
