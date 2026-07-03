@@ -2,9 +2,26 @@ import { PackageCheck } from 'lucide-react'
 import { listarMinhasEntregas } from '@/lib/actions/pedidos'
 import { getLocalAtivo } from '@/lib/local'
 import { getNomePerfil } from '@/lib/permissoes'
+import { meuTurnoAtivo } from '@/lib/actions/turnos'
+import { meuTempoMedioEntrega } from '@/lib/actions/relatorio-entregadores'
 import { EstadoVazio } from '@/components/ui-kit/EstadoVazio'
 import { CardEntrega, type EntregaResumo } from './CardEntrega'
 import { BotaoSair } from './BotaoSair'
+import { TurnoCard } from './TurnoCard'
+
+// Bom dia / Boa tarde / Boa noite conforme o horario de Brasilia.
+function saudacao(): string {
+  const hora = Number(
+    new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric',
+      hour12: false,
+      timeZone: 'America/Sao_Paulo',
+    }).format(new Date()),
+  )
+  if (hora < 12) return 'Bom dia'
+  if (hora < 18) return 'Boa tarde'
+  return 'Boa noite'
+}
 
 // Copia local de logoPartes (a original vive em nav-items.tsx, que e
 // 'use client' -- funcao de client component nao pode ser chamada aqui).
@@ -46,10 +63,12 @@ type EntregaRaw = {
 // Tela unica do cargo Entregador: so as entregas designadas a ele, sem
 // sidebar/topbar de admin. Renderizada por /dashboard quando ehEntregador().
 export async function TelaEntregador() {
-  const [entregasRaw, local, nome] = await Promise.all([
+  const [entregasRaw, local, nome, turnoAtivo, tempoMedioMin] = await Promise.all([
     listarMinhasEntregas(),
     getLocalAtivo(),
     getNomePerfil(),
+    meuTurnoAtivo(),
+    meuTempoMedioEntrega(),
   ])
   const entregas = entregasRaw as unknown as EntregaRaw[]
   const logo = logoPartes(local.nome)
@@ -77,7 +96,7 @@ export async function TelaEntregador() {
         <div className="flex items-end justify-between gap-3">
           <div>
             <p className="text-sm text-text-muted">
-              {nome ? `Fala, ${nome.split(' ')[0]}!` : 'Suas entregas'}
+              {nome ? `${saudacao()}, ${nome.split(' ')[0]}!` : 'Suas entregas'}
             </p>
             <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-text">
               {entregas.length === 0
@@ -100,6 +119,8 @@ export async function TelaEntregador() {
             </div>
           )}
         </div>
+
+        <TurnoCard turnoInicial={turnoAtivo} tempoMedioMin={tempoMedioMin} />
 
         <div className="mt-5 space-y-4">
           {entregas.length === 0 ? (
