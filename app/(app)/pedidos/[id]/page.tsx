@@ -27,6 +27,8 @@ type VendaComRelacoes = {
   subtotal: number
   data_pedido: string
   forma_pagamento: string
+  valor_pago_agora: number
+  forma_pagamento_parcial: string | null
   prazo_pagamento_dias: number
   data_vencimento: string | null
   observacoes: string | null
@@ -85,7 +87,7 @@ export default async function VendaDetailPage({
   const { data: vendaRaw } = await supabase
     .from('pedidos')
     .select(
-      `id, numero_pedido, status, total, subtotal, data_pedido, forma_pagamento, prazo_pagamento_dias, data_vencimento, observacoes, tipo_fulfillment, frete, pago, concluido_em, saiu_entrega_em, entregador:profiles!pedidos_entregador_id_fkey(nome, telefone), clientes(nome, telefone, endereco), pedido_itens(quantidade_pedida, preco_unitario, total, embalagem_nome, embalagem_unidades, produtos(nome, embalagem))`,
+      `id, numero_pedido, status, total, subtotal, data_pedido, forma_pagamento, valor_pago_agora, forma_pagamento_parcial, prazo_pagamento_dias, data_vencimento, observacoes, tipo_fulfillment, frete, pago, concluido_em, saiu_entrega_em, entregador:profiles!pedidos_entregador_id_fkey(nome, telefone), clientes(nome, telefone, endereco), pedido_itens(quantidade_pedida, preco_unitario, total, embalagem_nome, embalagem_unidades, produtos(nome, embalagem))`,
     )
     .eq('id', id)
     .single()
@@ -261,7 +263,17 @@ export default async function VendaDetailPage({
         <LinhaDado
           icone={CreditCard}
           rotulo="Pagamento"
-          valor={rotuloPagamento(venda.forma_pagamento)}
+          valor={
+            venda.forma_pagamento === 'fiado' && Number(venda.valor_pago_agora) > 0 ? (
+              <>
+                {rotuloPagamento(venda.forma_pagamento_parcial ?? '')} (pago agora):{' '}
+                <Money valor={venda.valor_pago_agora} /> · Fiado:{' '}
+                <Money valor={venda.total - Number(venda.valor_pago_agora)} />
+              </>
+            ) : (
+              rotuloPagamento(venda.forma_pagamento)
+            )
+          }
         />
         {venda.forma_pagamento === 'fiado' && venda.data_vencimento && (
           <LinhaDado
