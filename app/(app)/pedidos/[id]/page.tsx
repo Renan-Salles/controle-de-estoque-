@@ -41,6 +41,8 @@ type VendaComRelacoes = {
     quantidade_pedida: number
     preco_unitario: number
     total: number
+    embalagem_nome: string | null
+    embalagem_unidades: number | null
     produtos: { nome: string; embalagem: string }
   }[]
 }
@@ -79,7 +81,7 @@ export default async function VendaDetailPage({
   const { data: vendaRaw } = await supabase
     .from('pedidos')
     .select(
-      `id, numero_pedido, status, total, subtotal, data_pedido, forma_pagamento, prazo_pagamento_dias, data_vencimento, observacoes, tipo_fulfillment, frete, pago, concluido_em, saiu_entrega_em, entregador:profiles!pedidos_entregador_id_fkey(nome), clientes(nome, telefone), pedido_itens(quantidade_pedida, preco_unitario, total, produtos(nome, embalagem))`,
+      `id, numero_pedido, status, total, subtotal, data_pedido, forma_pagamento, prazo_pagamento_dias, data_vencimento, observacoes, tipo_fulfillment, frete, pago, concluido_em, saiu_entrega_em, entregador:profiles!pedidos_entregador_id_fkey(nome), clientes(nome, telefone), pedido_itens(quantidade_pedida, preco_unitario, total, embalagem_nome, embalagem_unidades, produtos(nome, embalagem))`,
     )
     .eq('id', id)
     .single()
@@ -263,8 +265,19 @@ export default async function VendaDetailPage({
                   {item.produtos.nome}
                 </TabelaCell>
                 <TabelaCell alinhar="centro">
-                  {item.quantidade_pedida}{' '}
-                  <span className="text-text-muted">{item.produtos.embalagem}</span>
+                  {item.embalagem_nome && (item.embalagem_unidades ?? 1) > 1 ? (
+                    <>
+                      {item.quantidade_pedida / (item.embalagem_unidades ?? 1)}{' '}
+                      <span className="text-text-muted">
+                        {item.embalagem_nome} ({item.quantidade_pedida} un)
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      {item.quantidade_pedida}{' '}
+                      <span className="text-text-muted">un</span>
+                    </>
+                  )}
                 </TabelaCell>
                 <TabelaCell alinhar="direita">
                   <Money valor={item.preco_unitario} />

@@ -26,6 +26,8 @@ export interface CupomData {
     quantidade_pedida: number
     preco_unitario: number
     total: number
+    embalagem_nome?: string | null
+    embalagem_unidades?: number | null
     produtos: { nome: string; embalagem: string }
   }>
 }
@@ -147,7 +149,9 @@ export function CupomFiscal({ data }: { data: CupomData }) {
               </span>
             </div>
             <div style={{ paddingLeft: '28px', fontSize: '10px', color: '#555' }}>
-              {item.quantidade_pedida} un x {formatarReal(item.preco_unitario)}
+              {item.embalagem_nome && (item.embalagem_unidades ?? 1) > 1
+                ? `${item.quantidade_pedida / (item.embalagem_unidades ?? 1)} ${item.embalagem_nome} (${item.quantidade_pedida} un)`
+                : `${item.quantidade_pedida} un x ${formatarReal(item.preco_unitario)}`}
             </div>
           </div>
         )

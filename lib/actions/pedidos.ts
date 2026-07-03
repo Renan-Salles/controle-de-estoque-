@@ -10,6 +10,10 @@ const ItemSchema = z.object({
   quantidade: z.number().positive(),
   preco_unitario: z.number().positive(),
   total: z.number().positive(),
+  // Forma de venda escolhida (Unidade, Fardo 12...). Opcional: venda antiga
+  // ou sem forma cadastrada continua funcionando, so nao mostra o rotulo.
+  embalagem_nome: z.string().optional(),
+  embalagem_unidades: z.number().min(1).optional(),
 })
 
 const VendaSchema = z.object({
@@ -108,6 +112,8 @@ export async function registrarVenda(data: unknown) {
       quantidade_pedida: i.quantidade,
       preco_unitario: i.preco_unitario,
       total: i.total,
+      embalagem_nome: i.embalagem_nome ?? null,
+      embalagem_unidades: i.embalagem_unidades ?? null,
     }))
   )
   if (errItens) return { error: errItens.message }
@@ -176,7 +182,7 @@ export async function buscarPedidoParaCupom(id: string) {
       numero_pedido, data_pedido, total, forma_pagamento, prazo_pagamento_dias, observacoes,
       locais(nome),
       clientes(nome, telefone, endereco),
-      pedido_itens(quantidade_pedida, preco_unitario, total, produtos(nome, embalagem))
+      pedido_itens(quantidade_pedida, preco_unitario, total, embalagem_nome, embalagem_unidades, produtos(nome, embalagem))
     `)
     .eq('id', id)
     .single()

@@ -57,17 +57,23 @@ const TIPOS_FULFILLMENT: Array<{ valor: TipoFulfillment; label: string }> = [
 ]
 
 // Recalcula quantidade/preco_unitario/total (sempre em unidade base, é o que
-// vai pro backend) a partir de qtdEmbalagens + precoEmbalagem, quando a
-// linha está no modo "vender caixa fechada".
-function recalcularPorEmbalagem(item: ItemPedido, qtdEmbalagens: number): ItemPedido {
-  const fator = item.fatorConversao || 1
-  const precoEmbalagem = item.precoEmbalagem ?? 0
+// vai pro backend) a partir da forma de venda escolhida + qtd + preço da forma.
+function aplicarForma(
+  item: ItemPedido,
+  formaId: string,
+  qtdFormas: number,
+  precoForma?: number,
+): ItemPedido {
+  const forma = item.formas.find((f) => f.id === formaId) ?? item.formas[0]
+  const preco = precoForma ?? forma.preco
   return {
     ...item,
-    qtdEmbalagens,
-    quantidade: qtdEmbalagens * fator,
-    total: +(qtdEmbalagens * precoEmbalagem).toFixed(2),
-    preco_unitario: fator > 0 ? +(precoEmbalagem / fator).toFixed(2) : precoEmbalagem,
+    formaId: forma.id,
+    qtdFormas,
+    precoForma: preco,
+    quantidade: qtdFormas * forma.unidades,
+    total: +(qtdFormas * preco).toFixed(2),
+    preco_unitario: forma.unidades > 0 ? +(preco / forma.unidades).toFixed(2) : preco,
   }
 }
 
@@ -126,12 +132,17 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
       prazo_dias: formaPagamento === 'fiado' ? Number(prazoDias) || 7 : undefined,
       observacoes,
       canal: 'balcao',
-      itens: itens.map((i) => ({
-        produto_id: i.produto_id,
-        quantidade: i.quantidade,
-        preco_unitario: i.preco_unitario,
-        total: i.total,
-      })),
+      itens: itens.map((i) => {
+        const forma = i.formas.find((f) => f.id === i.formaId)
+        return {
+          produto_id: i.produto_id,
+          quantidade: i.quantidade,
+          preco_unitario: i.preco_unitario,
+          total: i.total,
+          embalagem_nome: forma?.nome,
+          embalagem_unidades: forma?.unidades,
+        }
+      }),
       tipo_fulfillment: tipoFulfillment,
       entregador_id: tipoFulfillment === 'entrega' ? entregadorId : null,
       frete: freteNum,
@@ -223,89 +234,56 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
       setItens((prev) => {
         const existe = prev.find((i) => i.produto_id === produto.produto_id)
         if (existe) {
-          if (existe.vendaEmbalagem) {
-            return prev.map((i) =>
-              i.produto_id === produto.produto_id
-                ? recalcularPorEmbalagem(i, (i.qtdEmbalagens ?? 1) + 1)
-                : i,
-            )
-          }
+          // Repetir o produto soma 1 na forma que ja esta escolhida na linha.
           return prev.map((i) =>
             i.produto_id === produto.produto_id
-              ? {
-                  ...i,
-                  quantidade: i.quantidade + 1,
-                  total: (i.quantidade + 1) * i.preco_unitario,
-                }
+              ? aplicarForma(i, i.formaId, i.qtdFormas + 1, i.precoForma)
               : i,
           )
         }
-        const fatorConversao = produto.fator_conversao || 1
-        return [
-          ...prev,
-          {
-            ...produto,
-            quantidade: 1,
-            total: produto.preco_unitario,
-            embalagem: produto.embalagem,
-            fatorConversao,
-            vendaEmbalagem: false,
-            qtdEmbalagens: 1,
-            precoEmbalagem: +(produto.preco_unitario * fatorConversao).toFixed(2),
-          },
-        ]
+        const forma = produto.formas.find((f) => f.padrao) ?? produto.formas[0]
+        const base: ItemPedido = {
+          produto_id: produto.produto_id,
+          nome: produto.nome,
+          categoria: produto.categoria,
+          saldo_atual: produto.saldo_atual,
+          formas: produto.formas,
+          formaId: forma.id,
+          qtdFormas: 1,
+          precoForma: forma.preco,
+          preco_unitario: 0,
+          quantidade: 0,
+          total: 0,
+        }
+        return [...prev, aplicarForma(base, forma.id, 1)]
       })
     },
     [],
   )
 
-  const alterarQtde = useCallback((produtoId: string, qtde: number) => {
+  const alterarQtdFormas = useCallback((produtoId: string, qtd: number) => {
     setItens((prev) =>
       prev.map((i) =>
-        i.produto_id === produtoId
-          ? { ...i, quantidade: qtde, total: +(qtde * i.preco_unitario).toFixed(2) }
-          : i,
+        i.produto_id === produtoId ? aplicarForma(i, i.formaId, qtd, i.precoForma) : i,
       ),
     )
   }, [])
 
-  const alterarQtdeEmbalagens = useCallback((produtoId: string, qtdEmbalagens: number) => {
+  // Trocar a forma reseta o preco pro cadastrado dela (o operador reajusta
+  // se negociou) e mantem a quantidade de embalagens.
+  const alterarForma = useCallback((produtoId: string, formaId: string) => {
     setItens((prev) =>
       prev.map((i) =>
-        i.produto_id === produtoId ? recalcularPorEmbalagem(i, qtdEmbalagens) : i,
+        i.produto_id === produtoId ? aplicarForma(i, formaId, i.qtdFormas) : i,
       ),
     )
   }, [])
 
-  const alterarPrecoEmbalagem = useCallback((produtoId: string, precoEmbalagem: number) => {
+  const alterarPrecoForma = useCallback((produtoId: string, preco: number) => {
     setItens((prev) =>
-      prev.map((i) => {
-        if (i.produto_id !== produtoId) return i
-        const fator = i.fatorConversao || 1
-        const qtdEmbalagens = i.qtdEmbalagens ?? 1
-        return {
-          ...i,
-          precoEmbalagem,
-          total: +(qtdEmbalagens * precoEmbalagem).toFixed(2),
-          preco_unitario: fator > 0 ? +(precoEmbalagem / fator).toFixed(2) : precoEmbalagem,
-        }
-      }),
-    )
-  }, [])
-
-  const alternarModoVenda = useCallback((produtoId: string) => {
-    setItens((prev) =>
-      prev.map((i) => {
-        if (i.produto_id !== produtoId) return i
-        const fator = i.fatorConversao || 1
-        if (!i.vendaEmbalagem) {
-          // liga o modo caixa fechada: sugere o preco pela embalagem inteira
-          const precoEmbalagem = i.precoEmbalagem || +(i.preco_unitario * fator).toFixed(2)
-          return recalcularPorEmbalagem({ ...i, vendaEmbalagem: true, precoEmbalagem }, 1)
-        }
-        // volta pra unidade solta: mantem o preco por unidade, reseta pra 1
-        return { ...i, vendaEmbalagem: false, quantidade: 1, total: i.preco_unitario }
-      }),
+      prev.map((i) =>
+        i.produto_id === produtoId ? aplicarForma(i, i.formaId, i.qtdFormas, preco) : i,
+      ),
     )
   }, [])
 
@@ -601,6 +579,10 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
                         categoria: p.categoria,
                         preco_unitario: p.preco_venda_padrao,
                         saldo_atual: p.saldo_atual,
+                        formas:
+                          p.formas.length > 0
+                            ? p.formas
+                            : [{ id: `fallback-${p.id}`, nome: 'Unidade', unidades: 1, preco: p.preco_venda_padrao, padrao: true }],
                         embalagem: p.embalagem,
                         fator_conversao: p.fator_conversao,
                       })
@@ -666,10 +648,9 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
           ) : (
             <ListaItensPedido
               itens={itens}
-              onAlterarQtde={alterarQtde}
-              onAlterarQtdeEmbalagens={alterarQtdeEmbalagens}
-              onAlterarPrecoEmbalagem={alterarPrecoEmbalagem}
-              onAlternarModoVenda={alternarModoVenda}
+              onAlterarQtdFormas={alterarQtdFormas}
+              onAlterarForma={alterarForma}
+              onAlterarPrecoForma={alterarPrecoForma}
               onRemover={remover}
             />
           )}

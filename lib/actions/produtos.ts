@@ -269,6 +269,7 @@ export type MaisVendido = {
   saldo_atual: number
   embalagem: string
   fator_conversao: number
+  formas: ProdutoEmbalagem[]
 }
 
 export async function buscarMaisVendidos(): Promise<MaisVendido[]> {
@@ -279,7 +280,7 @@ export async function buscarMaisVendidos(): Promise<MaisVendido[]> {
   const { data, error } = await supabase
     .from('pedido_itens')
     .select(
-      'produto_id, quantidade_pedida, pedidos!inner(status, data_pedido, local_id), produtos!inner(id, nome, ativo, preco_venda_padrao, embalagem, fator_conversao, local_id, categorias(nome), estoque(saldo_atual))',
+      'produto_id, quantidade_pedida, pedidos!inner(status, data_pedido, local_id), produtos!inner(id, nome, ativo, preco_venda_padrao, embalagem, fator_conversao, local_id, categorias(nome), estoque(saldo_atual), produto_embalagens(id, produto_id, nome, unidades, preco, padrao))',
     )
     .eq('pedidos.status', 'concluida')
     .eq('pedidos.local_id', localId)
@@ -301,6 +302,7 @@ export async function buscarMaisVendidos(): Promise<MaisVendido[]> {
       fator_conversao: number
       categorias: Rel<{ nome: string }>
       estoque: Rel<{ saldo_atual: number }>
+      produto_embalagens: ProdutoEmbalagem[] | null
     }>
   }
   const umaRel = <T,>(rel: Rel<T>): T | null =>
@@ -324,6 +326,9 @@ export async function buscarMaisVendidos(): Promise<MaisVendido[]> {
           saldo_atual: umaRel(prod.estoque)?.saldo_atual ?? 0,
           embalagem: prod.embalagem,
           fator_conversao: prod.fator_conversao,
+          formas: [...(prod.produto_embalagens ?? [])].sort(
+            (a, b) => Number(b.padrao) - Number(a.padrao) || a.unidades - b.unidades,
+          ),
         },
       })
     }

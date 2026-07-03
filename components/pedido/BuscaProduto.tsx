@@ -34,7 +34,7 @@ import { Search, Plus, PackagePlus } from 'lucide-react'
 import { buscarProdutos, criarProduto, listarCategorias } from '@/lib/actions/produtos'
 import { formatarReal } from '@/lib/formatos'
 import { cn } from '@/lib/utils'
-import type { ItemPedido } from '@/types'
+import type { FormaVenda } from '@/types'
 
 type Rel<T> = T | T[] | null
 
@@ -48,9 +48,19 @@ interface ProdutoBusca {
   codigo_barras: string | null
   categorias: Rel<{ nome: string }>
   estoque: Rel<{ saldo_atual: number }>
+  produto_embalagens?: FormaVenda[] | null
 }
 
-export interface ProdutoParaAdicionar extends Omit<ItemPedido, 'quantidade' | 'total'> {
+// O que a busca entrega pro form (venda ou entrada). 'formas' sao as
+// embalagens cadastradas; 'embalagem'/'fator_conversao' legados continuam
+// pro FormEntrada, que ainda usa o modelo antigo.
+export interface ProdutoParaAdicionar {
+  produto_id: string
+  nome: string
+  categoria: string
+  preco_unitario: number
+  saldo_atual: number
+  formas: FormaVenda[]
   embalagem: string
   fator_conversao: number
 }
@@ -101,12 +111,29 @@ export function BuscaProduto({ onAdicionar, permitirCriar = false }: Props) {
   }
 
   function selecionar(produto: ProdutoBusca) {
+    // Fallback pra produto sem embalagens cadastradas (nao deveria existir
+    // apos a migration, mas nao quebra a venda se acontecer): "Unidade" avulsa.
+    const formas: FormaVenda[] =
+      produto.produto_embalagens && produto.produto_embalagens.length > 0
+        ? [...produto.produto_embalagens].sort(
+            (a, b) => Number(b.padrao) - Number(a.padrao) || a.unidades - b.unidades,
+          )
+        : [
+            {
+              id: `fallback-${produto.id}`,
+              nome: 'Unidade',
+              unidades: 1,
+              preco: produto.preco_venda_padrao,
+              padrao: true,
+            },
+          ]
     onAdicionar({
       produto_id: produto.id,
       nome: produto.nome,
       categoria: umaRel(produto.categorias)?.nome ?? '',
       preco_unitario: produto.preco_venda_padrao,
       saldo_atual: saldoDe(produto),
+      formas,
       embalagem: produto.embalagem,
       fator_conversao: produto.fator_conversao,
     })
