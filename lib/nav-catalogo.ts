@@ -32,7 +32,7 @@ export const NAV_CATALOGO: NavCatalogoItem[] = [
   { href: '/financeiro/relatorios', label: 'Faturamento & ABC', grupo: 'Relatórios' },
   { href: '/financeiro/resultado', label: 'Resultado', grupo: 'Relatórios' },
   { href: '/financeiro/a-pagar', label: 'A pagar', grupo: 'Relatórios' },
-  { href: '/financeiro/a-receber', label: 'A receber', grupo: 'Relatórios' },
+  { href: '/financeiro/a-receber', label: 'Fiado', grupo: 'Operação' },
   { href: '/financeiro/custos-fixos', label: 'Custos Fixos', grupo: 'Relatórios' },
   { href: '/financeiro/formas-pagamento', label: 'Formas de pagamento', grupo: 'Relatórios' },
 ]

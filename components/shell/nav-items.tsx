@@ -44,11 +44,12 @@ const ITEM_MOVIMENTACOES: Item = { href: '/movimentacoes', label: 'Movimentaçõ
 const ITEM_ESTOQUE: Item = { href: '/estoque', label: 'Estoque', icon: Boxes }
 
 const ITEM_CAIXA: Item = { href: '/caixa', label: 'Caixa', icon: Landmark }
+const ITEM_FIADO: Item = { href: '/financeiro/a-receber', label: 'Fiado', icon: HandCoins }
 
 const GRUPO_OPERACAO: Grupo = {
   titulo: 'Operação',
   icone: ArrowRightLeft,
-  itens: [ITEM_PEDIDOS, ITEM_MOVIMENTACOES, ITEM_ESTOQUE, ITEM_CAIXA],
+  itens: [ITEM_PEDIDOS, ITEM_MOVIMENTACOES, ITEM_ESTOQUE, ITEM_CAIXA, ITEM_FIADO],
 }
 
 const GRUPO_CADASTRO: Grupo = {
@@ -80,7 +81,6 @@ const GRUPO_RELATORIOS: Grupo = {
     { href: '/financeiro/relatorios', label: 'Faturamento & ABC', icon: TrendingUp },
     { href: '/financeiro/resultado', label: 'Resultado', icon: DollarSign },
     { href: '/financeiro/a-pagar', label: 'A pagar', icon: ArrowUpFromLine },
-    { href: '/financeiro/a-receber', label: 'A receber', icon: HandCoins },
     { href: '/financeiro/custos-fixos', label: 'Custos Fixos', icon: ReceiptText },
     { href: '/financeiro/formas-pagamento', label: 'Formas de pagamento', icon: Wallet },
   ],
