@@ -22,6 +22,7 @@ import {
   HandCoins,
   ReceiptText,
   Wallet,
+  Landmark,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -41,10 +42,12 @@ export const ITEM_PEDIDOS: Item = { href: '/pedidos', label: 'Pedidos', icon: Pa
 const ITEM_MOVIMENTACOES: Item = { href: '/movimentacoes', label: 'Movimentações', icon: ArrowRightLeft }
 const ITEM_ESTOQUE: Item = { href: '/estoque', label: 'Estoque', icon: Boxes }
 
+const ITEM_CAIXA: Item = { href: '/caixa', label: 'Caixa', icon: Landmark }
+
 const GRUPO_OPERACAO: Grupo = {
   titulo: 'Operação',
   icone: ArrowRightLeft,
-  itens: [ITEM_PEDIDOS, ITEM_MOVIMENTACOES, ITEM_ESTOQUE],
+  itens: [ITEM_PEDIDOS, ITEM_MOVIMENTACOES, ITEM_ESTOQUE, ITEM_CAIXA],
 }
 
 const GRUPO_CADASTRO: Grupo = {
