@@ -43,10 +43,22 @@ export function ConviteForm({
       setErro('Não foi possível criar a sessão. Confirme o email e faça login depois.')
       return
     }
-    const resultado = await resgatarConvite(token, nome.trim())
+    // A sessao do signUp pode demorar alguns ms pra chegar nos cookies que a
+    // Server Action enxerga. Ja aconteceu de verdade: o resgate rodou sem
+    // sessao, o cargo nao foi aplicado e a conta entrou com acesso total.
+    // Retry curto ate a sessao propagar (ou erro real).
+    let resultado = await resgatarConvite(token, nome.trim())
+    for (let tentativa = 0; 'error' in resultado && resultado.error === 'SESSAO_PENDENTE' && tentativa < 5; tentativa++) {
+      await new Promise((r) => setTimeout(r, 600))
+      resultado = await resgatarConvite(token, nome.trim())
+    }
     if ('error' in resultado) {
       setLoading(false)
-      setErro(resultado.error)
+      setErro(
+        resultado.error === 'SESSAO_PENDENTE'
+          ? 'A conta foi criada, mas a sessão demorou a propagar. Faça login e peça pro administrador reenviar o convite.'
+          : resultado.error,
+      )
       return
     }
     // Navegacao dura (nao router.push): logo apos a Server Action acima,

@@ -63,6 +63,13 @@ export async function consultarConvite(
 
 export async function resgatarConvite(token: string, nome: string) {
   const supabase = await createClient()
+  // A sessao criada pelo signUp no browser pode ainda nao ter chegado nos
+  // cookies deste request (corrida real que ja deixou um convite queimado
+  // sem aplicar o cargo). Sem usuario aqui, nem chama o RPC: devolve um
+  // erro retryavel que o form trata tentando de novo.
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'SESSAO_PENDENTE' as const }
+
   const { data, error } = await (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     supabase as any
