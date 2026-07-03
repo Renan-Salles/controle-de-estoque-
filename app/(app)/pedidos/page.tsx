@@ -15,7 +15,7 @@ import {
   listarPedidosConcluidos,
 } from '@/lib/actions/pedidos'
 import { getLocalAtivo } from '@/lib/local'
-import { rotuloFulfillment } from '@/lib/pedido-labels'
+import { rotuloFulfillment, formatarDuracaoEntrega } from '@/lib/pedido-labels'
 import { formatarDataHora } from '@/lib/formatos'
 import { cn } from '@/lib/utils'
 
@@ -42,19 +42,6 @@ const ABAS = [
   { chave: 'concluidos', rotulo: 'Concluídos' },
 ] as const
 type AbaChave = (typeof ABAS)[number]['chave']
-
-// "23 min" ou "1h 12min". Vazio se faltar saiu_entrega_em ou concluido_em --
-// balcao e retirada nao tem saida, entao a maioria das linhas fica sem duracao.
-function formatarDuracao(saiu: string | null, concluido: string | null | undefined): string {
-  if (!saiu || !concluido) return '—'
-  const ms = new Date(concluido).getTime() - new Date(saiu).getTime()
-  if (!Number.isFinite(ms) || ms < 0) return '—'
-  const min = Math.round(ms / 60000)
-  if (min < 60) return `${min} min`
-  const h = Math.floor(min / 60)
-  const resto = min % 60
-  return resto > 0 ? `${h}h ${resto}min` : `${h}h`
-}
 
 export default async function PedidosPage({
   searchParams,
@@ -166,7 +153,7 @@ export default async function PedidosPage({
                         {p.concluido_em ? formatarDataHora(p.concluido_em) : '—'}
                       </TabelaCell>
                       <TabelaCell className="text-text-muted" mono>
-                        {formatarDuracao(p.saiu_entrega_em, p.concluido_em)}
+                        {formatarDuracaoEntrega(p.saiu_entrega_em, p.concluido_em)}
                       </TabelaCell>
                     </>
                   )}

@@ -1,6 +1,7 @@
 'use client'
 import { useState, useCallback, useEffect, useMemo, useTransition, useRef } from 'react'
 import { toast } from 'sonner'
+import Link from 'next/link'
 import {
   ReceiptText,
   ShoppingCart,
@@ -12,6 +13,7 @@ import {
   Printer,
   Download,
   RefreshCw,
+  PackageCheck,
   X,
 } from 'lucide-react'
 import { BuscaProduto, type ProdutoParaAdicionar } from '@/components/pedido/BuscaProduto'
@@ -456,14 +458,23 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={novaVenda}
-            className="flex items-center gap-2 rounded-xl border border-border bg-surface px-6 py-3 text-sm font-semibold text-text hover:bg-surface-2"
-          >
-            <RefreshCw className="size-4" strokeWidth={1.5} />
-            Nova venda
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/pedidos/${vendaRegistrada.pedidoId}`}
+              className="flex items-center gap-2 rounded-xl border border-border bg-surface px-6 py-3 text-sm font-semibold text-text hover:bg-surface-2"
+            >
+              <PackageCheck className="size-4" strokeWidth={1.5} />
+              Ver pedido
+            </Link>
+            <button
+              type="button"
+              onClick={novaVenda}
+              className="flex items-center gap-2 rounded-xl border border-border bg-surface px-6 py-3 text-sm font-semibold text-text hover:bg-surface-2"
+            >
+              <RefreshCw className="size-4" strokeWidth={1.5} />
+              Nova venda
+            </button>
+          </div>
         </div>
       </>
     )

@@ -1,9 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Printer, User, CalendarDays, CreditCard, StickyNote, Ban, Clock } from 'lucide-react'
+import { Printer, User, CalendarDays, CreditCard, StickyNote, Ban, Clock } from 'lucide-react'
 import { PageHeader } from '@/components/ui-kit/PageHeader'
 import { StatusPill } from '@/components/ui-kit/StatusPill'
+import { BotaoVoltar } from '@/components/ui-kit/BotaoVoltar'
 import { BotaoCancelar } from '@/components/movimentacao/BotaoCancelar'
 import { FulfillmentAcoes } from '@/components/movimentacao/FulfillmentAcoes'
 import {
@@ -16,7 +17,7 @@ import {
 } from '@/components/ui-kit/tabela'
 import { Money } from '@/components/ui-kit/Money'
 import { formatarData, formatarDataHora } from '@/lib/formatos'
-import { rotuloPagamento } from '@/lib/pedido-labels'
+import { rotuloPagamento, formatarDuracaoEntrega } from '@/lib/pedido-labels'
 
 type VendaComRelacoes = {
   id: string
@@ -91,13 +92,7 @@ export default async function VendaDetailPage({
 
   return (
     <div className="mx-auto max-w-3xl">
-      <Link
-        href="/movimentacoes"
-        className="u-motion mb-3 inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text"
-      >
-        <ArrowLeft className="size-4" strokeWidth={1.5} />
-        Movimentações
-      </Link>
+      <BotaoVoltar fallbackHref="/pedidos" />
 
       <PageHeader titulo={`Venda ${numeroFmt}`}>
         <StatusPill
@@ -163,26 +158,40 @@ export default async function VendaDetailPage({
               />
             )}
           </div>
-          {venda.tipo_fulfillment === 'entrega' && (
-            <div className="grid grid-cols-1 gap-y-2 text-sm sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-y-2 text-sm sm:grid-cols-2">
+            {venda.tipo_fulfillment === 'entrega' && (
               <div>
                 <span className="text-text-muted">Entregador: </span>
                 {venda.entregador?.nome ?? '-'}
               </div>
-              {venda.saiu_entrega_em && (
-                <div>
-                  <span className="text-text-muted">Saiu para entrega: </span>
-                  {formatarDataHora(venda.saiu_entrega_em)}
-                </div>
-              )}
-              {venda.frete > 0 && (
-                <div>
-                  <span className="text-text-muted">Frete: </span>
-                  <Money valor={venda.frete} />
-                </div>
-              )}
-            </div>
-          )}
+            )}
+            {venda.tipo_fulfillment === 'entrega' && venda.saiu_entrega_em && (
+              <div>
+                <span className="text-text-muted">Saiu para entrega: </span>
+                {formatarDataHora(venda.saiu_entrega_em)}
+              </div>
+            )}
+            {venda.concluido_em && (
+              <div>
+                <span className="text-text-muted">
+                  {venda.tipo_fulfillment === 'entrega' ? 'Entregue em: ' : 'Retirado em: '}
+                </span>
+                {formatarDataHora(venda.concluido_em)}
+              </div>
+            )}
+            {venda.tipo_fulfillment === 'entrega' && venda.saiu_entrega_em && venda.concluido_em && (
+              <div>
+                <span className="text-text-muted">Duração: </span>
+                {formatarDuracaoEntrega(venda.saiu_entrega_em, venda.concluido_em)}
+              </div>
+            )}
+            {venda.tipo_fulfillment === 'entrega' && venda.frete > 0 && (
+              <div>
+                <span className="text-text-muted">Frete: </span>
+                <Money valor={venda.frete} />
+              </div>
+            )}
+          </div>
         </div>
       )}
 
