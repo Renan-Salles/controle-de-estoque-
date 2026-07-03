@@ -34,6 +34,21 @@ const VendaSchema = z.object({
   desconto: z.number().min(0).default(0),
   // Quanto o cliente entregou em dinheiro (pro cupom mostrar o troco).
   valor_recebido: z.number().min(0).optional(),
+  // Fiado parcial: quanto ja entrou na hora (numa forma a vista) e em qual
+  // forma. So faz sentido quando forma_pagamento = 'fiado'; validado abaixo
+  // porque depende de outro campo do mesmo objeto.
+  valor_pago_agora: z.number().min(0).optional(),
+  forma_pagamento_parcial: z.enum(['dinheiro', 'pix', 'cartao_debito', 'cartao_credito']).optional(),
+  // Endereco de entrega em texto livre (sub-projeto 3, ja incluido aqui
+  // porque e o mesmo objeto de payload).
+  endereco_entrega: z
+    .object({
+      rua: z.string().optional(),
+      numero: z.string().optional(),
+      bairro: z.string().optional(),
+      cidade: z.string().optional(),
+    })
+    .optional(),
 })
 
 // Registra uma SAIDA (venda): baixa estoque atomico e gera comprovante.
@@ -46,6 +61,10 @@ export async function registrarVenda(data: unknown) {
   }
   if (parsed.data.tipo_fulfillment === 'entrega' && !parsed.data.entregador_id) {
     return { error: 'Escolha quem vai entregar' }
+  }
+  const valorPagoAgora = parsed.data.forma_pagamento === 'fiado' ? (parsed.data.valor_pago_agora ?? 0) : 0
+  if (valorPagoAgora > 0 && !parsed.data.forma_pagamento_parcial) {
+    return { error: 'Escolha em qual forma o valor pago agora entrou' }
   }
 
   const supabase = await createClient()
@@ -60,6 +79,9 @@ export async function registrarVenda(data: unknown) {
     return { error: 'Desconto maior que o valor da mercadoria.' }
   }
   const total = +(subtotal + frete - desconto).toFixed(2)
+  if (valorPagoAgora > total) {
+    return { error: 'Valor pago agora não pode ser maior que o total da venda' }
+  }
 
   // Limite de credito: fiado so passa se (divida aberta + esta venda) couber
   // no limite do cliente. Limite 0/nulo = sem trava (comportamento de hoje).
@@ -135,6 +157,12 @@ export async function registrarVenda(data: unknown) {
         forma_pagamento === 'dinheiro' && parsed.data.valor_recebido != null && parsed.data.valor_recebido > 0
           ? parsed.data.valor_recebido
           : null,
+      valor_pago_agora: valorPagoAgora,
+      forma_pagamento_parcial: valorPagoAgora > 0 ? parsed.data.forma_pagamento_parcial : null,
+      endereco_entrega:
+        tipo_fulfillment === 'entrega' && !parsed.data.cliente_id && parsed.data.endereco_entrega
+          ? parsed.data.endereco_entrega
+          : null,
       total,
     })
     .select('id, numero_pedido')
@@ -158,15 +186,17 @@ export async function registrarVenda(data: unknown) {
   if (errItens) return { error: errItens.message }
 
   if (forma_pagamento === 'fiado') {
+    const restante = +(total - valorPagoAgora).toFixed(2)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error: errReceber } = await (serviceClient.from('contas_receber') as any).insert({
       pedido_id: venda.id,
       cliente_id: parsed.data.cliente_id,
       descricao: `Venda #${String(venda.numero_pedido).padStart(4, '0')}`,
       valor: total,
-      valor_pago: 0,
-      status: 'aberto',
+      valor_pago: valorPagoAgora,
+      status: restante <= 0 ? 'pago' : 'aberto',
       data_emissao: hoje,
+      data_pagamento: restante <= 0 ? hoje : null,
       data_vencimento: dataVencimento,
       forma_pagamento: 'fiado',
     })
@@ -218,7 +248,7 @@ export async function buscarPedidoParaCupom(id: string) {
   const { data } = await supabase
     .from('pedidos')
     .select(`
-      numero_pedido, data_pedido, total, subtotal, desconto_total, frete, valor_recebido, forma_pagamento, prazo_pagamento_dias, observacoes,
+      numero_pedido, data_pedido, total, subtotal, desconto_total, frete, valor_recebido, forma_pagamento, prazo_pagamento_dias, observacoes, valor_pago_agora, forma_pagamento_parcial,
       locais(nome),
       clientes(nome, telefone, endereco),
       pedido_itens(quantidade_pedida, preco_unitario, total, embalagem_nome, embalagem_unidades, produtos(nome, embalagem))
