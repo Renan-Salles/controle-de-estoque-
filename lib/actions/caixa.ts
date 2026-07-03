@@ -24,17 +24,32 @@ export async function resumoDoDia(): Promise<ResumoDia> {
 
   const { data, error } = await supabase
     .from('pedidos')
-    .select('forma_pagamento, total')
+    .select('forma_pagamento, total, pago, valor_pago_agora, forma_pagamento_parcial')
     .eq('local_id', localId)
     .eq('status', 'concluida')
-    .eq('pago', true)
     .gte('data_pedido', `${hoje}T00:00:00-03:00`)
     .lte('data_pedido', `${hoje}T23:59:59.999-03:00`)
   if (error) throw new Error(error.message)
 
-  const rows = (data ?? []) as { forma_pagamento: string; total: number }[]
+  type Linha = {
+    forma_pagamento: string
+    total: number
+    pago: boolean
+    valor_pago_agora: number | null
+    forma_pagamento_parcial: string | null
+  }
+  const rows = (data ?? []) as Linha[]
+
+  // Vendas totalmente a vista e pagas (comportamento de sempre) + a fatia
+  // paga na hora de vendas fiado parciais (forma_pagamento_parcial), que
+  // entram no caixa mesmo com forma_pagamento = 'fiado' e pago = false.
   const soma = (forma: string) =>
-    rows.filter((r) => r.forma_pagamento === forma).reduce((a, r) => a + Number(r.total ?? 0), 0)
+    rows.filter((r) => r.pago && r.forma_pagamento === forma).reduce((a, r) => a + Number(r.total ?? 0), 0) +
+    rows
+      .filter((r) => r.forma_pagamento === 'fiado' && r.forma_pagamento_parcial === forma)
+      .reduce((a, r) => a + Number(r.valor_pago_agora ?? 0), 0)
+
+  const totalVendas = rows.filter((r) => r.pago).length
 
   return {
     data: hoje,
@@ -42,7 +57,7 @@ export async function resumoDoDia(): Promise<ResumoDia> {
     pix: soma('pix'),
     debito: soma('cartao_debito'),
     credito: soma('cartao_credito'),
-    totalVendas: rows.length,
+    totalVendas,
   }
 }
 
