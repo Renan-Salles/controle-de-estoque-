@@ -14,8 +14,18 @@ import {
   Download,
   RefreshCw,
   PackageCheck,
+  PauseCircle,
+  PlayCircle,
+  Trash2,
   X,
 } from 'lucide-react'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet'
 import { BuscaProduto, type ProdutoParaAdicionar } from '@/components/pedido/BuscaProduto'
 import {
   BuscaCliente,
@@ -77,6 +87,34 @@ function aplicarForma(
   }
 }
 
+// Comanda segurada pra atender outro cliente e retomar depois. Vive em
+// localStorage (por dispositivo -- o balcao tem 1-2 maquinas), max 10.
+type ComandaEspera = {
+  id: string
+  hora: string
+  cliente: ClienteResumo | null
+  itens: ItemPedido[]
+  formaPagamento: FormaPagamentoVenda
+  prazoDias: string
+  observacoes: string
+  tipoFulfillment: TipoFulfillment
+  entregadorId: string
+  frete: string
+  jaPago: boolean
+  desconto: string
+  total: number
+}
+
+const LS_ESPERA = 'depsys.comandas_espera'
+
+function lerEspera(): ComandaEspera[] {
+  try {
+    return JSON.parse(window.localStorage.getItem(LS_ESPERA) ?? '[]') as ComandaEspera[]
+  } catch {
+    return []
+  }
+}
+
 // SAIDA (venda). Reusa BuscaCliente/BuscaProduto/ListaItensPedido.
 // Cliente OPCIONAL (venda de balcao), exceto quando fiado: ai e obrigatorio
 // para saber de quem cobrar, e o prazo (dias) e escolhido aqui na hora.
@@ -102,6 +140,14 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
   const [equipe, setEquipe] = useState<UsuarioComCargo[]>([])
   const [desconto, setDesconto] = useState('')
   const [recebido, setRecebido] = useState('')
+  const [emEspera, setEmEspera] = useState<ComandaEspera[]>([])
+  const [esperaAberta, setEsperaAberta] = useState(false)
+
+  // Carrega as comandas seguradas do dispositivo (apos o mount, sem SSR).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setEmEspera(lerEspera())
+  }, [])
 
   const subtotal = useMemo(
     () => itens.reduce((acc, i) => acc + i.total, 0),
@@ -347,6 +393,61 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
     setJaPago(false)
     setDesconto('')
     setRecebido('')
+  }
+
+  function persistirEspera(lista: ComandaEspera[]) {
+    setEmEspera(lista)
+    try {
+      window.localStorage.setItem(LS_ESPERA, JSON.stringify(lista))
+    } catch {
+      /* localStorage indisponivel: degrada sem quebrar */
+    }
+  }
+
+  // Segura a comanda atual (cliente esqueceu a carteira, foi buscar algo...)
+  // e limpa a tela pra atender o proximo.
+  function segurarComanda() {
+    if (itens.length === 0) return
+    const nova: ComandaEspera = {
+      id: crypto.randomUUID(),
+      hora: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      cliente,
+      itens,
+      formaPagamento,
+      prazoDias,
+      observacoes,
+      tipoFulfillment,
+      entregadorId,
+      frete,
+      jaPago,
+      desconto,
+      total,
+    }
+    persistirEspera([nova, ...emEspera].slice(0, 10))
+    novaVenda()
+    toast.success('Comanda segurada. Retome em "Em espera".')
+  }
+
+  function retomarComanda(id: string) {
+    const c = emEspera.find((e) => e.id === id)
+    if (!c) return
+    setCliente(c.cliente)
+    setItens(c.itens)
+    setFormaPagamento(c.formaPagamento)
+    setPrazoDias(c.prazoDias)
+    setObservacoes(c.observacoes)
+    setTipoFulfillment(c.tipoFulfillment)
+    setEntregadorId(c.entregadorId)
+    setFrete(c.frete)
+    setJaPago(c.jaPago)
+    setDesconto(c.desconto)
+    setRecebido('')
+    persistirEspera(emEspera.filter((e) => e.id !== id))
+    setEsperaAberta(false)
+  }
+
+  function descartarComanda(id: string) {
+    persistirEspera(emEspera.filter((e) => e.id !== id))
   }
 
   // Ao trocar cliente ou marcar fiado, sugere o prazo cadastrado no cliente.
@@ -663,12 +764,35 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
             <h2 className="text-sm font-semibold tracking-tight text-text">
               Comanda
             </h2>
+            {itens.length > 0 && (
+              <span className="rounded-full bg-surface-2 px-2 py-0.5 font-mono text-[11px] tabular-nums text-text-muted">
+                {totalItens} {totalItens === 1 ? 'item' : 'itens'}
+              </span>
+            )}
           </div>
-          {itens.length > 0 && (
-            <span className="rounded-full bg-surface-2 px-2 py-0.5 font-mono text-[11px] tabular-nums text-text-muted">
-              {totalItens} {totalItens === 1 ? 'item' : 'itens'}
-            </span>
-          )}
+          <div className="flex items-center gap-1.5">
+            {itens.length > 0 && (
+              <button
+                type="button"
+                onClick={segurarComanda}
+                title="Segurar esta comanda e atender outro cliente"
+                className="u-motion inline-flex h-7 items-center gap-1 rounded-md px-2 text-[12px] font-medium text-text-muted hover:bg-surface-2 hover:text-text"
+              >
+                <PauseCircle className="size-3.5" strokeWidth={1.75} />
+                Segurar
+              </button>
+            )}
+            {emEspera.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setEsperaAberta(true)}
+                className="u-motion inline-flex h-7 items-center gap-1 rounded-md bg-warn/10 px-2 text-[12px] font-semibold text-warn hover:bg-warn/20"
+              >
+                <PlayCircle className="size-3.5" strokeWidth={1.75} />
+                Em espera ({emEspera.length})
+              </button>
+            )}
+          </div>
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -836,6 +960,58 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
           </button>
         </div>
       </aside>
+
+      {/* Comandas em espera deste dispositivo */}
+      <Sheet open={esperaAberta} onOpenChange={setEsperaAberta}>
+        <SheetContent className="w-full gap-0 sm:max-w-md">
+          <SheetHeader className="border-b border-border">
+            <SheetTitle>Comandas em espera</SheetTitle>
+            <SheetDescription>
+              Seguradas neste dispositivo. Retomar traz tudo de volta pra comanda.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex flex-col gap-3 overflow-y-auto p-4">
+            {emEspera.length === 0 && (
+              <p className="py-8 text-center text-sm text-text-muted">
+                Nenhuma comanda em espera.
+              </p>
+            )}
+            {emEspera.map((c) => (
+              <div key={c.id} className="rounded-xl border border-border bg-surface p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-text">
+                      {c.cliente?.nome ?? 'Venda de balcão'}
+                    </p>
+                    <p className="mt-0.5 text-xs text-text-muted">
+                      {c.hora} · {c.itens.length} {c.itens.length === 1 ? 'item' : 'itens'} · {rotuloPagamento(c.formaPagamento)}
+                    </p>
+                  </div>
+                  <Money valor={c.total} destaque className="shrink-0 text-base font-semibold" />
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => retomarComanda(c.id)}
+                    className="u-motion flex h-9 items-center justify-center gap-1.5 rounded-lg bg-brand text-sm font-semibold text-primary-foreground hover:bg-brand-strong active:scale-[0.98]"
+                  >
+                    <PlayCircle className="size-4" strokeWidth={1.75} />
+                    Retomar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => descartarComanda(c.id)}
+                    className="u-motion flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border text-sm font-medium text-text-muted hover:bg-err/10 hover:text-err active:scale-[0.98]"
+                  >
+                    <Trash2 className="size-4" strokeWidth={1.5} />
+                    Descartar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }
