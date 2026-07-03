@@ -76,7 +76,13 @@ export default function ReposicaoPage() {
                   {formatarNumero(p.saldo_atual)}
                 </TabelaCell>
                 <TabelaCell alinhar="centro">
-                  <StatusPill status={p.status_estoque} />
+                  {p.motivo === 'piso' ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-text-muted">
+                      Abaixo do piso
+                    </span>
+                  ) : (
+                    <StatusPill status={p.status_estoque} />
+                  )}
                 </TabelaCell>
                 <TabelaCell alinhar="direita">
                   <span className="font-mono font-semibold tabular-nums text-brand">

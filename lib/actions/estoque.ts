@@ -170,7 +170,13 @@ export async function buscarReposicao() {
     .map((p) => {
       const alvo = Math.max((p.estoque_minimo ?? 0) * 2, 24)
       const sugestao = Math.max(0, Math.round(alvo - (p.saldo_atual ?? 0)))
-      return { ...p, sugestao_compra: sugestao }
+      // Entrou na lista pelo status do produto (alerta/critico/ruptura) ou
+      // so pelo piso de seguranca de 12? No segundo caso o status_estoque e
+      // 'ok', e mostrar "OK" ao lado de uma sugestao de compra confunde --
+      // a tela usa 'motivo' pra dizer "abaixo do piso" em vez de "OK".
+      const motivo: 'status' | 'piso' =
+        (p.status_estoque as string) === 'ok' ? 'piso' : 'status'
+      return { ...p, sugestao_compra: sugestao, motivo }
     })
     .sort((a, b) => (a.saldo_atual ?? 0) - (b.saldo_atual ?? 0))
 

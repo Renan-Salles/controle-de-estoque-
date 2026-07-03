@@ -22,6 +22,9 @@ export interface PosicaoEstoque {
 
 export interface ItemReposicao extends PosicaoEstoque {
   sugestao_compra: number
+  // 'status': entrou por alerta/critico/ruptura do proprio produto.
+  // 'piso': saldo ok pelo minimo dele, mas abaixo do piso de seguranca de 12.
+  motivo: 'status' | 'piso'
 }
 
 export interface ItemPedido {
