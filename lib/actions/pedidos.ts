@@ -29,6 +29,11 @@ const VendaSchema = z.object({
   entregador_id: z.string().uuid().nullable().optional(),
   frete: z.number().min(0).default(0),
   pago: z.boolean().optional(),
+  // Desconto em R$ sobre a mercadoria (nao sobre o frete). Valida contra o
+  // subtotal mais abaixo (depende dos itens).
+  desconto: z.number().min(0).default(0),
+  // Quanto o cliente entregou em dinheiro (pro cupom mostrar o troco).
+  valor_recebido: z.number().min(0).optional(),
 })
 
 // Registra uma SAIDA (venda): baixa estoque atomico e gera comprovante.
@@ -49,9 +54,12 @@ export async function registrarVenda(data: unknown) {
 
   const localId = await getLocalAtivoId()
   const serviceClient = await createServiceClient()
-  const { itens, forma_pagamento, tipo_fulfillment, frete } = parsed.data
+  const { itens, forma_pagamento, tipo_fulfillment, frete, desconto } = parsed.data
   const subtotal = itens.reduce((acc, i) => acc + i.total, 0)
-  const total = subtotal + frete
+  if (desconto > subtotal) {
+    return { error: 'Desconto maior que o valor da mercadoria.' }
+  }
+  const total = +(subtotal + frete - desconto).toFixed(2)
 
   // Limite de credito: fiado so passa se (divida aberta + esta venda) couber
   // no limite do cliente. Limite 0/nulo = sem trava (comportamento de hoje).
@@ -122,6 +130,11 @@ export async function registrarVenda(data: unknown) {
       pago,
       concluido_em: concluidoEm,
       subtotal,
+      desconto_total: desconto,
+      valor_recebido:
+        forma_pagamento === 'dinheiro' && parsed.data.valor_recebido != null && parsed.data.valor_recebido > 0
+          ? parsed.data.valor_recebido
+          : null,
       total,
     })
     .select('id, numero_pedido')
@@ -205,7 +218,7 @@ export async function buscarPedidoParaCupom(id: string) {
   const { data } = await supabase
     .from('pedidos')
     .select(`
-      numero_pedido, data_pedido, total, forma_pagamento, prazo_pagamento_dias, observacoes,
+      numero_pedido, data_pedido, total, subtotal, desconto_total, frete, valor_recebido, forma_pagamento, prazo_pagamento_dias, observacoes,
       locais(nome),
       clientes(nome, telefone, endereco),
       pedido_itens(quantidade_pedida, preco_unitario, total, embalagem_nome, embalagem_unidades, produtos(nome, embalagem))

@@ -5,6 +5,10 @@ export interface CupomData {
   numero_pedido: number
   data_pedido: string
   total: number
+  subtotal?: number | null
+  desconto_total?: number | null
+  frete?: number | null
+  valor_recebido?: number | null
   forma_pagamento: string
   prazo_pagamento_dias?: number | null
   observacoes?: string | null
@@ -166,6 +170,22 @@ export function CupomFiscal({ data }: { data: CupomData }) {
           {data.pedido_itens.length} produto{data.pedido_itens.length !== 1 ? 's' : ''}
         </span>
       </div>
+      {(Number(data.desconto_total ?? 0) > 0 || Number(data.frete ?? 0) > 0) && (
+        <div style={{ fontSize: '10px', color: '#444', marginTop: '2px' }}>
+          {Number(data.frete ?? 0) > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Frete</span>
+              <span>{formatarReal(Number(data.frete))}</span>
+            </div>
+          )}
+          {Number(data.desconto_total ?? 0) > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Desconto</span>
+              <span>-{formatarReal(Number(data.desconto_total))}</span>
+            </div>
+          )}
+        </div>
+      )}
       <div
         style={{
           display: 'flex',
@@ -178,6 +198,18 @@ export function CupomFiscal({ data }: { data: CupomData }) {
         <span>TOTAL</span>
         <span>{formatarReal(data.total)}</span>
       </div>
+      {data.valor_recebido != null && Number(data.valor_recebido) > 0 && (
+        <div style={{ fontSize: '10px', color: '#444', marginTop: '2px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Recebido</span>
+            <span>{formatarReal(Number(data.valor_recebido))}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
+            <span>Troco</span>
+            <span>{formatarReal(Number(data.valor_recebido) - data.total)}</span>
+          </div>
+        </div>
+      )}
 
       <Divisor />
 

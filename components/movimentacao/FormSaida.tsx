@@ -100,13 +100,19 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
   const [frete, setFrete] = useState('')
   const [jaPago, setJaPago] = useState(false)
   const [equipe, setEquipe] = useState<UsuarioComCargo[]>([])
+  const [desconto, setDesconto] = useState('')
+  const [recebido, setRecebido] = useState('')
 
   const subtotal = useMemo(
     () => itens.reduce((acc, i) => acc + i.total, 0),
     [itens],
   )
   const freteNum = tipoFulfillment === 'entrega' ? (Number(frete) || 0) : 0
-  const total = subtotal + freteNum
+  // Desconto vale sobre a mercadoria, nunca mais que o subtotal.
+  const descontoNum = Math.min(Math.max(Number(desconto) || 0, 0), subtotal)
+  const total = +(subtotal + freteNum - descontoNum).toFixed(2)
+  const recebidoNum = Number(recebido) || 0
+  const troco = recebidoNum > 0 ? +(recebidoNum - total).toFixed(2) : null
   const totalItens = useMemo(
     () => itens.reduce((acc, i) => acc + i.quantidade, 0),
     [itens],
@@ -147,6 +153,9 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
       entregador_id: tipoFulfillment === 'entrega' ? entregadorId : null,
       frete: freteNum,
       pago: tipoFulfillment === 'balcao' ? undefined : jaPago,
+      desconto: descontoNum,
+      valor_recebido:
+        formaPagamento === 'dinheiro' && recebidoNum > 0 ? recebidoNum : undefined,
     })
     setRegistrando(false)
     if (resultado.error) {
@@ -163,7 +172,7 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
         setMostrarCupom(true)
       }
     })
-  }, [cliente, itens, formaPagamento, prazoDias, observacoes, tipoFulfillment, entregadorId, freteNum, jaPago])
+  }, [cliente, itens, formaPagamento, prazoDias, observacoes, tipoFulfillment, entregadorId, freteNum, jaPago, descontoNum, recebidoNum])
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -336,6 +345,8 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
     setEntregadorId('')
     setFrete('')
     setJaPago(false)
+    setDesconto('')
+    setRecebido('')
   }
 
   // Ao trocar cliente ou marcar fiado, sugere o prazo cadastrado no cliente.
@@ -744,10 +755,63 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
               <Money valor={freteNum} className="text-sm text-text-muted" />
             </div>
           )}
+
+          {/* Desconto em R$ (mercadoria) */}
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <span className="text-sm text-text-muted">Desconto</span>
+            <div className="inline-flex h-8 items-center rounded-lg border border-border bg-bg pl-2">
+              <span className="font-mono text-xs text-text-muted">R$</span>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                inputMode="decimal"
+                value={desconto}
+                placeholder="0,00"
+                onChange={(e) => setDesconto(e.target.value)}
+                className="h-8 w-20 bg-transparent px-2 text-right font-mono text-sm tabular-nums text-text outline-none placeholder:text-text-muted/50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                aria-label="Desconto em reais"
+              />
+            </div>
+          </div>
+
           <div className="mt-1.5 flex items-baseline justify-between">
             <span className="text-base font-semibold text-text">Total</span>
             <Money valor={total} destaque className="text-2xl font-semibold" />
           </div>
+
+          {/* Troco: so venda em dinheiro */}
+          {formaPagamento === 'dinheiro' && itens.length > 0 && (
+            <div className="mt-2 flex items-center justify-between gap-3 rounded-lg bg-surface-2/60 px-3 py-2">
+              <div className="inline-flex h-8 items-center gap-2">
+                <span className="text-sm text-text-muted">Recebido</span>
+                <div className="inline-flex h-8 items-center rounded-lg border border-border bg-bg pl-2">
+                  <span className="font-mono text-xs text-text-muted">R$</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    inputMode="decimal"
+                    value={recebido}
+                    placeholder="0,00"
+                    onChange={(e) => setRecebido(e.target.value)}
+                    className="h-8 w-20 bg-transparent px-2 text-right font-mono text-sm tabular-nums text-text outline-none placeholder:text-text-muted/50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    aria-label="Valor recebido em dinheiro"
+                  />
+                </div>
+              </div>
+              {troco != null && (
+                <span
+                  className={cn(
+                    'font-mono text-sm font-bold tabular-nums',
+                    troco >= 0 ? 'text-ok' : 'text-err',
+                  )}
+                >
+                  {troco >= 0 ? `Troco ${formatarReal(troco)}` : `Falta ${formatarReal(-troco)}`}
+                </span>
+              )}
+            </div>
+          )}
 
           <button
             type="button"
