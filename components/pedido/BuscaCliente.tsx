@@ -23,6 +23,9 @@ export interface ClienteResumo {
   telefone: string | null
   forma_pagamento_padrao: string
   prazo_pagamento_dias?: number
+  // Endereco do cadastro (buscarClientes ja traz): usado pra sugerir o
+  // frete pela taxa do bairro na venda tipo entrega.
+  endereco?: { rua?: string; numero?: string; bairro?: string; cidade?: string } | null
 }
 
 interface Props {

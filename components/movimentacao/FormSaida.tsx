@@ -35,6 +35,7 @@ import { ListaItensPedido } from '@/components/pedido/ListaItensPedido'
 import { registrarVenda, buscarPedidoParaCupom } from '@/lib/actions/pedidos'
 import { buscarClientePorId } from '@/lib/actions/clientes'
 import { getDadosPix } from '@/lib/actions/configuracoes'
+import { taxaPorBairro } from '@/lib/actions/taxas'
 import { QrPix } from '@/components/pedido/QrPix'
 import { buscarMaisVendidos, type MaisVendido } from '@/lib/actions/produtos'
 import { listarUsuariosComCargo, type UsuarioComCargo } from '@/lib/actions/cargos'
@@ -461,6 +462,22 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
     if (formaPagamento === 'fiado' && c.prazo_pagamento_dias) {
       setPrazoDias(String(c.prazo_pagamento_dias))
     }
+    // Entrega com bairro cadastrado: sugere o frete pela taxa do bairro
+    // (so quando o campo ainda esta vazio -- nunca sobrescreve o digitado).
+    sugerirFrete(c)
+  }
+
+  function sugerirFrete(c: ClienteResumo | null) {
+    const bairro = c?.endereco?.bairro
+    if (!bairro) return
+    taxaPorBairro(bairro)
+      .then((taxa) => {
+        if (taxa != null) {
+          setFrete((atual) => (atual === '' ? String(taxa) : atual))
+          toast.info(`Frete de ${bairro}: ${formatarReal(taxa)} (ajuste se precisar)`)
+        }
+      })
+      .catch(() => {})
   }
 
   function selecionarFormaPagamento(v: FormaPagamentoVenda) {
@@ -634,7 +651,10 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
               <button
                 key={t.valor}
                 type="button"
-                onClick={() => setTipoFulfillment(t.valor)}
+                onClick={() => {
+                  setTipoFulfillment(t.valor)
+                  if (t.valor === 'entrega') sugerirFrete(cliente)
+                }}
                 className={cn(
                   'u-motion rounded-md px-3 py-1.5 text-sm font-medium',
                   tipoFulfillment === t.valor
