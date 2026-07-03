@@ -1,5 +1,5 @@
 'use client'
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import {
   Command,
   CommandInput,
@@ -45,6 +45,16 @@ export function BuscaFornecedor({ selecionado, onSelecionar }: Props) {
       setFornecedores(r as unknown as FornecedorResumo[])
     })
   }
+
+  // Pre-carrega a lista completa (sem termo) assim que o campo monta, senao
+  // o popover abre vazio e so mostra algo depois que a pessoa digita.
+  useEffect(() => {
+    startTransition(async () => {
+      const r = await buscarFornecedores()
+      setFornecedores(r as unknown as FornecedorResumo[])
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function selecionar(nome: string) {
     onSelecionar(nome)

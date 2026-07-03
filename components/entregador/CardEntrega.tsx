@@ -65,7 +65,7 @@ export function CardEntrega({ entrega }: { entrega: EntregaResumo }) {
           <div className="min-w-0">
             <p className="font-mono text-[11px] tabular-nums text-text-muted">{numeroFmt}</p>
             <p className="mt-0.5 truncate text-lg font-bold leading-tight text-text">
-              {entrega.cliente?.nome ?? 'Venda de balcão'}
+              {entrega.cliente?.nome ?? 'Cliente não identificado'}
             </p>
             <p className="mt-1 inline-flex items-center gap-1 text-xs text-text-muted">
               <Wallet className="size-3" strokeWidth={1.5} />
