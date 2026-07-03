@@ -148,6 +148,10 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
   const [formaPagamentoParcial, setFormaPagamentoParcial] = useState<
     'dinheiro' | 'pix' | 'cartao_debito' | 'cartao_credito'
   >('dinheiro')
+  const [enderecoRua, setEnderecoRua] = useState('')
+  const [enderecoNumero, setEnderecoNumero] = useState('')
+  const [enderecoBairro, setEnderecoBairro] = useState('')
+  const [enderecoCidade, setEnderecoCidade] = useState('')
   const [emEspera, setEmEspera] = useState<ComandaEspera[]>([])
   const [esperaAberta, setEsperaAberta] = useState(false)
   const [dadosPix, setDadosPix] = useState<{ chave: string; nome: string; cidade: string } | null>(null)
@@ -217,6 +221,15 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
         formaPagamento === 'fiado' && pagouParte ? Number(valorPagoAgora) || 0 : undefined,
       forma_pagamento_parcial:
         formaPagamento === 'fiado' && pagouParte ? formaPagamentoParcial : undefined,
+      endereco_entrega:
+        tipoFulfillment === 'entrega' && !cliente
+          ? {
+              rua: enderecoRua || undefined,
+              numero: enderecoNumero || undefined,
+              bairro: enderecoBairro || undefined,
+              cidade: enderecoCidade || undefined,
+            }
+          : undefined,
     })
     setRegistrando(false)
     if (resultado.error) {
@@ -233,7 +246,7 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
         setMostrarCupom(true)
       }
     })
-  }, [cliente, itens, formaPagamento, prazoDias, observacoes, tipoFulfillment, entregadorId, freteNum, jaPago, descontoNum, recebidoNum, pagouParte, valorPagoAgora, formaPagamentoParcial])
+  }, [cliente, itens, formaPagamento, prazoDias, observacoes, tipoFulfillment, entregadorId, freteNum, jaPago, descontoNum, recebidoNum, pagouParte, valorPagoAgora, formaPagamentoParcial, enderecoRua, enderecoNumero, enderecoBairro, enderecoCidade])
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -411,6 +424,10 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
     setPagouParte(false)
     setValorPagoAgora('')
     setFormaPagamentoParcial('dinheiro')
+    setEnderecoRua('')
+    setEnderecoNumero('')
+    setEnderecoBairro('')
+    setEnderecoCidade('')
   }
 
   function persistirEspera(lista: ComandaEspera[]) {
@@ -482,6 +499,20 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
   function sugerirFrete(c: ClienteResumo | null) {
     const bairro = c?.endereco?.bairro
     if (!bairro) return
+    taxaPorBairro(bairro)
+      .then((taxa) => {
+        if (taxa != null) {
+          setFrete((atual) => (atual === '' ? String(taxa) : atual))
+          toast.info(`Frete de ${bairro}: ${formatarReal(taxa)} (ajuste se precisar)`)
+        }
+      })
+      .catch(() => {})
+  }
+
+  // Mesma logica de sugerirFrete, mas a partir do bairro digitado a mao (sem
+  // cliente cadastrado) em vez do endereco de um ClienteResumo.
+  function sugerirFreteBairro(bairro: string) {
+    if (!bairro.trim()) return
     taxaPorBairro(bairro)
       .then((taxa) => {
         if (taxa != null) {
@@ -720,6 +751,41 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
               placeholder="0,00"
               className="h-10 rounded-md border border-border bg-surface px-3 text-sm text-text outline-none focus:border-brand focus:ring-2 focus:ring-brand/30"
             />
+          </div>
+        )}
+
+        {tipoFulfillment === 'entrega' && !cliente && (
+          <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-2/40 p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+              Endereço de entrega
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                value={enderecoRua}
+                onChange={(e) => setEnderecoRua(e.target.value)}
+                placeholder="Rua"
+                className="col-span-2 h-9 rounded-md border border-border bg-surface px-3 text-sm text-text outline-none focus:border-brand"
+              />
+              <input
+                value={enderecoNumero}
+                onChange={(e) => setEnderecoNumero(e.target.value)}
+                placeholder="Número"
+                className="h-9 rounded-md border border-border bg-surface px-3 text-sm text-text outline-none focus:border-brand"
+              />
+              <input
+                value={enderecoBairro}
+                onChange={(e) => setEnderecoBairro(e.target.value)}
+                onBlur={() => sugerirFreteBairro(enderecoBairro)}
+                placeholder="Bairro"
+                className="h-9 rounded-md border border-border bg-surface px-3 text-sm text-text outline-none focus:border-brand"
+              />
+              <input
+                value={enderecoCidade}
+                onChange={(e) => setEnderecoCidade(e.target.value)}
+                placeholder="Cidade"
+                className="col-span-2 h-9 rounded-md border border-border bg-surface px-3 text-sm text-text outline-none focus:border-brand"
+              />
+            </div>
           </div>
         )}
 
