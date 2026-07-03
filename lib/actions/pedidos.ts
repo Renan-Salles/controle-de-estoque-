@@ -52,6 +52,32 @@ export async function registrarVenda(data: unknown) {
   const { itens, forma_pagamento, tipo_fulfillment, frete } = parsed.data
   const subtotal = itens.reduce((acc, i) => acc + i.total, 0)
   const total = subtotal + frete
+
+  // Limite de credito: fiado so passa se (divida aberta + esta venda) couber
+  // no limite do cliente. Limite 0/nulo = sem trava (comportamento de hoje).
+  if (forma_pagamento === 'fiado' && parsed.data.cliente_id) {
+    const { data: cli } = await serviceClient
+      .from('clientes')
+      .select('nome, limite_credito')
+      .eq('id', parsed.data.cliente_id)
+      .single()
+    const limite = Number((cli as { limite_credito?: number } | null)?.limite_credito ?? 0)
+    if (limite > 0) {
+      const { data: abertas } = await serviceClient
+        .from('contas_receber')
+        .select('valor, valor_pago')
+        .eq('cliente_id', parsed.data.cliente_id)
+        .eq('status', 'aberto')
+      const divida = ((abertas ?? []) as { valor: number; valor_pago: number }[])
+        .reduce((a, c) => a + Number(c.valor ?? 0) - Number(c.valor_pago ?? 0), 0)
+      if (divida + total > limite) {
+        const nome = (cli as { nome?: string } | null)?.nome ?? 'Cliente'
+        return {
+          error: `Fiado recusado: ${nome} já deve R$ ${divida.toFixed(2).replace('.', ',')} e o limite é R$ ${limite.toFixed(2).replace('.', ',')}. Receba o que está aberto ou aumente o limite no cadastro.`,
+        }
+      }
+    }
+  }
   const pago = tipo_fulfillment === 'balcao' ? true : (parsed.data.pago ?? false)
   const concluidoEm = tipo_fulfillment === 'balcao' ? new Date().toISOString() : null
   const hoje = hojeBrasil()
