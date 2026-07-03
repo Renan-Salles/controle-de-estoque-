@@ -287,6 +287,32 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
     )
   }, [])
 
+  // Forma "Outra": pacote montado na hora (ex. meia caixa com 6). Upserta uma
+  // forma custom na lista de formas do item e aplica. Preco sugerido =
+  // unidades x preco unitario da forma Unidade; o operador ajusta ao lado.
+  const alterarFormaCustom = useCallback((produtoId: string, unidades: number) => {
+    setItens((prev) =>
+      prev.map((i) => {
+        if (i.produto_id !== produtoId) return i
+        const customId = `custom-${i.produto_id}`
+        const unidadeBase = i.formas.find((f) => f.unidades === 1)
+        const precoSugerido = +(unidades * (unidadeBase?.preco ?? i.preco_unitario)).toFixed(2)
+        const jaCustom = i.formaId === customId
+        const formaCustom = {
+          id: customId,
+          nome: `Pacote ${unidades}`,
+          unidades,
+          // Se ja esta no modo custom, muda so as unidades e mantem o preco
+          // que o operador digitou; senao, entra com o preco sugerido.
+          preco: jaCustom ? i.precoForma : precoSugerido,
+          padrao: false,
+        }
+        const formas = [...i.formas.filter((f) => f.id !== customId), formaCustom]
+        return aplicarForma({ ...i, formas }, customId, i.qtdFormas, formaCustom.preco)
+      }),
+    )
+  }, [])
+
   const remover = useCallback((produtoId: string) => {
     setItens((prev) => prev.filter((i) => i.produto_id !== produtoId))
   }, [])
@@ -651,6 +677,7 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
               onAlterarQtdFormas={alterarQtdFormas}
               onAlterarForma={alterarForma}
               onAlterarPrecoForma={alterarPrecoForma}
+              onAlterarFormaCustom={alterarFormaCustom}
               onRemover={remover}
             />
           )}

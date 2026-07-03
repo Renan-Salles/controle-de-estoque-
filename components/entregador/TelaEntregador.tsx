@@ -52,6 +52,8 @@ export async function TelaEntregador() {
   ])
   const entregas = entregasRaw as unknown as EntregaRaw[]
   const logo = logoPartes(local.nome)
+  const emRota = entregas.filter((e) => e.saiu_entrega_em).length
+  const aguardando = entregas.length - emRota
 
   return (
     <div className="min-h-screen bg-background">
@@ -69,20 +71,41 @@ export async function TelaEntregador() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-lg px-4 py-5">
-        <h1 className="text-xl font-semibold tracking-tight text-text">Suas entregas</h1>
-        <p className="mt-1 text-sm text-text-muted">
-          {entregas.length === 0
-            ? 'Nada pendente agora.'
-            : `${entregas.length} ${entregas.length === 1 ? 'entrega pendente' : 'entregas pendentes'}.`}
-        </p>
+      <main className="mx-auto max-w-lg px-4 py-6">
+        {/* Saudacao + placar do dia */}
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="text-sm text-text-muted">
+              {nome ? `Fala, ${nome.split(' ')[0]}!` : 'Suas entregas'}
+            </p>
+            <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-text">
+              {entregas.length === 0
+                ? 'Tudo entregue'
+                : `${entregas.length} ${entregas.length === 1 ? 'entrega' : 'entregas'}`}
+            </h1>
+          </div>
+          {entregas.length > 0 && (
+            <div className="flex shrink-0 gap-1.5 pb-1">
+              {emRota > 0 && (
+                <span className="rounded-full bg-info/10 px-2.5 py-1 text-[11px] font-semibold text-info">
+                  {emRota} em rota
+                </span>
+              )}
+              {aguardando > 0 && (
+                <span className="rounded-full bg-warn/10 px-2.5 py-1 text-[11px] font-semibold text-warn">
+                  {aguardando} pra sair
+                </span>
+              )}
+            </div>
+          )}
+        </div>
 
         <div className="mt-5 space-y-4">
           {entregas.length === 0 ? (
             <EstadoVazio
               icone={PackageCheck}
               titulo="Nenhuma entrega pra você agora"
-              descricao="Quando uma venda for designada a você, ela aparece aqui."
+              descricao="Quando uma venda for designada a você, ela aparece aqui. Puxe a tela pra baixo pra atualizar."
             />
           ) : (
             entregas.map((e) => (
