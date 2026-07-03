@@ -107,7 +107,7 @@ export function ListaItensPedido({
 
                 <div className="flex flex-col gap-1">
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
-                    Preço {forma.unidades > 1 ? `da ${forma.nome}` : 'unitário'} (R$)
+                    {forma.unidades > 1 ? `Preço · ${forma.nome} (R$)` : 'Preço unitário (R$)'}
                   </span>
                   <div className="inline-flex h-8 items-center rounded-lg border border-border bg-bg pl-2.5">
                     <span className="font-mono text-xs text-text-muted">R$</span>
