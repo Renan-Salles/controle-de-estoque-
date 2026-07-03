@@ -37,6 +37,7 @@ type VendaComRelacoes = {
   pago: boolean
   concluido_em: string | null
   saiu_entrega_em: string | null
+  endereco_entrega: { rua?: string; numero?: string; bairro?: string; cidade?: string } | null
   entregador: { nome: string; telefone: string | null } | null
   clientes: {
     nome: string
@@ -87,7 +88,7 @@ export default async function VendaDetailPage({
   const { data: vendaRaw } = await supabase
     .from('pedidos')
     .select(
-      `id, numero_pedido, status, total, subtotal, data_pedido, forma_pagamento, valor_pago_agora, forma_pagamento_parcial, prazo_pagamento_dias, data_vencimento, observacoes, tipo_fulfillment, frete, pago, concluido_em, saiu_entrega_em, entregador:profiles!pedidos_entregador_id_fkey(nome, telefone), clientes(nome, telefone, endereco), pedido_itens(quantidade_pedida, preco_unitario, total, embalagem_nome, embalagem_unidades, produtos(nome, embalagem))`,
+      `id, numero_pedido, status, total, subtotal, data_pedido, forma_pagamento, valor_pago_agora, forma_pagamento_parcial, prazo_pagamento_dias, data_vencimento, observacoes, tipo_fulfillment, frete, pago, concluido_em, saiu_entrega_em, endereco_entrega, entregador:profiles!pedidos_entregador_id_fkey(nome, telefone), clientes(nome, telefone, endereco), pedido_itens(quantidade_pedida, preco_unitario, total, embalagem_nome, embalagem_unidades, produtos(nome, embalagem))`,
     )
     .eq('id', id)
     .single()
@@ -103,7 +104,7 @@ export default async function VendaDetailPage({
   const telEntregador = venda.entregador?.telefone?.replace(/\D/g, '')
   const linkAvisarEntregador = (() => {
     if (venda.tipo_fulfillment !== 'entrega' || !telEntregador || venda.concluido_em) return null
-    const end = venda.clientes?.endereco
+    const end = venda.clientes?.endereco ?? venda.endereco_entrega
     const endStr = [
       [end?.rua, end?.numero].filter(Boolean).join(', '),
       [end?.bairro, end?.cidade].filter(Boolean).join(', '),

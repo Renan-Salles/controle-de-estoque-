@@ -6,6 +6,8 @@ import { rotuloPagamento } from '@/lib/pedido-labels'
 import { formatarDataHora } from '@/lib/formatos'
 import { cn } from '@/lib/utils'
 
+type Endereco = { rua?: string; numero?: string; bairro?: string; cidade?: string } | null
+
 export type EntregaResumo = {
   id: string
   numero_pedido: number
@@ -16,12 +18,14 @@ export type EntregaResumo = {
   cliente: {
     nome: string
     telefone: string | null
-    endereco: { rua?: string; numero?: string; bairro?: string; cidade?: string } | null
+    endereco: Endereco
   } | null
+  // Endereco digitado na hora, quando a venda e Entrega sem cliente
+  // cadastrado. So usado quando `cliente` e null (ou o cliente nao tem
+  // endereco salvo) -- cliente cadastrado sempre tem prioridade.
+  endereco_entrega: Endereco
   localNome: string
 }
-
-type Endereco = { rua?: string; numero?: string; bairro?: string; cidade?: string } | null
 
 // Monta "Rua X, 123" + "Bairro, Cidade" a partir do jsonb de endereco.
 function enderecoPartes(e: Endereco): { linha1: string; linha2: string } {
@@ -36,7 +40,7 @@ export function CardEntrega({ entrega }: { entrega: EntregaResumo }) {
   const numeroFmt = `#${String(entrega.numero_pedido).padStart(4, '0')}`
   const telefone = entrega.cliente?.telefone ?? null
   const telDigitos = telefone?.replace(/\D/g, '') ?? ''
-  const { linha1, linha2 } = enderecoPartes(entrega.cliente?.endereco ?? null)
+  const { linha1, linha2 } = enderecoPartes(entrega.cliente?.endereco ?? entrega.endereco_entrega ?? null)
   const emRota = !!entrega.saiu_entrega_em
 
   return (

@@ -35,6 +35,7 @@ type EntregaRaw = {
   forma_pagamento: string
   pago: boolean
   saiu_entrega_em: string | null
+  endereco_entrega: { rua?: string; numero?: string; bairro?: string; cidade?: string } | null
   clientes: Rel<{
     nome: string
     telefone: string | null
@@ -120,6 +121,7 @@ export async function TelaEntregador() {
                     pago: e.pago,
                     saiu_entrega_em: e.saiu_entrega_em,
                     cliente: umaRel(e.clientes),
+                    endereco_entrega: e.endereco_entrega,
                     localNome: local.nome,
                   } satisfies EntregaResumo
                 }
