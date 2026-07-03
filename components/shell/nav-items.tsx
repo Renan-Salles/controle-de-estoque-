@@ -23,6 +23,7 @@ import {
   ReceiptText,
   Wallet,
   Landmark,
+  Store,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -72,6 +73,9 @@ const GRUPO_RELATORIOS: Grupo = {
     { href: '/relatorios', label: 'Por período', icon: BarChart3 },
     { href: '/relatorios/produto', label: 'Por produto', icon: Package },
     { href: '/relatorios/cliente', label: 'Por cliente', icon: Users },
+    // So admin enxerga de fato: fora do NAV_CATALOGO, cargo restrito nao
+    // recebe o href em itens_visiveis e o item some (a rota tambem barra).
+    { href: '/relatorios/locais', label: 'Entre locais', icon: Store },
     { href: '/financeiro/relatorios', label: 'Faturamento & ABC', icon: TrendingUp },
     { href: '/financeiro/resultado', label: 'Resultado', icon: DollarSign },
     { href: '/financeiro/a-pagar', label: 'A pagar', icon: ArrowUpFromLine },
