@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { ArrowDownToLine, BadgeCheck, Clock, HandCoins } from 'lucide-react'
+import { ArrowDownToLine, BadgeCheck, Clock, HandCoins, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -29,6 +29,23 @@ import {
   marcarContaReceberPaga,
   buscarResumoFiado,
 } from '@/lib/actions/financeiro'
+import { formatarReal } from '@/lib/formatos'
+
+// Link de cobranca pronto: abre o WhatsApp do cliente com a mensagem
+// montada (nome, valor, vencimento). Cobranca sem constrangimento, 1 toque.
+function linkCobranca(c: {
+  clientes: { nome: string; telefone: string | null } | null
+  valor: number
+  valor_pago: number
+  data_vencimento: string
+}): string | null {
+  const tel = c.clientes?.telefone?.replace(/\D/g, '')
+  if (!tel) return null
+  const devido = c.valor - (c.valor_pago ?? 0)
+  const venc = c.data_vencimento.split('-').reverse().join('/')
+  const msg = `Oi ${c.clientes?.nome?.split(' ')[0] ?? ''}! Tudo bem? Passando pra lembrar do fiado de ${formatarReal(devido)} com vencimento em ${venc}. Qualquer coisa me chama!`
+  return `https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`
+}
 
 type ContaReceber = {
   id: string
@@ -173,15 +190,29 @@ export default function ContasReceberPage() {
                   </TabelaCell>
                   <TabelaCell alinhar="direita">
                     {aberta && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="u-press"
-                        disabled={marcandoId === c.id}
-                        onClick={() => marcarPago(c.id)}
-                      >
-                        {marcandoId === c.id ? 'Marcando...' : 'Marcar recebido'}
-                      </Button>
+                      <span className="inline-flex items-center gap-1.5">
+                        {linkCobranca(c) && (
+                          <a
+                            href={linkCobranca(c)!}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Cobrar pelo WhatsApp"
+                            className="u-motion inline-flex h-8 items-center gap-1.5 rounded-md border border-ok/30 bg-ok/10 px-2.5 text-xs font-medium text-ok hover:border-ok/60 active:scale-[0.97]"
+                          >
+                            <MessageCircle className="size-3.5" strokeWidth={1.75} />
+                            Cobrar
+                          </a>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="u-press"
+                          disabled={marcandoId === c.id}
+                          onClick={() => marcarPago(c.id)}
+                        >
+                          {marcandoId === c.id ? 'Marcando...' : 'Marcar recebido'}
+                        </Button>
+                      </span>
                     )}
                   </TabelaCell>
                 </TabelaRow>
