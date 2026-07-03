@@ -78,6 +78,8 @@ export function ContagemClient() {
       `Contagem concluída: ${r.conferidos} conferidos, ${r.divergentes} ajustados.`,
     )
     setContagem({})
+    const atualizados = await buscarPosicaoProdutos()
+    setProdutos(atualizados as Produto[])
     router.refresh()
   }
 

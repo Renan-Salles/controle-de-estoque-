@@ -346,6 +346,11 @@
 html {
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) transparent;
+  /* Reserva sempre o espaço da scrollbar vertical -- sem isso, trocar de
+     pagina com mais/menos conteudo faz a barra aparecer/sumir e o layout
+     inteiro pula pro lado (bug reportado: "a tela mexe quando eu clico"). */
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 *::-webkit-scrollbar {
   width: 9px;
