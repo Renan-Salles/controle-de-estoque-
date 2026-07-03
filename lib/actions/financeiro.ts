@@ -52,7 +52,7 @@ export async function buscarFormasPagamento(periodo: 'mes' | 'tudo' = 'mes') {
   const supabase = await createClient()
   let query = supabase
     .from('pedidos')
-    .select('forma_pagamento, total, data_pedido')
+    .select('forma_pagamento, total, data_pedido, valor_pago_agora, forma_pagamento_parcial')
     .eq('status', 'concluida')
     .eq('local_id', localId)
 
@@ -64,12 +64,21 @@ export async function buscarFormasPagamento(periodo: 'mes' | 'tudo' = 'mes') {
   const { data, error } = await query
   if (error) throw error
 
-  const rows = (data ?? []) as { forma_pagamento: string; total: number }[]
+  type Linha = {
+    forma_pagamento: string
+    total: number
+    valor_pago_agora: number | null
+    forma_pagamento_parcial: string | null
+  }
+  const rows = (data ?? []) as Linha[]
   const formas = ['dinheiro', 'pix', 'cartao_debito', 'cartao_credito'] as const
   const resumo = formas.map((f) => {
     const dela = rows.filter((r) => r.forma_pagamento === f)
-    const valor = dela.reduce((a, r) => a + Number(r.total ?? 0), 0)
-    return { forma: f, valor, quantidade: dela.length }
+    const parciais = rows.filter((r) => r.forma_pagamento === 'fiado' && r.forma_pagamento_parcial === f)
+    const valor =
+      dela.reduce((a, r) => a + Number(r.total ?? 0), 0) +
+      parciais.reduce((a, r) => a + Number(r.valor_pago_agora ?? 0), 0)
+    return { forma: f, valor, quantidade: dela.length + parciais.length }
   })
   const totalGeral = resumo.reduce((a, r) => a + r.valor, 0)
   const totalVendas = rows.length
