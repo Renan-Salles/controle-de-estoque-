@@ -59,6 +59,7 @@ export default function ReposicaoPage() {
             <tr>
               <TabelaHeadCell>Produto</TabelaHeadCell>
               <TabelaHeadCell alinhar="direita">Saldo atual</TabelaHeadCell>
+              <TabelaHeadCell alinhar="direita">Vende/semana</TabelaHeadCell>
               <TabelaHeadCell alinhar="centro">Status</TabelaHeadCell>
               <TabelaHeadCell alinhar="direita">Sugestão de compra</TabelaHeadCell>
             </tr>
@@ -75,10 +76,17 @@ export default function ReposicaoPage() {
                 <TabelaCell alinhar="direita">
                   {formatarNumero(p.saldo_atual)}
                 </TabelaCell>
+                <TabelaCell alinhar="direita" className="text-text-muted">
+                  {p.giro_semanal > 0 ? formatarNumero(p.giro_semanal, 1) : '—'}
+                </TabelaCell>
                 <TabelaCell alinhar="centro">
                   {p.motivo === 'piso' ? (
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-text-muted">
                       Abaixo do piso
+                    </span>
+                  ) : p.motivo === 'giro' ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-warn/10 px-2 py-0.5 text-[11px] font-medium text-warn">
+                      Vai faltar pelo ritmo
                     </span>
                   ) : (
                     <StatusPill status={p.status_estoque} />

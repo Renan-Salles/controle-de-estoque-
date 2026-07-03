@@ -138,19 +138,35 @@ export async function ajustarEstoque(data: {
   return { success: true, saldo: novoSaldo }
 }
 
-// Lista de reposição: produtos acabando, com sugestão de quanto comprar.
-// "Acabando" = status alerta/critico/ruptura OU saldo <= max(mínimo, 12).
-// Mesmo sem mínimo configurado, avisa quando saldo <= 12 (piso padrão).
-// Sugestão de compra simples = max(mínimo*2, 24) − saldo (mínimo 0).
+// Lista de reposição: produtos acabando, com sugestão baseada no GIRO real
+// (vendas dos últimos 28 dias). Entra na lista quem:
+//   - está em alerta/critico/ruptura; OU
+//   - saldo <= max(mínimo, 12) (piso de segurança); OU
+//   - saldo não cobre 2 semanas de venda (giro).
+// Sugestão: com giro, comprar o que falta pra cobrir 2 semanas; sem venda
+// no período, cai no critério antigo max(mínimo*2, 24) − saldo.
 export async function buscarReposicao() {
   const localId = await getLocalAtivoId()
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('v_posicao_estoque')
-    .select('*')
-    .eq('local_id', localId)
+  const desde = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString()
 
+  const [{ data, error }, { data: vendidosRaw, error: errVend }] = await Promise.all([
+    supabase.from('v_posicao_estoque').select('*').eq('local_id', localId),
+    supabase
+      .from('pedido_itens')
+      .select('produto_id, quantidade_pedida, pedidos!inner(status, data_pedido, local_id)')
+      .eq('pedidos.status', 'concluida')
+      .eq('pedidos.local_id', localId)
+      .gte('pedidos.data_pedido', desde),
+  ])
   if (error) throw error
+  if (errVend) throw new Error(errVend.message)
+
+  // Unidades vendidas por produto nos ultimos 28 dias -> giro semanal.
+  const vendidos = new Map<string, number>()
+  for (const v of (vendidosRaw ?? []) as unknown as { produto_id: string; quantidade_pedida: number }[]) {
+    vendidos.set(v.produto_id, (vendidos.get(v.produto_id) ?? 0) + Number(v.quantidade_pedida))
+  }
 
   const PISO = 12
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -160,24 +176,30 @@ export async function buscarReposicao() {
     .filter((p) => {
       const status = p.status_estoque as string
       const limiar = Math.max(p.estoque_minimo ?? 0, PISO)
+      const giroSemanal = (vendidos.get(p.id) ?? 0) / 4
       return (
         status === 'alerta' ||
         status === 'critico' ||
         status === 'ruptura' ||
-        (p.saldo_atual ?? 0) <= limiar
+        (p.saldo_atual ?? 0) <= limiar ||
+        (giroSemanal > 0 && (p.saldo_atual ?? 0) < giroSemanal * 2)
       )
     })
     .map((p) => {
-      const alvo = Math.max((p.estoque_minimo ?? 0) * 2, 24)
-      const sugestao = Math.max(0, Math.round(alvo - (p.saldo_atual ?? 0)))
-      // Entrou na lista pelo status do produto (alerta/critico/ruptura) ou
-      // so pelo piso de seguranca de 12? No segundo caso o status_estoque e
-      // 'ok', e mostrar "OK" ao lado de uma sugestao de compra confunde --
-      // a tela usa 'motivo' pra dizer "abaixo do piso" em vez de "OK".
-      const motivo: 'status' | 'piso' =
-        (p.status_estoque as string) === 'ok' ? 'piso' : 'status'
-      return { ...p, sugestao_compra: sugestao, motivo }
+      const saldo = Number(p.saldo_atual ?? 0)
+      const giroSemanal = (vendidos.get(p.id) ?? 0) / 4
+      // Com giro real: repor o que falta pra 2 semanas de venda. Sem giro:
+      // criterio antigo (2x o minimo, piso de 24).
+      const sugestao =
+        giroSemanal > 0
+          ? Math.max(0, Math.ceil(giroSemanal * 2 - saldo))
+          : Math.max(0, Math.round(Math.max((p.estoque_minimo ?? 0) * 2, 24) - saldo))
+      const status = p.status_estoque as string
+      const motivo: 'status' | 'piso' | 'giro' =
+        status !== 'ok' ? 'status' : saldo <= Math.max(p.estoque_minimo ?? 0, PISO) ? 'piso' : 'giro'
+      return { ...p, sugestao_compra: sugestao, motivo, giro_semanal: +giroSemanal.toFixed(1) }
     })
+    .filter((p) => p.sugestao_compra > 0 || p.motivo !== 'giro')
     .sort((a, b) => (a.saldo_atual ?? 0) - (b.saldo_atual ?? 0))
 
   return acabando

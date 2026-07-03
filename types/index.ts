@@ -24,7 +24,10 @@ export interface ItemReposicao extends PosicaoEstoque {
   sugestao_compra: number
   // 'status': entrou por alerta/critico/ruptura do proprio produto.
   // 'piso': saldo ok pelo minimo dele, mas abaixo do piso de seguranca de 12.
-  motivo: 'status' | 'piso'
+  // 'giro': saldo nao cobre 2 semanas do ritmo real de venda.
+  motivo: 'status' | 'piso' | 'giro'
+  // Unidades vendidas por semana (media dos ultimos 28 dias).
+  giro_semanal: number
 }
 
 // Uma forma de venda cadastrada do produto (Unidade, Fardo 12, Caixa 24...).
