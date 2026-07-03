@@ -69,23 +69,46 @@ esconde o dropdown quando só há 1 local permitido.
   `contas_receber` com vencimento = hoje + prazo. Preço de venda **nunca**
   é forçado pelo sistema — `margem_alvo_pct` só sugere quando o preço
   ainda está zerado, nunca sobrescreve um preço já definido.
-- **Venda por caixa/fardo/pack**: `embalagem`/`fator_conversao` em
-  `produtos`, conversão automática pra unidade base (o backend só entende
-  unidade base — a UI que traduz caixa↔unidade).
+- **Formas de venda (multi-embalagem, 03/07/2026)**: tabela
+  `produto_embalagens` (nome, unidades, preço, padrão) — um produto vende
+  em Unidade + Fardo 12 + Caixa 24 etc., cada uma com preço próprio,
+  escolhidas por mini-cards na comanda (+ opção "Outra" pra pacote
+  montado na hora). Estoque continua 100% em unidade base;
+  `pedido_itens.embalagem_nome/embalagem_unidades` guardam a forma
+  vendida (cupom mostra "1 Fardo 12 (12 un)"). Os campos legados
+  `embalagem`/`fator_conversao` em `produtos` só espelham a maior forma
+  (compat) — a fonte da verdade é `produto_embalagens`.
 - **Código interno de produto**: coluna `codigo_barras` foi reaproveitada
   como código interno auto-gerado por categoria (ex. `CER-0001`), **não é**
   um código de barras real de fábrica.
 - **Custo médio ponderado** em `estoque.custo_medio`, recalculado a cada
   entrada.
-- **Entrega/Retirada** (implementado 01/07/2026): venda ganha
-  `tipo_fulfillment` (`balcao`/`entrega`/`retirada`) no mesmo formulário de
-  Nova Venda. `balcao` (a maioria) não muda de comportamento nenhum. Pra
-  `entrega`: escolhe entregador (**qualquer pessoa ativa da Equipe**, sem
-  cargo dedicado) + frete livre (soma no total). `pago` e `concluido_em`
-  são independentes — dois botões separados na tela do pedido
-  (`FulfillmentAcoes.tsx`): "Marcar como pago" e "Marcar como
-  entregue/retirado". Filtros "Aguardando entrega"/"Aguardando retirada"
-  em `/movimentacoes`.
+- **Entrega/Retirada** (01/07/2026, ampliado 02-03/07): venda ganha
+  `tipo_fulfillment` (`balcao`/`entrega`/`retirada`). Pra `entrega`:
+  entregador (qualquer pessoa ativa da Equipe) + frete (preenchido pela
+  **taxa do bairro** do cliente se cadastrada em Configurações > Taxas).
+  `pago`, `saiu_entrega_em` e `concluido_em` independentes
+  (`FulfillmentAcoes.tsx`, com modo `empilhado` pra tela do entregador).
+  Tela `/pedidos` (Em andamento/Concluídos) mostra tempo de entrega.
+  **Cargo Entregador** tem tela própria: `/dashboard` roteia por cargo
+  (`TelaEntregador.tsx`, sem sidebar) com as entregas designadas a ele,
+  botões Ligar/WhatsApp e o próximo passo em destaque. Relatório de
+  entregadores em `/relatorios/entregadores`. Botão "Avisar no WhatsApp"
+  no detalhe do pedido usa `profiles.telefone` (editável na Equipe).
+- **Mega pacote 03/07/2026** (spec/plan em docs/superpowers/*mega-*):
+  `/caixa` fechamento diário às cegas (`caixa_fechamentos`); metas
+  mensais (`metas_venda`, barra no dashboard); DRE 6 meses
+  (`calcular_dre_serie`); comparativo entre locais (admin,
+  `comparativo_locais`); cobrança de fiado via wa.me em A receber;
+  `limite_credito` trava fiado em `registrarVenda`; extrato do cliente
+  imprimível (Sidebar/Topbar têm `print:hidden`); troco
+  (`pedidos.valor_recebido`) e desconto (`desconto_total`) na venda;
+  comanda em espera (localStorage); QR Pix estático (`lib/pix.ts`
+  payload EMV + CRC16 validado, chave em `locais.chave_pix`, dep
+  `qrcode`); inventário com ajuste em massa (`/estoque/contagem`,
+  `inventarios`); reposição por giro real (28d); validade nas entradas
+  (`movimentacoes_estoque.validade`, alerta 30 dias); transferência
+  entre locais (`transferencias`, clona produto+embalagens no destino).
 - **Equipe + convite** (implementado 01/07/2026): cadastro público em
   `/login` foi **fechado**. Única forma de criar conta é via link de
   convite (`/convite/[token]`, uso único, expira em 7 dias, gerado em
@@ -102,13 +125,17 @@ esconde o dropdown quando só há 1 local permitido.
 
 ## O que NÃO existe (não inventar que já foi feito)
 
-- Sem integração de email/SMS (convite é sempre um link que o admin copia
-  e manda manualmente, ex. WhatsApp)
-- Sem geolocalização/cálculo automático de frete (é campo livre)
-- Sem cargo "Entregador" dedicado — qualquer pessoa ativa da Equipe entra
-  na lista de "quem vai entregar"
-- Confirmar entrega/retirada não é restrito a quem foi designado —
-  qualquer um com acesso a pedidos confirma
+- Sem integração de email/SMS (tudo que é "avisar/cobrar no WhatsApp" é
+  link wa.me manual, não envio automático)
+- Sem geolocalização (frete vem da taxa por bairro ou é digitado)
+- Sem NFC-e/nota fiscal, sem PSP/confirmação automática de Pix (o QR é
+  estático; conferência de recebimento é no app do banco)
+- Sem lote/FIFO de validade (só data por entrada + alerta) e sem
+  sangria/reforço no fechamento de caixa
+- Cargos ativos: Administrador, Funcionario, Entregador (Gerente/Caixa
+  foram consolidados em Funcionario em 03/07/2026)
+- Confirmar entrega/retirada não é restrito ao designado — admin e
+  funcionário podem destravar qualquer uma
 
 ## Navegação (reorganizada em 01/07/2026)
 
