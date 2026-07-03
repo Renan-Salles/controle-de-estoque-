@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 const TABS = [
   { href: '/estoque', label: 'Posição' },
   { href: '/estoque/reposicao', label: 'Reposição' },
+  { href: '/estoque/contagem', label: 'Contagem' },
 ] as const
 
 export function EstoqueTabs() {

@@ -20,6 +20,7 @@ export const NAV_CATALOGO: NavCatalogoItem[] = [
   { href: '/movimentacoes', label: 'Movimentações', grupo: 'Operação' },
   { href: '/estoque', label: 'Posição de estoque', grupo: 'Operação' },
   { href: '/estoque/reposicao', label: 'Reposição', grupo: 'Operação' },
+  { href: '/estoque/contagem', label: 'Contagem de estoque', grupo: 'Operação' },
   { href: '/caixa', label: 'Caixa', grupo: 'Operação' },
   { href: '/clientes', label: 'Clientes', grupo: 'Cadastro' },
   { href: '/produtos', label: 'Produtos', grupo: 'Cadastro' },
