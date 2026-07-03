@@ -28,6 +28,7 @@ export const NAV_CATALOGO: NavCatalogoItem[] = [
   { href: '/relatorios', label: 'Vendas por período', grupo: 'Relatórios' },
   { href: '/relatorios/produto', label: 'Vendas por produto', grupo: 'Relatórios' },
   { href: '/relatorios/cliente', label: 'Vendas por cliente', grupo: 'Relatórios' },
+  { href: '/relatorios/entregadores', label: 'Entregadores', grupo: 'Relatórios' },
   { href: '/financeiro/relatorios', label: 'Faturamento & ABC', grupo: 'Relatórios' },
   { href: '/financeiro/resultado', label: 'Resultado', grupo: 'Relatórios' },
   { href: '/financeiro/a-pagar', label: 'A pagar', grupo: 'Relatórios' },

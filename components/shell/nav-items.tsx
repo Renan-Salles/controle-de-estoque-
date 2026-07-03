@@ -73,6 +73,7 @@ const GRUPO_RELATORIOS: Grupo = {
     { href: '/relatorios', label: 'Por período', icon: BarChart3 },
     { href: '/relatorios/produto', label: 'Por produto', icon: Package },
     { href: '/relatorios/cliente', label: 'Por cliente', icon: Users },
+    { href: '/relatorios/entregadores', label: 'Entregadores', icon: Truck },
     // So admin enxerga de fato: fora do NAV_CATALOGO, cargo restrito nao
     // recebe o href em itens_visiveis e o item some (a rota tambem barra).
     { href: '/relatorios/locais', label: 'Entre locais', icon: Store },

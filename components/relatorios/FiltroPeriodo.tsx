@@ -4,14 +4,15 @@ import { Download } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 
 // Filtro de período + botão que baixa o PDF da rota correspondente.
-// `tipo` casa com app/relatorios/[tipo]/pdf. `onAplicar` recarrega a tabela.
+// `tipo` casa com app/relatorios/[tipo]/pdf; `sem-pdf` esconde o botao
+// (relatorios que ainda nao tem rota de PDF, ex. entregadores).
 export function FiltroPeriodo({
   tipo,
   ini,
   fim,
   onAplicar,
 }: {
-  tipo: 'periodo' | 'produto' | 'cliente'
+  tipo: 'periodo' | 'produto' | 'cliente' | 'sem-pdf'
   ini: string
   fim: string
   onAplicar: (p: { ini: string; fim: string }) => void
@@ -46,13 +47,15 @@ export function FiltroPeriodo({
       >
         Aplicar
       </button>
-      <a
-        href={pdfHref}
-        className="u-motion u-press inline-flex h-10 items-center gap-2 rounded-lg bg-brand px-4 text-sm font-medium text-white hover:bg-brand-strong"
-      >
-        <Download className="size-4" strokeWidth={1.5} />
-        Baixar PDF
-      </a>
+      {tipo !== 'sem-pdf' && (
+        <a
+          href={pdfHref}
+          className="u-motion u-press inline-flex h-10 items-center gap-2 rounded-lg bg-brand px-4 text-sm font-medium text-white hover:bg-brand-strong"
+        >
+          <Download className="size-4" strokeWidth={1.5} />
+          Baixar PDF
+        </a>
+      )}
     </div>
   )
 }
