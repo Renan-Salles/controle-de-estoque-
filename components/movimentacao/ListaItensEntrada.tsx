@@ -15,6 +15,8 @@ export interface ItemEntrada {
   qtdEmbalagens: number
   // Valor pago pela embalagem inteira (ex: R$ 50 pela caixa toda).
   custoEmbalagem: number
+  // Validade do lote (YYYY-MM-DD, opcional): alimenta o aviso de vencendo.
+  validade: string
 }
 
 const LABEL_EMBALAGEM: Record<string, string> = {
@@ -33,6 +35,7 @@ interface Props {
   itens: ItemEntrada[]
   onAlterarQtde: (produtoId: string, qtdEmbalagens: number) => void
   onAlterarCusto: (produtoId: string, custoEmbalagem: number) => void
+  onAlterarValidade: (produtoId: string, validade: string) => void
   onRemover: (produtoId: string) => void
 }
 
@@ -43,6 +46,7 @@ export function ListaItensEntrada({
   itens,
   onAlterarQtde,
   onAlterarCusto,
+  onAlterarValidade,
   onRemover,
 }: Props) {
   return (
@@ -146,6 +150,21 @@ export function ListaItensEntrada({
                   = {unidades} un a {formatarReal(custoUnitario)}/un
                 </p>
               )}
+
+              {/* Validade do lote (opcional) */}
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+                  Validade
+                </span>
+                <input
+                  type="date"
+                  value={item.validade}
+                  onChange={(e) => onAlterarValidade(item.produto_id, e.target.value)}
+                  className="h-7 rounded-md border border-border bg-bg px-2 font-mono text-xs tabular-nums text-text outline-none focus-visible:border-brand"
+                  aria-label={`Validade de ${item.nome}`}
+                />
+                <span className="text-[10px] text-text-muted">(opcional)</span>
+              </div>
             </div>
 
             <div className="flex flex-col items-end gap-2">

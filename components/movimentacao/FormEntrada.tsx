@@ -57,12 +57,21 @@ export function FormEntrada() {
             qtdEmbalagens: 1,
             // Custo de compra parte de zero: o operador digita o valor real.
             custoEmbalagem: 0,
+            validade: '',
           },
         ]
       })
     },
     [],
   )
+
+  const alterarValidade = useCallback((produtoId: string, validade: string) => {
+    setItens((prev) =>
+      prev.map((i) =>
+        i.produto_id === produtoId ? { ...i, validade } : i,
+      ),
+    )
+  }, [])
 
   const alterarQtde = useCallback((produtoId: string, qtdEmbalagens: number) => {
     setItens((prev) =>
@@ -97,6 +106,7 @@ export function FormEntrada() {
         produto_id: i.produto_id,
         quantidade: unidadesDoItem(i),
         custo_unitario: Math.round(custoUnitarioDoItem(i) * 100) / 100,
+        validade: i.validade || undefined,
       })),
     })
     setRegistrando(false)
@@ -180,6 +190,7 @@ export function FormEntrada() {
               itens={itens}
               onAlterarQtde={alterarQtde}
               onAlterarCusto={alterarCusto}
+              onAlterarValidade={alterarValidade}
               onRemover={remover}
             />
           )}

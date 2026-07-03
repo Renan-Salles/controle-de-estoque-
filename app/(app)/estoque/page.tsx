@@ -27,6 +27,8 @@ import {
   darEntrada,
   ajustarEstoque,
   buscarReposicao,
+  listarVencendo,
+  type ItemVencendo,
 } from '@/lib/actions/estoque'
 import type { PosicaoEstoque } from '@/types'
 import { PageHeader } from '@/components/ui-kit/PageHeader'
@@ -90,6 +92,7 @@ export default function EstoquePage() {
   const [ajusteOpen, setAjusteOpen] = useState(false)
   // Contagem de itens acabando (badge no botão de reposição)
   const [reposicaoCount, setReposicaoCount] = useState<number | null>(null)
+  const [vencendo, setVencendo] = useState<ItemVencendo[]>([])
 
   async function carregar(f: Filtro = filtro) {
     setLoading(true)
@@ -118,10 +121,19 @@ export default function EstoquePage() {
     }
   }
 
+  async function carregarVencendo() {
+    try {
+      setVencendo(await listarVencendo())
+    } catch {
+      setVencendo([])
+    }
+  }
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     carregar(filtroInicial)
     carregarReposicaoCount()
+    carregarVencendo()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -262,6 +274,30 @@ export default function EstoquePage() {
       </PageHeader>
 
       <EstoqueTabs />
+
+      {/* Produtos com validade proxima (entradas com data preenchida) */}
+      {vencendo.length > 0 && (
+        <div className="mb-4 rounded-lg border border-warn/30 bg-warn/[0.06] px-4 py-3">
+          <p className="text-sm font-semibold text-warn">
+            {vencendo.length} {vencendo.length === 1 ? 'lote vencendo' : 'lotes vencendo'} nos próximos 30 dias
+          </p>
+          <ul className="mt-1.5 space-y-0.5">
+            {vencendo.slice(0, 5).map((v, i) => (
+              <li key={`${v.produto_id}-${i}`} className="text-[13px] text-text-muted">
+                <strong className="text-text">{v.nome}</strong> ({v.quantidade} un da entrada) vence{' '}
+                {v.dias_restantes < 0
+                  ? <span className="font-semibold text-err">há {-v.dias_restantes} dias</span>
+                  : v.dias_restantes === 0
+                    ? <span className="font-semibold text-err">hoje</span>
+                    : `em ${v.dias_restantes} dias`}
+              </li>
+            ))}
+            {vencendo.length > 5 && (
+              <li className="text-[12px] text-text-muted">e mais {vencendo.length - 5}...</li>
+            )}
+          </ul>
+        </div>
+      )}
 
       {/* Filtros como segmented control */}
       <div className="mb-4 flex items-center justify-between gap-3">

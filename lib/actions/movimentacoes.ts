@@ -8,6 +8,8 @@ const EntradaItemSchema = z.object({
   produto_id: z.string().uuid(),
   quantidade: z.number().positive(),
   custo_unitario: z.number().min(0),
+  // Validade do lote comprado (opcional): alimenta o aviso de "vencendo".
+  validade: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 })
 
 const EntradaSchema = z.object({
@@ -75,6 +77,7 @@ export async function registrarEntrada(data: unknown) {
       referencia_id: lote,
       usuario_id: user.id,
       observacao: obs,
+      validade: item.validade ?? null,
     })
   }
 

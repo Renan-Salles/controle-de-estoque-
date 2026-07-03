@@ -205,6 +205,63 @@ export async function buscarReposicao() {
   return acabando
 }
 
+export type ItemVencendo = {
+  produto_id: string
+  nome: string
+  validade: string
+  quantidade: number
+  dias_restantes: number
+}
+
+// Entradas com validade nos proximos 30 dias (ou ja vencidas), de produtos
+// que ainda tem saldo. Aproximacao sem lote: mostra a entrada, nao garante
+// que aquelas unidades especificas ainda estao na prateleira.
+export async function listarVencendo(): Promise<ItemVencendo[]> {
+  const localId = await getLocalAtivoId()
+  const supabase = await createClient()
+  const limite = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+  const { data, error } = await supabase
+    .from('movimentacoes_estoque')
+    .select('produto_id, quantidade, validade, produtos!inner(nome, local_id, estoque(saldo_atual))')
+    .eq('tipo', 'entrada_compra')
+    .eq('produtos.local_id', localId)
+    .not('validade', 'is', null)
+    .lte('validade', limite)
+    .order('validade')
+  if (error) throw new Error(error.message)
+
+  type Rel<T> = T | T[] | null
+  const umaRel = <T,>(rel: Rel<T>): T | null =>
+    !rel ? null : Array.isArray(rel) ? (rel[0] ?? null) : rel
+  type Raw = {
+    produto_id: string
+    quantidade: number
+    validade: string
+    produtos: Rel<{ nome: string; estoque: Rel<{ saldo_atual: number }> }>
+  }
+  const hoje = new Date(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) + 'T12:00:00')
+
+  return ((data ?? []) as unknown as Raw[])
+    .map((m) => {
+      const prod = umaRel(m.produtos)
+      const saldo = Number(umaRel(prod?.estoque ?? null)?.saldo_atual ?? 0)
+      const dias = Math.round(
+        (new Date(`${m.validade}T12:00:00`).getTime() - hoje.getTime()) / 86400000,
+      )
+      return {
+        produto_id: m.produto_id,
+        nome: prod?.nome ?? '?',
+        validade: m.validade,
+        quantidade: Number(m.quantidade),
+        dias_restantes: dias,
+        saldo,
+      }
+    })
+    .filter((m) => m.saldo > 0)
+    .map(({ saldo: _saldo, ...resto }) => resto)
+}
+
 export async function buscarMovimentacoes(produtoId?: string) {
   const localId = await getLocalAtivoId()
   const supabase = await createClient()
