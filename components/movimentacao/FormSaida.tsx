@@ -34,6 +34,8 @@ import {
 import { ListaItensPedido } from '@/components/pedido/ListaItensPedido'
 import { registrarVenda, buscarPedidoParaCupom } from '@/lib/actions/pedidos'
 import { buscarClientePorId } from '@/lib/actions/clientes'
+import { getDadosPix } from '@/lib/actions/configuracoes'
+import { QrPix } from '@/components/pedido/QrPix'
 import { buscarMaisVendidos, type MaisVendido } from '@/lib/actions/produtos'
 import { listarUsuariosComCargo, type UsuarioComCargo } from '@/lib/actions/cargos'
 import { formatarReal, formatarData, addDias, hojeBrasil } from '@/lib/formatos'
@@ -142,11 +144,14 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
   const [recebido, setRecebido] = useState('')
   const [emEspera, setEmEspera] = useState<ComandaEspera[]>([])
   const [esperaAberta, setEsperaAberta] = useState(false)
+  const [dadosPix, setDadosPix] = useState<{ chave: string; nome: string; cidade: string } | null>(null)
 
-  // Carrega as comandas seguradas do dispositivo (apos o mount, sem SSR).
+  // Carrega as comandas seguradas do dispositivo (apos o mount, sem SSR)
+  // e a chave Pix do local (pro QR na tela de sucesso).
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setEmEspera(lerEspera())
+    getDadosPix().then(setDadosPix).catch(() => setDadosPix(null))
   }, [])
 
   const subtotal = useMemo(
@@ -572,6 +577,16 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
               <Printer className="size-4" strokeWidth={1.5} />
               {cupomData ? 'Ver cupom' : 'Carregando cupom...'}
             </button>
+          )}
+
+          {/* QR Pix: venda em pix com chave cadastrada nas configuracoes */}
+          {formaPagamento === 'pix' && dadosPix && (
+            <QrPix
+              chave={dadosPix.chave}
+              valor={total}
+              nome={dadosPix.nome}
+              cidade={dadosPix.cidade}
+            />
           )}
 
           <div className="flex items-center gap-2">

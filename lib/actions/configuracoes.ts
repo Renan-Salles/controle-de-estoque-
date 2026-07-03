@@ -13,6 +13,7 @@ const ConfigSchema = z.object({
   endereco_numero: z.string().optional(),
   endereco_bairro: z.string().optional(),
   endereco_cidade: z.string().optional(),
+  chave_pix: z.string().optional(),
 })
 
 export type ConfDeposito = z.infer<typeof ConfigSchema>
@@ -22,10 +23,25 @@ export async function getConfDeposito(): Promise<ConfDeposito | null> {
   const supabase = await createServiceClient()
   const { data } = await supabase
     .from('locais')
-    .select('nome, cnpj, telefone, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade')
+    .select('nome, cnpj, telefone, endereco_rua, endereco_numero, endereco_bairro, endereco_cidade, chave_pix')
     .eq('id', localId)
     .single()
   return (data as ConfDeposito | null)
+}
+
+// Dados pro QR Pix da venda: chave + nome/cidade do local ativo. Null quando
+// nao ha chave cadastrada (o botao de QR nem aparece).
+export async function getDadosPix(): Promise<{ chave: string; nome: string; cidade: string } | null> {
+  const localId = await getLocalAtivoId()
+  const supabase = await createServiceClient()
+  const { data } = await supabase
+    .from('locais')
+    .select('nome, chave_pix, endereco_cidade')
+    .eq('id', localId)
+    .single()
+  const d = data as { nome: string; chave_pix: string | null; endereco_cidade: string | null } | null
+  if (!d?.chave_pix?.trim()) return null
+  return { chave: d.chave_pix.trim(), nome: d.nome, cidade: d.endereco_cidade ?? 'Brasil' }
 }
 
 async function isAdmin(): Promise<boolean> {

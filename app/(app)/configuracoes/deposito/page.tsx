@@ -12,6 +12,7 @@ export default async function DepositoConfigPage() {
     endereco_numero: conf?.endereco_numero ?? '',
     endereco_bairro: conf?.endereco_bairro ?? '',
     endereco_cidade: conf?.endereco_cidade ?? '',
+    chave_pix: conf?.chave_pix ?? '',
   }
 
   return (

@@ -49,6 +49,17 @@ export function DepositoForm({ inicial }: { inicial: ConfDeposito }) {
               placeholder="(71) 99999-9999"
             />
           </Campo>
+          <Campo
+            label="Chave Pix"
+            ajuda="CPF, CNPJ, email, celular ou chave aleatória. Habilita o QR Code Pix na venda."
+            full
+          >
+            <Input
+              value={form.chave_pix ?? ''}
+              onChange={(e) => set('chave_pix', e.target.value)}
+              placeholder="seu@email.com ou 00.000.000/0001-00"
+            />
+          </Campo>
         </FormSection>
 
         <FormSection
