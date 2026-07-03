@@ -14,16 +14,26 @@ import {
   TabelaCell,
 } from '@/components/ui-kit/tabela'
 import { StatusPill } from '@/components/ui-kit/StatusPill'
-import { Money } from '@/components/ui-kit/Money'
 import { CardLinha } from '@/components/ui-kit/CardLinha'
 import { EstadoVazio } from '@/components/ui-kit/EstadoVazio'
 import { SkeletonLinhas } from '@/components/ui-kit/SkeletonLinhas'
 import { btnClass } from '@/components/ui-kit/Button'
-import { formatarNumero } from '@/lib/formatos'
-import { buscarPosicaoProdutos } from '@/lib/actions/produtos'
+import { formatarNumero, formatarReal } from '@/lib/formatos'
+import {
+  buscarPosicaoProdutos,
+  listarEmbalagensDoLocal,
+  type ProdutoEmbalagem,
+} from '@/lib/actions/produtos'
 import type { Database } from '@/types/database.types'
 
 type Produto = Database['public']['Views']['v_posicao_estoque']['Row']
+
+// "Unidade R$ 4,50 · Fardo 12 R$ 54,00" -- resumo compacto das formas de
+// venda pra lista. Sem embalagens carregadas ainda, cai no preco padrao.
+function resumoFormas(formas: ProdutoEmbalagem[] | undefined, precoPadrao: number): string {
+  if (!formas || formas.length === 0) return `Unidade ${formatarReal(precoPadrao)}`
+  return formas.map((f) => `${f.nome} ${formatarReal(f.preco)}`).join(' · ')
+}
 
 type FiltroStatus = 'todos' | 'ok' | 'alerta' | 'critico' | 'ruptura'
 
@@ -38,6 +48,7 @@ const STATUS_OPCOES: Array<{ valor: FiltroStatus; label: string }> = [
 export default function ProdutosPage() {
   const router = useRouter()
   const [produtos, setProdutos] = useState<Produto[]>([])
+  const [embalagens, setEmbalagens] = useState<Record<string, ProdutoEmbalagem[]>>({})
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
   const [categoria, setCategoria] = useState('todas')
@@ -45,8 +56,12 @@ export default function ProdutosPage() {
 
   useEffect(() => {
     let ativo = true
-    buscarPosicaoProdutos()
-      .then((d) => ativo && setProdutos(d as Produto[]))
+    Promise.all([buscarPosicaoProdutos(), listarEmbalagensDoLocal()])
+      .then(([d, e]) => {
+        if (!ativo) return
+        setProdutos(d as Produto[])
+        setEmbalagens(e)
+      })
       .finally(() => ativo && setLoading(false))
     return () => {
       ativo = false
@@ -160,9 +175,8 @@ export default function ProdutosPage() {
               <TabelaHeadCell>Produto</TabelaHeadCell>
               <TabelaHeadCell>Código</TabelaHeadCell>
               <TabelaHeadCell>Categoria</TabelaHeadCell>
-              <TabelaHeadCell>Embalagem</TabelaHeadCell>
+              <TabelaHeadCell>Formas de venda</TabelaHeadCell>
               <TabelaHeadCell alinhar="direita">Estoque</TabelaHeadCell>
-              <TabelaHeadCell alinhar="direita">Preço</TabelaHeadCell>
               <TabelaHeadCell alinhar="centro">Status</TabelaHeadCell>
             </tr>
           </TabelaHead>
@@ -174,8 +188,12 @@ export default function ProdutosPage() {
               >
                 <TabelaCell>
                   <p className="font-medium text-text">{p.nome}</p>
-                  {p.marca && (
-                    <p className="text-xs text-text-muted">{p.marca}</p>
+                  {(p.marca || p.volume_ml) && (
+                    <p className="text-xs text-text-muted">
+                      {[p.marca, p.volume_ml ? `${p.volume_ml}ml` : null]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </p>
                   )}
                 </TabelaCell>
                 <TabelaCell mono className="text-text-muted">
@@ -184,19 +202,11 @@ export default function ProdutosPage() {
                 <TabelaCell className="text-text-muted">
                   {p.categoria}
                 </TabelaCell>
-                <TabelaCell className="text-text-muted capitalize">
-                  {p.embalagem}
-                  {p.volume_ml ? (
-                    <span className="ml-1 text-text-muted/70">
-                      {p.volume_ml}ml
-                    </span>
-                  ) : null}
+                <TabelaCell className="text-sm text-text-muted">
+                  {resumoFormas(embalagens[p.id], p.preco_venda_padrao)}
                 </TabelaCell>
                 <TabelaCell alinhar="direita">
                   {formatarNumero(p.saldo_atual)}
-                </TabelaCell>
-                <TabelaCell alinhar="direita">
-                  <Money valor={p.preco_venda_padrao} />
                 </TabelaCell>
                 <TabelaCell alinhar="centro">
                   <StatusPill status={p.status_estoque} />
@@ -228,16 +238,10 @@ export default function ProdutosPage() {
                 { label: 'Código', valor: <span className="font-mono">{p.codigo_barras ?? '-'}</span> },
                 { label: 'Categoria', valor: p.categoria },
                 {
-                  label: 'Embalagem',
-                  valor: (
-                    <span className="capitalize">
-                      {p.embalagem}
-                      {p.volume_ml ? ` ${p.volume_ml}ml` : ''}
-                    </span>
-                  ),
+                  label: 'Formas de venda',
+                  valor: resumoFormas(embalagens[p.id], p.preco_venda_padrao),
                 },
                 { label: 'Estoque', valor: formatarNumero(p.saldo_atual) },
-                { label: 'Preço', valor: <Money valor={p.preco_venda_padrao} /> },
               ]}
             />
           ))}

@@ -140,6 +140,26 @@ export async function criarProduto(data: Record<string, unknown>) {
   return { success: true, produto: produtoTipado }
 }
 
+// Todas as formas de venda dos produtos do local ativo, agrupadas por
+// produto_id. Usada pela lista de Produtos (que le a view de posicao de
+// estoque, sem como embutir as embalagens la).
+export async function listarEmbalagensDoLocal(): Promise<Record<string, ProdutoEmbalagem[]>> {
+  const localId = await getLocalAtivoId()
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('produto_embalagens')
+    .select('id, produto_id, nome, unidades, preco, padrao, produtos!inner(local_id)')
+    .eq('produtos.local_id', localId)
+    .order('padrao', { ascending: false })
+    .order('unidades', { ascending: true })
+  if (error) throw new Error(error.message)
+  const mapa: Record<string, ProdutoEmbalagem[]> = {}
+  for (const e of (data ?? []) as unknown as ProdutoEmbalagem[]) {
+    ;(mapa[e.produto_id] ??= []).push(e)
+  }
+  return mapa
+}
+
 // Formas de venda de um produto, padrao primeiro (e o default do PDV).
 export async function listarEmbalagens(produtoId: string): Promise<ProdutoEmbalagem[]> {
   const supabase = await createClient()
@@ -209,7 +229,7 @@ export async function buscarProdutos(termo?: string) {
   const supabase = await createClient()
   let query = supabase
     .from('produtos')
-    .select('id, nome, marca, preco_venda_padrao, embalagem, fator_conversao, codigo_barras, categorias(nome), estoque(saldo_atual)')
+    .select('id, nome, marca, preco_venda_padrao, embalagem, fator_conversao, codigo_barras, categorias(nome), estoque(saldo_atual), produto_embalagens(id, nome, unidades, preco, padrao)')
     .eq('ativo', true)
     .eq('local_id', localId)
     .order('nome')
