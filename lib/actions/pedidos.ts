@@ -386,7 +386,7 @@ export async function listarMinhasEntregas() {
   const { data, error } = await supabase
     .from('pedidos')
     .select(
-      'id, numero_pedido, total, forma_pagamento, data_pedido, saiu_entrega_em, clientes(nome, telefone, endereco)',
+      'id, numero_pedido, total, forma_pagamento, pago, data_pedido, saiu_entrega_em, clientes(nome, telefone, endereco)',
     )
     .eq('local_id', localId)
     .eq('entregador_id', user.id)

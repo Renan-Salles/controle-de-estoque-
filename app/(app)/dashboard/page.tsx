@@ -23,8 +23,17 @@ import { getDre } from '@/lib/actions/dre'
 import { buscarResumoFiado } from '@/lib/actions/financeiro'
 import { contarPedidosPendentes } from '@/lib/actions/pedidos'
 import { formatarReal, hojeBrasil, mesAtualBrasil, addDias } from '@/lib/formatos'
+import { ehEntregador } from '@/lib/permissoes'
+import { TelaEntregador } from '@/components/entregador/TelaEntregador'
 
 export default async function DashboardPage() {
+  // Cargo Entregador tem a propria tela no lugar do dashboard: /dashboard e
+  // o destino seguro pra onde todo cargo cai, entao roteia aqui em vez de
+  // mexer no redirect de auth (que tem gotcha documentado no CLAUDE.md).
+  if (await ehEntregador()) {
+    return <TelaEntregador />
+  }
+
   const supabase = await createClient()
   const local = await getLocalAtivo()
   const localId = local.id

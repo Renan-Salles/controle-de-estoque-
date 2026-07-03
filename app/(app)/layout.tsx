@@ -37,6 +37,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const itensVisiveis = !cargo || cargo.admin ? null : cargo.itens_visiveis
   const isAdmin = cargo?.admin ?? false
 
+  // Cargo Entregador: a tela dele (renderizada por /dashboard) é
+  // self-contained -- sem sidebar/topbar de admin. Toaster continua (os
+  // botões de saiu/entregue usam toast).
+  if (cargo?.nome === 'Entregador') {
+    return (
+      <div className="min-h-screen bg-background">
+        {children}
+        <Toaster position="top-right" theme="dark" richColors />
+      </div>
+    )
+  }
+
   // Não-admin com local fixo só vê aquele local no seletor do topo.
   const locais =
     !isAdmin && localIdUsuario
