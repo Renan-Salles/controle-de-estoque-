@@ -18,6 +18,34 @@ const ProdutoSchema = z.object({
   codigo_barras: z.string().optional(),
 })
 
+// Formas de venda de um produto (unidade solta, fardo, caixa...). Estoque e
+// sempre em unidade base; 'unidades' diz quantas a embalagem fechada consome.
+const EmbalagemSchema = z.object({
+  id: z.string().uuid().optional(), // presente quando ja existe no banco
+  nome: z.string().min(1, 'Nome da embalagem obrigatorio'),
+  unidades: z.number().min(1, 'Embalagem precisa de ao menos 1 unidade'),
+  preco: z.number().min(0, 'Preco nao pode ser negativo'),
+  padrao: z.boolean().default(false),
+})
+
+const EmbalagensSchema = z
+  .array(EmbalagemSchema)
+  .min(1, 'Produto precisa de ao menos uma forma de venda')
+  .refine((arr) => arr.some((e) => e.unidades === 1), {
+    message: 'Produto precisa da forma "Unidade" (1 unidade)',
+  })
+
+export type EmbalagemInput = z.infer<typeof EmbalagemSchema>
+
+export type ProdutoEmbalagem = {
+  id: string
+  produto_id: string
+  nome: string
+  unidades: number
+  preco: number
+  padrao: boolean
+}
+
 // Prefixo de 3 letras a partir do nome da categoria (sem acento), ex:
 // "Refrigerante" -> "REF", "Cerveja" -> "CER".
 function prefixoCategoria(nomeCategoria: string): string {
@@ -60,6 +88,21 @@ export async function criarProduto(data: Record<string, unknown>) {
   const parsed = ProdutoSchema.safeParse(data)
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
+  // Embalagens vem junto no payload do form (opcional: sem elas, cria so a
+  // "Unidade" com o preco padrao, garantindo que todo produto tem >=1 forma).
+  const embalagensInput = (data as { embalagens?: unknown }).embalagens
+  let embalagens = [
+    { nome: 'Unidade', unidades: 1, preco: parsed.data.preco_venda_padrao, padrao: true },
+  ]
+  if (embalagensInput != null) {
+    const parsedEmb = EmbalagensSchema.safeParse(embalagensInput)
+    if (!parsedEmb.success) return { error: parsedEmb.error.issues[0].message }
+    embalagens = parsedEmb.data
+    if (embalagens.filter((e) => e.padrao).length !== 1) {
+      embalagens = embalagens.map((e, i) => ({ ...e, padrao: i === 0 }))
+    }
+  }
+
   const localId = await getLocalAtivoId()
   const supabase = await createClient()
   // Sem codigo informado: gera um automatico no padrao da categoria.
@@ -75,15 +118,90 @@ export async function criarProduto(data: Record<string, unknown>) {
     .single()
   if (error) return { error: error.message }
 
-  revalidatePath('/produtos')
-  return {
-    success: true,
-    produto: produto as {
-      id: string; nome: string; marca: string | null
-      preco_venda_padrao: number; embalagem: string; fator_conversao: number
-      codigo_barras: string | null
-    },
+  const produtoTipado = produto as {
+    id: string; nome: string; marca: string | null
+    preco_venda_padrao: number; embalagem: string; fator_conversao: number
+    codigo_barras: string | null
   }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: errEmb } = await (supabase.from('produto_embalagens') as any).insert(
+    embalagens.map((e) => ({
+      produto_id: produtoTipado.id,
+      nome: e.nome.trim(),
+      unidades: e.unidades,
+      preco: e.preco,
+      padrao: e.padrao,
+    })),
+  )
+  if (errEmb) return { error: `Produto criado, mas falhou ao salvar formas de venda: ${errEmb.message}` }
+
+  revalidatePath('/produtos')
+  return { success: true, produto: produtoTipado }
+}
+
+// Formas de venda de um produto, padrao primeiro (e o default do PDV).
+export async function listarEmbalagens(produtoId: string): Promise<ProdutoEmbalagem[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('produto_embalagens')
+    .select('id, produto_id, nome, unidades, preco, padrao')
+    .eq('produto_id', produtoId)
+    .order('padrao', { ascending: false })
+    .order('unidades', { ascending: true })
+  if (error) throw new Error(error.message)
+  return (data ?? []) as unknown as ProdutoEmbalagem[]
+}
+
+// Substitui as formas de venda de um produto pela lista da UI (replace
+// total: apaga as que sumiram, regrava as que ficaram). Invariantes: ao
+// menos uma forma com unidades=1, exatamente uma padrao.
+export async function salvarEmbalagens(
+  produtoId: string,
+  embalagens: unknown,
+) {
+  const parsed = EmbalagensSchema.safeParse(embalagens)
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  // Exatamente uma padrao: se nenhuma (ou varias) veio marcada, a primeira vence.
+  let lista = parsed.data
+  const qtdPadrao = lista.filter((e) => e.padrao).length
+  if (qtdPadrao !== 1) {
+    lista = lista.map((e, i) => ({ ...e, padrao: i === 0 }))
+  }
+
+  const localId = await getLocalAtivoId()
+  const supabase = await createClient()
+
+  // Confirma que o produto e do local ativo antes de mexer nas embalagens.
+  const { data: produto } = await supabase
+    .from('produtos')
+    .select('id')
+    .eq('id', produtoId)
+    .eq('local_id', localId)
+    .single()
+  if (!produto) return { error: 'Produto não encontrado neste local.' }
+
+  const { error: errDel } = await supabase
+    .from('produto_embalagens')
+    .delete()
+    .eq('produto_id', produtoId)
+  if (errDel) return { error: errDel.message }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: errIns } = await (supabase.from('produto_embalagens') as any).insert(
+    lista.map((e) => ({
+      produto_id: produtoId,
+      nome: e.nome.trim(),
+      unidades: e.unidades,
+      preco: e.preco,
+      padrao: e.padrao,
+    })),
+  )
+  if (errIns) return { error: errIns.message }
+
+  revalidatePath('/produtos')
+  return { success: true }
 }
 
 export async function buscarProdutos(termo?: string) {
