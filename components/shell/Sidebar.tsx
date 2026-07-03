@@ -19,7 +19,7 @@ export function Sidebar({
   const logo = logoPartes(localNome)
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-sidebar lg:flex">
+    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-sidebar lg:flex print:hidden">
       {/* Logo */}
       <div className="flex h-14 items-center border-b border-border px-5">
         <Link

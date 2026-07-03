@@ -4,7 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { MessageCircle, ShoppingCart, Star, AlertCircle, Pencil } from 'lucide-react'
 import { PageHeader } from '@/components/ui-kit/PageHeader'
 import { btnClass } from '@/components/ui-kit/Button'
-import { formatarReal, formatarData } from '@/lib/formatos'
+import { BotaoImprimir } from '@/components/cliente/BotaoImprimir'
+import { formatarReal, formatarData, hojeBrasil } from '@/lib/formatos'
 import { buscarStatsCliente, buscarHistoricoCliente } from '@/lib/actions/clientes-stats'
 import { classificarCliente } from '@/lib/utils/clientes'
 
@@ -29,15 +30,26 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
   const c = raw as any
   const [stats, historico, fiadoRaw] = await Promise.all([
     buscarStatsCliente(id),
-    buscarHistoricoCliente(id),
+    buscarHistoricoCliente(id, 30),
     supabase
       .from('contas_receber')
-      .select('valor, valor_pago')
+      .select('id, descricao, valor, valor_pago, data_vencimento')
       .eq('cliente_id', id)
-      .in('status', ['aberto', 'parcial']),
+      .in('status', ['aberto', 'parcial'])
+      .order('data_vencimento'),
   ])
-  const fiadoAberto = ((fiadoRaw.data ?? []) as { valor: number; valor_pago: number }[])
-    .reduce((a, f) => a + (Number(f.valor) - Number(f.valor_pago)), 0)
+  const fiados = (fiadoRaw.data ?? []) as {
+    id: string
+    descricao: string | null
+    valor: number
+    valor_pago: number
+    data_vencimento: string
+  }[]
+  const fiadoAberto = fiados.reduce(
+    (a, f) => a + (Number(f.valor) - Number(f.valor_pago)),
+    0,
+  )
+  const hoje = hojeBrasil()
   const classif = classificarCliente(stats)
   const badge = BADGE[classif]
   const tel = c.whatsapp || c.telefone
@@ -48,17 +60,20 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
   return (
     <div className="px-6 py-5">
       <PageHeader titulo={c.nome} back="/clientes" subtitulo={endStr || undefined}>
-        {waLink && (
-          <a href={waLink} target="_blank" rel="noopener noreferrer" className={btnClass('outline')}>
-            <MessageCircle className="size-4" /> WhatsApp
-          </a>
-        )}
-        <Link href={`/clientes/${id}/editar`} className={btnClass('outline')}>
-          <Pencil className="size-4" /> Editar
-        </Link>
-        <Link href={`/movimentacoes/nova?cliente_id=${id}`} className={btnClass('primary')}>
-          <ShoppingCart className="size-4" /> Nova venda
-        </Link>
+        <span className="contents print:hidden">
+          {waLink && (
+            <a href={waLink} target="_blank" rel="noopener noreferrer" className={btnClass('outline')}>
+              <MessageCircle className="size-4" /> WhatsApp
+            </a>
+          )}
+          <BotaoImprimir />
+          <Link href={`/clientes/${id}/editar`} className={btnClass('outline')}>
+            <Pencil className="size-4" /> Editar
+          </Link>
+          <Link href={`/movimentacoes/nova?cliente_id=${id}`} className={btnClass('primary')}>
+            <ShoppingCart className="size-4" /> Nova venda
+          </Link>
+        </span>
       </PageHeader>
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
@@ -110,6 +125,44 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
           )}
         </dl>
       </div>
+
+      {/* Fiados em aberto, com vencimento (vermelho quando vencido) */}
+      {fiados.length > 0 && (
+        <div className="mb-6 overflow-hidden rounded-lg border border-border bg-surface">
+          <div className="flex items-center justify-between border-b border-border px-5 py-3">
+            <h2 className="text-sm font-semibold text-text">Fiado em aberto</h2>
+            <span className="font-mono text-sm font-semibold tabular-nums text-warn">
+              {formatarReal(fiadoAberto)}
+            </span>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-surface-2">
+                <th className="px-4 py-2.5 text-left font-medium text-text-muted">Referente a</th>
+                <th className="px-4 py-2.5 text-left font-medium text-text-muted">Vencimento</th>
+                <th className="px-4 py-2.5 text-right font-medium text-text-muted">Devido</th>
+              </tr>
+            </thead>
+            <tbody className="u-rows">
+              {fiados.map((f) => {
+                const vencido = f.data_vencimento < hoje
+                return (
+                  <tr key={f.id} className="border-b border-border last:border-0">
+                    <td className="px-4 py-2.5 text-text">{f.descricao ?? 'Fiado'}</td>
+                    <td className={`px-4 py-2.5 tabular-nums ${vencido ? 'font-semibold text-err' : 'text-text-muted'}`}>
+                      {formatarData(`${f.data_vencimento}T00:00:00`)}
+                      {vencido && ' (vencido)'}
+                    </td>
+                    <td className="px-4 py-2.5 text-right font-medium tabular-nums text-text">
+                      {formatarReal(Number(f.valor) - Number(f.valor_pago))}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="rounded-lg border border-border bg-surface overflow-hidden">
         <div className="border-b border-border px-5 py-3">
