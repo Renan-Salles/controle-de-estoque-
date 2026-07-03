@@ -11,7 +11,7 @@ export async function relatorioVendasPeriodo(p: Periodo) {
   // data_pedido é timestamptz; o limite superior inclui o dia inteiro de p.fim.
   const { data, error } = await supabase
     .from('pedidos')
-    .select('data_pedido, total')
+    .select('data_pedido, total, frete')
     .eq('local_id', localId)
     .eq('status', 'concluida')
     .gte('data_pedido', p.ini)
@@ -19,14 +19,16 @@ export async function relatorioVendasPeriodo(p: Periodo) {
     .order('data_pedido')
   if (error) throw error
 
-  const linhas = (data ?? []) as unknown as { data_pedido: string; total: number }[]
+  const linhas = (data ?? []) as unknown as { data_pedido: string; total: number; frete: number }[]
   const mapa = new Map<string, { pedidos: number; receita: number }>()
   for (const l of linhas) {
     // Agrupa por dia (YYYY-MM-DD), descartando a hora do timestamp.
     const dia = l.data_pedido.slice(0, 10)
     const acc = mapa.get(dia) ?? { pedidos: 0, receita: 0 }
     acc.pedidos += 1
-    acc.receita += Number(l.total ?? 0)
+    // Frete nao e faturamento de mercadoria -- relatorio de venda so conta
+    // a mercadoria (subtotal), pra bater com "Por produto"/Curva ABC.
+    acc.receita += Number(l.total ?? 0) - Number(l.frete ?? 0)
     mapa.set(dia, acc)
   }
   const dias = [...mapa.entries()]
