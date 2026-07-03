@@ -374,6 +374,30 @@ export async function listarPedidosEmAndamento() {
   return data ?? []
 }
 
+// Tela do Entregador: entregas designadas ao usuario logado, ainda nao
+// confirmadas. So entrega (retirada nao tem trajeto), do local dele. Traz
+// o que ele precisa pra rodar: cliente + telefone + endereco + valor +
+// forma de pagamento (pra saber se cobra na entrega).
+export async function listarMinhasEntregas() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  const localId = await getLocalAtivoId()
+  const { data, error } = await supabase
+    .from('pedidos')
+    .select(
+      'id, numero_pedido, total, forma_pagamento, data_pedido, saiu_entrega_em, clientes(nome, telefone, endereco)',
+    )
+    .eq('local_id', localId)
+    .eq('entregador_id', user.id)
+    .eq('tipo_fulfillment', 'entrega')
+    .eq('status', 'concluida')
+    .is('concluido_em', null)
+    .order('data_pedido', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
 // Aba "Concluidos" de /pedidos: historico operacional (quem entregou,
 // quanto tempo levou) -- sem valor/pagamento, isso e papel do extrato
 // em Movimentacoes.

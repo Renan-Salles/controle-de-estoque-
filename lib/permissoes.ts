@@ -34,6 +34,13 @@ export async function getCargoUsuario(): Promise<Cargo | null> {
   return (cargo ?? null) as Cargo | null
 }
 
+// True quando o usuário logado tem cargo Entregador. Usado pra rotear
+// /dashboard pra tela de entregas dele em vez do dashboard normal.
+export async function ehEntregador(): Promise<boolean> {
+  const cargo = await getCargoUsuario()
+  return cargo?.nome === 'Entregador'
+}
+
 // local_id do usuário logado (server-only). null = sem restrição de local
 // (admin ou conta antiga) — mesmo espírito fail-open do cargo nulo.
 export async function getLocalIdUsuario(): Promise<string | null> {
