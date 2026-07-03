@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { Bike } from 'lucide-react'
 import { relatorioEntregadores, type LinhaEntregador } from '@/lib/actions/relatorio-entregadores'
+import { turnosAbertosPorEntregador } from '@/lib/actions/turnos'
 import { PageHeader } from '@/components/ui-kit/PageHeader'
 import {
   Tabela,
@@ -34,12 +35,15 @@ function tempoLegivel(min: number | null): string {
 export default function RelatorioEntregadoresPage() {
   const [periodo, setPeriodo] = useState(mesCorrente())
   const [linhas, setLinhas] = useState<LinhaEntregador[]>([])
+  const [turnosAbertos, setTurnosAbertos] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
 
   async function carregar(p: { ini: string; fim: string }) {
     setLoading(true)
     try {
-      setLinhas(await relatorioEntregadores(p))
+      const [dados, turnos] = await Promise.all([relatorioEntregadores(p), turnosAbertosPorEntregador()])
+      setLinhas(dados)
+      setTurnosAbertos(turnos)
     } catch (e) {
       console.error(e)
       toast.error('Erro ao carregar relatório')
@@ -93,6 +97,7 @@ export default function RelatorioEntregadoresPage() {
           <TabelaHead>
             <tr>
               <TabelaHeadCell>Entregador</TabelaHeadCell>
+              <TabelaHeadCell>Turno</TabelaHeadCell>
               <TabelaHeadCell alinhar="direita">Entregas</TabelaHeadCell>
               <TabelaHeadCell alinhar="direita">Tempo médio</TabelaHeadCell>
               <TabelaHeadCell alinhar="direita">Frete somado</TabelaHeadCell>
@@ -102,6 +107,16 @@ export default function RelatorioEntregadoresPage() {
             {linhas.map((l) => (
               <TabelaRow key={l.entregador_id}>
                 <TabelaCell className="font-medium">{l.nome}</TabelaCell>
+                <TabelaCell>
+                  {turnosAbertos[l.entregador_id] ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-ok">
+                      <span className="size-1.5 rounded-full bg-ok" aria-hidden />
+                      Em expediente
+                    </span>
+                  ) : (
+                    <span className="text-xs text-text-muted">Fora</span>
+                  )}
+                </TabelaCell>
                 <TabelaCell alinhar="direita">{formatarNumero(l.entregas)}</TabelaCell>
                 <TabelaCell alinhar="direita" className="text-text-muted">
                   {tempoLegivel(l.tempo_medio_min)}
