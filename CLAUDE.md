@@ -5,7 +5,13 @@ dono de dois pontos de venda de bebidas: **R$ Depósito** (slug `deposito`,
 local padrão) e **Império Salles** (slug `piscina`). Uso diário no balcão
 e por telefone — prioridade é velocidade e clareza, não é landing page.
 
-Login de teste (admin, acesso aos dois locais): `renan@deposito.com` / `Deposito2026!`
+Login de DEV pra testes (admin, acesso aos dois locais):
+`sallesjoaquim111009@gmail.com` / `Deposito2026!` — perfil "Joaquim (dev)".
+A conta antiga `renan@deposito.com` foi apagada em 03/07/2026; a conta
+real do Renan é `renansallesdeposito@gmail.com` (NÃO usar em testes).
+Contas criadas pelo painel do Supabase não têm senha utilizável até um
+reset via `auth.admin.updateUserById` — foi a causa do "login não
+funciona" de 03/07.
 
 ## Stack
 
