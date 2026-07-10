@@ -7,6 +7,7 @@ import { ChevronDown, LogOut } from 'lucide-react'
 import { ThemeToggle } from '@/components/shell/ThemeToggle'
 import { SeletorLocal } from '@/components/shell/SeletorLocal'
 import { MobileNav } from '@/components/shell/MobileNav'
+import { ConsultaPreco } from '@/components/shell/ConsultaPreco'
 import type { Local } from '@/lib/local'
 
 // Título legível da rota atual. Casa o início do pathname com o rótulo.
@@ -82,6 +83,7 @@ export function Topbar({
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
+      <ConsultaPreco />
       <ThemeToggle />
       <div className="relative">
         <button
