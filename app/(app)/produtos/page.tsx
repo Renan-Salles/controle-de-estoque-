@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { Package, Plus, Search } from 'lucide-react'
 import { PageHeader } from '@/components/ui-kit/PageHeader'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -24,6 +23,7 @@ import {
   listarEmbalagensDoLocal,
   type ProdutoEmbalagem,
 } from '@/lib/actions/produtos'
+import { DetalhePrecoDialog, type ProdutoDetalhe } from '@/components/produtos/DetalhePrecoDialog'
 import type { Database } from '@/types/database.types'
 
 type Produto = Database['public']['Views']['v_posicao_estoque']['Row']
@@ -46,13 +46,13 @@ const STATUS_OPCOES: Array<{ valor: FiltroStatus; label: string }> = [
 ]
 
 export default function ProdutosPage() {
-  const router = useRouter()
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [embalagens, setEmbalagens] = useState<Record<string, ProdutoEmbalagem[]>>({})
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
   const [categoria, setCategoria] = useState('todas')
   const [status, setStatus] = useState<FiltroStatus>('todos')
+  const [produtoDetalhe, setProdutoDetalhe] = useState<ProdutoDetalhe | null>(null)
 
   useEffect(() => {
     let ativo = true
@@ -184,7 +184,15 @@ export default function ProdutosPage() {
             {filtrados.map((p) => (
               <TabelaRow
                 key={p.id}
-                onClick={() => router.push(`/produtos/${p.id}/editar`)}
+                onClick={() =>
+                  setProdutoDetalhe({
+                    id: p.id,
+                    nome: p.nome,
+                    marca: p.marca,
+                    saldo_atual: p.saldo_atual,
+                    preco_venda_padrao: p.preco_venda_padrao,
+                  })
+                }
               >
                 <TabelaCell>
                   <p className="font-medium text-text">{p.nome}</p>
@@ -220,9 +228,21 @@ export default function ProdutosPage() {
         {/* Mobile: cards */}
         <div className="space-y-2 lg:hidden">
           {filtrados.map((p) => (
-            <CardLinha
+            <button
               key={p.id}
-              href={`/produtos/${p.id}/editar`}
+              type="button"
+              className="block w-full text-left"
+              onClick={() =>
+                setProdutoDetalhe({
+                  id: p.id,
+                  nome: p.nome,
+                  marca: p.marca,
+                  saldo_atual: p.saldo_atual,
+                  preco_venda_padrao: p.preco_venda_padrao,
+                })
+              }
+            >
+            <CardLinha
               titulo={
                 <span>
                   {p.nome}
@@ -244,10 +264,17 @@ export default function ProdutosPage() {
                 { label: 'Estoque', valor: formatarNumero(p.saldo_atual) },
               ]}
             />
+            </button>
           ))}
         </div>
         </>
       )}
+
+      <DetalhePrecoDialog
+        produto={produtoDetalhe}
+        formas={produtoDetalhe ? embalagens[produtoDetalhe.id] : undefined}
+        onOpenChange={(aberto) => !aberto && setProdutoDetalhe(null)}
+      />
     </div>
   )
 }
