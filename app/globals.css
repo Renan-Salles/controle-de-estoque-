@@ -373,23 +373,28 @@ html {
 }
 
 /* ------------------------------------------------------------------ *
- * Impressão A4 - romaneio (NAO alterar)
+ * Impressão do cupom fiscal - térmica 80mm (venda e romaneio)
  * ------------------------------------------------------------------ */
 @media print {
   .no-print {
     display: none !important;
   }
-  body {
+  body * {
+    visibility: hidden !important;
+  }
+  .cupom-print-area,
+  .cupom-print-area * {
+    visibility: visible !important;
+  }
+  .cupom-print-area {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 80mm !important;
     background: white !important;
-    color: black !important;
-    font-family: Arial, sans-serif !important;
   }
-  .romaneio {
-    margin: 0;
-    padding: 8mm;
-  }
-  @page {
-    size: A4;
-    margin: 10mm;
-  }
+}
+@page {
+  size: 80mm auto;
+  margin: 0 !important;
 }
