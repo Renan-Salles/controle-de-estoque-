@@ -392,6 +392,9 @@ html {
     left: 0 !important;
     width: 80mm !important;
     background: white !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
   }
 }
 @page {
