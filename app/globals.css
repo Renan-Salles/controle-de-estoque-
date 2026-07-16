@@ -374,16 +374,23 @@ html {
 
 /* ------------------------------------------------------------------ *
  * Impressão do cupom fiscal - térmica 80mm (venda e romaneio)
+ * Escopado a paginas que tem .cupom-print-area: nao pode afetar outras
+ * impressoes do sistema (ex.: "Imprimir extrato" em clientes/[id], que
+ * imprime a pagina inteira em papel normal, sem essa classe).
  * ------------------------------------------------------------------ */
+@page cupom-termico {
+  size: 80mm auto;
+  margin: 0 !important;
+}
 @media print {
   .no-print {
     display: none !important;
   }
-  body * {
+  body:has(.cupom-print-area) * {
     visibility: hidden !important;
   }
-  .cupom-print-area,
-  .cupom-print-area * {
+  body:has(.cupom-print-area) .cupom-print-area,
+  body:has(.cupom-print-area) .cupom-print-area * {
     visibility: visible !important;
   }
   .cupom-print-area {
@@ -395,9 +402,7 @@ html {
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
+    padding: 0 !important;
+    page: cupom-termico;
   }
-}
-@page {
-  size: 80mm auto;
-  margin: 0 !important;
 }
