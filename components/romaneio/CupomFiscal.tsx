@@ -1,5 +1,5 @@
 import { formatarReal, formatarData } from '@/lib/formatos'
-import { rotuloPagamento } from '@/lib/pedido-labels'
+import { rotuloPagamento, rotuloFulfillment } from '@/lib/pedido-labels'
 
 export interface CupomData {
   numero_pedido: number
@@ -28,6 +28,8 @@ export interface CupomData {
     telefone: string | null
     endereco: Record<string, string> | null
   } | null
+  tipo_fulfillment?: string | null
+  entregador?: { nome: string } | null
   pedido_itens: Array<{
     quantidade_pedida: number
     preco_unitario: number
@@ -69,8 +71,7 @@ export function CupomFiscal({ data }: { data: CupomData }) {
         lineHeight: '1.5',
         color: '#111',
         background: '#fff',
-        width: '100%',
-        maxWidth: '320px',
+        width: '72mm',
         margin: '0 auto',
         padding: '12px 10px',
         boxSizing: 'border-box',
@@ -126,6 +127,15 @@ export function CupomFiscal({ data }: { data: CupomData }) {
       ) : (
         <div style={{ fontSize: '10px', fontStyle: 'italic' }}>
           Consumidor não identificado
+        </div>
+      )}
+
+      {data.tipo_fulfillment && (
+        <div style={{ fontSize: '10px', marginTop: '4px' }}>
+          <span>Tipo: {rotuloFulfillment(data.tipo_fulfillment)}</span>
+          {data.entregador?.nome && (
+            <div>Entregador: {data.entregador.nome}</div>
+          )}
         </div>
       )}
 
