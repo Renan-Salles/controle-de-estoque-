@@ -545,25 +545,6 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
   if (vendaRegistrada) {
     return (
       <>
-        {/* CSS injetado apenas quando o cupom existe */}
-        {mostrarCupom && (
-          <style>{`
-            @page { size: 80mm auto; margin: 0 !important; }
-            @media print {
-              body * { visibility: hidden !important; }
-              .cupom-print-area,
-              .cupom-print-area * { visibility: visible !important; }
-              .cupom-print-area {
-                position: fixed !important;
-                top: 0 !important;
-                left: 0 !important;
-                width: 80mm !important;
-                background: white !important;
-              }
-            }
-          `}</style>
-        )}
-
         <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 py-8">
           {/* Header de sucesso */}
           <div className="flex flex-col items-center gap-3 text-center">
