@@ -409,6 +409,11 @@ html {
        apagado ou some. Forca preto puro só na hora de imprimir. */
     color: #000 !important;
     border-color: #000 !important;
+    /* Texto fino em fonte normal nao esquenta o cabecote termico o
+       suficiente pra ficar solido -- sai fraco/borrado mesmo em preto
+       puro. Negrito em tudo garante traco grosso o bastante pra imprimir
+       nitido nessa resolucao (confirmado com foto real da impressora). */
+    font-weight: 700 !important;
   }
   .cupom-print-area {
     position: fixed !important;
