@@ -403,6 +403,12 @@ html {
   body:has(.cupom-print-area) .cupom-print-area,
   body:has(.cupom-print-area) .cupom-print-area * {
     visibility: visible !important;
+    /* O componente usa cinza-escuro (#111/#444/#555) pra ficar bonito
+       na tela, mas impressora termica nao faz meio-tom de verdade --
+       ela corta pra preto-e-branco puro, e cinza-mas-nao-preto sai
+       apagado ou some. Forca preto puro só na hora de imprimir. */
+    color: #000 !important;
+    border-color: #000 !important;
   }
   .cupom-print-area {
     position: fixed !important;
