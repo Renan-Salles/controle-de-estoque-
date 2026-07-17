@@ -141,37 +141,23 @@ export function CupomFiscal({ data }: { data: CupomData }) {
 
       <Divisor />
 
-      {/* Cabeçalho dos itens */}
-      <div style={{ display: 'flex', fontSize: '14px', fontWeight: 700 }}>
-        <span style={{ width: '34px' }}>QTD</span>
-        <span style={{ flex: 1 }}>PRODUTO</span>
-        <span style={{ width: '88px', textAlign: 'right' }}>TOTAL</span>
-      </div>
-      <Divisor />
-
-      {/* Itens */}
-      {data.pedido_itens.map((item, i) => {
-        const nome = item.produtos.nome
-        const nomeCorto = nome.length > 13 ? nome.slice(0, 12) + '…' : nome
-        return (
-          <div key={i}>
-            <div style={{ display: 'flex', fontSize: '15px' }}>
-              <span style={{ width: '34px' }}>
-                {String(item.quantidade_pedida).padStart(2, ' ')}
-              </span>
-              <span style={{ flex: 1 }}>{nomeCorto}</span>
-              <span style={{ width: '88px', textAlign: 'right' }}>
-                {formatarReal(item.total)}
-              </span>
-            </div>
-            <div style={{ paddingLeft: '34px', fontSize: '14px', color: '#555' }}>
+      {/* Itens: nome do produto na linha de cima (quebra se for grande,
+          nunca corta), qtde/valor unitario e total na linha de baixo. */}
+      {data.pedido_itens.map((item, i) => (
+        <div key={i} style={{ marginBottom: '6px' }}>
+          <div style={{ fontSize: '15px', fontWeight: 700, wordBreak: 'break-word' }}>
+            {item.quantidade_pedida}x {item.produtos.nome}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+            <span style={{ color: '#555' }}>
               {item.embalagem_nome && (item.embalagem_unidades ?? 1) > 1
                 ? `${item.quantidade_pedida / (item.embalagem_unidades ?? 1)} ${item.embalagem_nome} (${item.quantidade_pedida} un)`
                 : `${item.quantidade_pedida} un x ${formatarReal(item.preco_unitario)}`}
-            </div>
+            </span>
+            <span style={{ fontWeight: 700 }}>{formatarReal(item.total)}</span>
           </div>
-        )
-      })}
+        </div>
+      ))}
 
       <Divisor />
 
