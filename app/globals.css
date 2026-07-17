@@ -386,8 +386,19 @@ html {
   .no-print {
     display: none !important;
   }
+  html:has(.cupom-print-area),
+  body:has(.cupom-print-area) {
+    height: 0 !important;
+    overflow: hidden !important;
+  }
   body:has(.cupom-print-area) * {
     visibility: hidden !important;
+    /* Zera qualquer transform residual (ex.: animacao de transicao de
+       pagina com fill-mode:both em .u-page-enter) -- um transform em
+       QUALQUER ancestral vira o novo "chao" do position:fixed abaixo,
+       e o cupom para de ficar preso na pagina fisica de verdade. */
+    transform: none !important;
+    animation: none !important;
   }
   body:has(.cupom-print-area) .cupom-print-area,
   body:has(.cupom-print-area) .cupom-print-area * {
