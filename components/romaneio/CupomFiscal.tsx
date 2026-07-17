@@ -44,7 +44,7 @@ function Divisor({ tipo = 'dash' }: { tipo?: 'dash' | 'solid' }) {
   return (
     <div
       style={{
-        borderTop: tipo === 'dash' ? '1px dashed #555' : '1px solid #111',
+        borderTop: tipo === 'dash' ? '1px dashed #000' : '1px solid #000',
         margin: '6px 0',
       }}
     />
@@ -69,7 +69,7 @@ export function CupomFiscal({ data }: { data: CupomData }) {
         fontFamily: "Consolas, 'Lucida Console', 'Courier New', monospace",
         fontSize: '15px',
         lineHeight: '1.6',
-        color: '#111',
+        color: '#000',
         background: '#fff',
         width: '72mm',
         margin: '0 auto',
@@ -141,6 +141,8 @@ export function CupomFiscal({ data }: { data: CupomData }) {
 
       <Divisor />
 
+      <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '2px' }}>ITENS</div>
+
       {/* Itens: nome do produto na linha de cima (quebra se for grande,
           nunca corta), qtde/valor unitario e total na linha de baixo. */}
       {data.pedido_itens.map((item, i) => (
@@ -149,7 +151,7 @@ export function CupomFiscal({ data }: { data: CupomData }) {
             {item.quantidade_pedida}x {item.produtos.nome}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-            <span style={{ color: '#555' }}>
+            <span style={{ color: '#000' }}>
               {item.embalagem_nome && (item.embalagem_unidades ?? 1) > 1
                 ? `${item.quantidade_pedida / (item.embalagem_unidades ?? 1)} ${item.embalagem_nome} (${item.quantidade_pedida} un)`
                 : `${item.quantidade_pedida} un x ${formatarReal(item.preco_unitario)}`}
@@ -164,12 +166,12 @@ export function CupomFiscal({ data }: { data: CupomData }) {
       {/* Totais */}
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '15px' }}>
         <span>Itens: {totalItens}</span>
-        <span style={{ fontSize: '14px', color: '#555' }}>
+        <span style={{ fontSize: '14px', color: '#000' }}>
           {data.pedido_itens.length} produto{data.pedido_itens.length !== 1 ? 's' : ''}
         </span>
       </div>
       {(Number(data.desconto_total ?? 0) > 0 || Number(data.frete ?? 0) > 0) && (
-        <div style={{ fontSize: '14px', color: '#444', marginTop: '2px' }}>
+        <div style={{ fontSize: '14px', color: '#000', marginTop: '2px' }}>
           {Number(data.frete ?? 0) > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>Frete</span>
@@ -197,7 +199,7 @@ export function CupomFiscal({ data }: { data: CupomData }) {
         <span>{formatarReal(data.total)}</span>
       </div>
       {data.valor_recebido != null && Number(data.valor_recebido) > 0 && (
-        <div style={{ fontSize: '14px', color: '#444', marginTop: '2px' }}>
+        <div style={{ fontSize: '14px', color: '#000', marginTop: '2px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span>Recebido</span>
             <span>{formatarReal(Number(data.valor_recebido))}</span>
@@ -227,7 +229,7 @@ export function CupomFiscal({ data }: { data: CupomData }) {
           <div>PGTO: {rotuloPagamento(data.forma_pagamento)} ({prazo})</div>
         )}
         {data.observacoes && (
-          <div style={{ marginTop: '4px', color: '#444' }}>OBS: {data.observacoes}</div>
+          <div style={{ marginTop: '4px', color: '#000' }}>OBS: {data.observacoes}</div>
         )}
       </div>
 
@@ -236,7 +238,7 @@ export function CupomFiscal({ data }: { data: CupomData }) {
       {/* Rodapé */}
       <div style={{ textAlign: 'center', fontSize: '14px', marginTop: '4px' }}>
         <div>Obrigado pela preferência!</div>
-        <div style={{ marginTop: '2px', color: '#555' }}>
+        <div style={{ marginTop: '2px', color: '#000' }}>
           Este cupom é seu comprovante de compra
         </div>
       </div>
