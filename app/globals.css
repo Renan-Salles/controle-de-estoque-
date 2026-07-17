@@ -374,9 +374,21 @@ html {
 
 /* ------------------------------------------------------------------ *
  * Impressão do cupom fiscal - térmica 80mm (venda e romaneio)
- * Escopado a paginas que tem .cupom-print-area: nao pode afetar outras
- * impressoes do sistema (ex.: "Imprimir extrato" em clientes/[id], que
- * imprime a pagina inteira em papel normal, sem essa classe).
+ *
+ * IMPORTANTE: nao usar a tecnica "esconder tudo com visibility + flutuar
+ * o cupom com position:fixed por cima". Ja tentamos e ela e fragil pra
+ * paginacao de impressao de verdade: visibility:hidden nao tira o resto
+ * da pagina do fluxo (só fica invisivel, mas continua "ocupando altura"
+ * pro calculo de @page auto), e um position:fixed IMPRIME DE NOVO em
+ * cada pagina que a paginacao decidir gerar -- resultado real visto na
+ * impressora: o mesmo cupom saindo duplicado.
+ *
+ * A abordagem daqui remove de verdade (.no-print => display:none) tudo
+ * que nao e o cupom. Sem nada mais no fluxo, o cupom fica sozinho, com
+ * altura real igual ao seu proprio conteudo -- sem pagina fantasma, sem
+ * duplicar. Cada tela que usa .cupom-print-area precisa marcar o que
+ * estiver ao redor do cupom com .no-print (ver FormSaida.tsx e a pagina
+ * do romaneio).
  * ------------------------------------------------------------------ */
 @page cupom-termico {
   size: 80mm auto;
@@ -386,23 +398,17 @@ html {
   .no-print {
     display: none !important;
   }
-  html:has(.cupom-print-area),
-  body:has(.cupom-print-area) {
-    height: 0 !important;
-    overflow: hidden !important;
-  }
+  /* app/(app)/layout.tsx tem um wrapper com min-h-screen em volta de todo
+     o shell (sidebar + conteudo) -- isso forca altura minima de 100vh
+     mesmo depois de esconder sidebar/topbar/botoes, sobrando pagina em
+     branco (ou ate uma 2a pagina, e ai o cupom antigo com position:fixed
+     duplicava nela). So a altura minima e zerada aqui; nada de
+     visibilidade/posicionamento, que e o que causava a duplicacao. */
   body:has(.cupom-print-area) * {
-    visibility: hidden !important;
-    /* Zera qualquer transform residual (ex.: animacao de transicao de
-       pagina com fill-mode:both em .u-page-enter) -- um transform em
-       QUALQUER ancestral vira o novo "chao" do position:fixed abaixo,
-       e o cupom para de ficar preso na pagina fisica de verdade. */
-    transform: none !important;
-    animation: none !important;
+    min-height: 0 !important;
   }
-  body:has(.cupom-print-area) .cupom-print-area,
-  body:has(.cupom-print-area) .cupom-print-area * {
-    visibility: visible !important;
+  .cupom-print-area,
+  .cupom-print-area * {
     /* O componente usa cinza-escuro (#111/#444/#555) pra ficar bonito
        na tela, mas impressora termica nao faz meio-tom de verdade --
        ela corta pra preto-e-branco puro, e cinza-mas-nao-preto sai
@@ -416,10 +422,8 @@ html {
     font-weight: 700 !important;
   }
   .cupom-print-area {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
     width: 80mm !important;
+    margin: 0 !important;
     background: white !important;
     border: none !important;
     border-radius: 0 !important;

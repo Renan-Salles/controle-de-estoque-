@@ -545,9 +545,9 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
   if (vendaRegistrada) {
     return (
       <>
-        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 py-8">
+        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 py-8 print:min-h-0 print:gap-0 print:py-0">
           {/* Header de sucesso */}
-          <div className="flex flex-col items-center gap-3 text-center">
+          <div className="no-print flex flex-col items-center gap-3 text-center">
             <div className="flex size-14 items-center justify-center rounded-full bg-ok/10">
               <CheckCircle2 className="size-7 text-ok" strokeWidth={1.5} />
             </div>
@@ -565,7 +565,7 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
           {mostrarCupom && cupomData ? (
             <div className="w-full max-w-xs">
               {/* Barra de ações do cupom */}
-              <div className="mb-3 flex items-center justify-between">
+              <div className="no-print mb-3 flex items-center justify-between">
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
                   Cupom fiscal
                 </span>
@@ -589,7 +589,7 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
               </div>
 
               {/* Botões de impressão */}
-              <div className="mt-3 flex gap-2">
+              <div className="no-print mt-3 flex gap-2">
                 <button
                   type="button"
                   onClick={imprimirCupom}
@@ -613,7 +613,7 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
               type="button"
               onClick={() => setMostrarCupom(true)}
               disabled={!cupomData}
-              className="flex items-center gap-2 rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-brand-strong disabled:opacity-50"
+              className="no-print flex items-center gap-2 rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-brand-strong disabled:opacity-50"
             >
               <Printer className="size-4" strokeWidth={1.5} />
               {cupomData ? 'Ver cupom' : 'Carregando cupom...'}
@@ -622,15 +622,17 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
 
           {/* QR Pix: venda em pix com chave cadastrada nas configuracoes */}
           {formaPagamento === 'pix' && dadosPix && (
-            <QrPix
-              chave={dadosPix.chave}
-              valor={total}
-              nome={dadosPix.nome}
-              cidade={dadosPix.cidade}
-            />
+            <div className="no-print">
+              <QrPix
+                chave={dadosPix.chave}
+                valor={total}
+                nome={dadosPix.nome}
+                cidade={dadosPix.cidade}
+              />
+            </div>
           )}
 
-          <div className="flex items-center gap-2">
+          <div className="no-print flex items-center gap-2">
             <Link
               href={`/pedidos/${vendaRegistrada.pedidoId}`}
               className="flex items-center gap-2 rounded-xl border border-border bg-surface px-6 py-3 text-sm font-semibold text-text hover:bg-surface-2"

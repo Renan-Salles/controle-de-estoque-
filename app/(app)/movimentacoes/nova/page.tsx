@@ -42,7 +42,7 @@ export default function NovaMovimentacaoPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5">
-      <div className="flex items-center gap-3">
+      <div className="no-print flex items-center gap-3">
         <Link
           href="/movimentacoes"
           className="u-motion flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-text-muted hover:bg-surface-2 hover:text-text active:scale-95"
@@ -64,7 +64,7 @@ export default function NovaMovimentacaoPage() {
       <div
         role="tablist"
         aria-label="Tipo de movimentação"
-        className="grid grid-cols-1 gap-2 rounded-xl border border-border bg-surface p-1.5 sm:grid-cols-2"
+        className="no-print grid grid-cols-1 gap-2 rounded-xl border border-border bg-surface p-1.5 sm:grid-cols-2"
       >
         {OPCOES.map((o) => {
           const ativo = tipo === o.tipo
