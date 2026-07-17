@@ -66,7 +66,7 @@ export function CupomFiscal({ data }: { data: CupomData }) {
     <div
       className="cupom-fiscal"
       style={{
-        fontFamily: "'Courier New', Courier, monospace",
+        fontFamily: "Consolas, 'Lucida Console', 'Courier New', monospace",
         fontSize: '11px',
         lineHeight: '1.5',
         color: '#111',
