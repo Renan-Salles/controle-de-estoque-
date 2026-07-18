@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { Printer, User, CalendarDays, CreditCard, StickyNote, Ban, Clock } from 'lucide-react'
+import { Printer, User, CalendarDays, CreditCard, StickyNote, Ban, Clock, Pencil } from 'lucide-react'
 import { PageHeader } from '@/components/ui-kit/PageHeader'
 import { StatusPill } from '@/components/ui-kit/StatusPill'
 import { BotaoVoltar } from '@/components/ui-kit/BotaoVoltar'
@@ -9,6 +9,7 @@ import { BotaoCancelar } from '@/components/movimentacao/BotaoCancelar'
 import { FulfillmentAcoes } from '@/components/movimentacao/FulfillmentAcoes'
 import { getCargoUsuario } from '@/lib/permissoes'
 import { listarEntregadoresElegiveis } from '@/lib/actions/cargos'
+import { podeEditarPedido, caixaFechadoHoje } from '@/lib/actions/pedidos'
 import { AtribuirEntregadorForm } from '@/components/pedido/AtribuirEntregadorForm'
 import {
   Tabela,
@@ -107,6 +108,9 @@ export default async function VendaDetailPage({
     : [null, []]
   const mostraAtribuir = podeAtribuir && (cargo?.admin || cargo?.nome === 'Funcionario')
 
+  const fechado = await caixaFechadoHoje(venda.local_id)
+  const mostraEditar = podeEditarPedido(venda, fechado)
+
   const numeroFmt = `#${String(venda.numero_pedido).padStart(4, '0')}`
   const cancelada = venda.status === 'cancelada'
 
@@ -146,6 +150,15 @@ export default async function VendaDetailPage({
           <Printer className="size-4" strokeWidth={1.5} />
           Romaneio
         </Link>
+        {mostraEditar && (
+          <Link
+            href={`/pedidos/${venda.id}/editar`}
+            className="u-motion inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-text hover:bg-surface-2 active:scale-[0.98]"
+          >
+            <Pencil className="size-4" strokeWidth={1.5} />
+            Editar
+          </Link>
+        )}
         {!cancelada && (
           <BotaoCancelar pedidoId={venda.id} numero={numeroFmt} />
         )}
