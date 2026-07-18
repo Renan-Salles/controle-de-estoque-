@@ -489,3 +489,36 @@ export async function listarPedidosConcluidos() {
   if (error) throw error
   return data ?? []
 }
+
+// Entregador aceita uma entrega da fila (sem ninguem designado ainda).
+// A trava de concorrencia mora na funcao SQL security definer.
+export async function aceitarEntrega(pedidoId: string) {
+  const supabase = await createClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any).rpc('aceitar_entrega', { p_pedido_id: pedidoId })
+  if (error) return { error: error.message }
+  revalidatePath('/dashboard')
+  return { success: true }
+}
+
+// Entregas de "entrega" sem entregador ainda, do local ativo -- a fila que
+// a tela do Entregador mostra pra aceitar. Mesmo shape de listarMinhasEntregas().
+export async function listarEntregasDisponiveis() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  const localId = await getLocalAtivoId()
+  const { data, error } = await supabase
+    .from('pedidos')
+    .select(
+      'id, numero_pedido, total, forma_pagamento, pago, data_pedido, saiu_entrega_em, endereco_entrega, clientes(nome, telefone, endereco)',
+    )
+    .eq('local_id', localId)
+    .is('entregador_id', null)
+    .eq('tipo_fulfillment', 'entrega')
+    .eq('status', 'concluida')
+    .is('concluido_em', null)
+    .order('data_pedido', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
