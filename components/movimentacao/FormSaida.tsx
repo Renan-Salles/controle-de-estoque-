@@ -188,10 +188,6 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
       toast.error('Selecione um cliente para venda fiado')
       return
     }
-    if (tipoFulfillment === 'entrega' && !entregadorId) {
-      toast.error('Escolha quem vai entregar')
-      return
-    }
     setRegistrando(true)
     const resultado = await registrarVenda({
       cliente_id: cliente?.id ?? null,
@@ -211,7 +207,7 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
         }
       }),
       tipo_fulfillment: tipoFulfillment,
-      entregador_id: tipoFulfillment === 'entrega' ? entregadorId : null,
+      entregador_id: tipoFulfillment === 'entrega' && entregadorId ? entregadorId : null,
       frete: freteNum,
       pago: tipoFulfillment === 'balcao' ? undefined : jaPago,
       desconto: descontoNum,
@@ -403,8 +399,7 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
   const podeRegistrar =
     itens.length > 0 &&
     !registrando &&
-    !(formaPagamento === 'fiado' && !cliente) &&
-    !(tipoFulfillment === 'entrega' && !entregadorId)
+    !(formaPagamento === 'fiado' && !cliente)
 
   function novaVenda() {
     setVendaRegistrada(null)

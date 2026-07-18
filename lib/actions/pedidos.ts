@@ -59,9 +59,6 @@ export async function registrarVenda(data: unknown) {
   if (parsed.data.forma_pagamento === 'fiado' && !parsed.data.cliente_id) {
     return { error: 'Selecione um cliente para venda fiado' }
   }
-  if (parsed.data.tipo_fulfillment === 'entrega' && !parsed.data.entregador_id) {
-    return { error: 'Escolha quem vai entregar' }
-  }
   const valorPagoAgora = parsed.data.forma_pagamento === 'fiado' ? (parsed.data.valor_pago_agora ?? 0) : 0
   if (valorPagoAgora > 0 && !parsed.data.forma_pagamento_parcial) {
     return { error: 'Escolha em qual forma o valor pago agora entrou' }
