@@ -576,7 +576,7 @@ export async function caixaFechadoHoje(localId: string): Promise<boolean> {
   return !!data
 }
 
-export async function buscarItensParaEditar(pedidoId: string): Promise<ItemPedido[]> {
+async function buscarItensDoPedido(pedidoId: string): Promise<ItemPedido[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('pedido_itens')
@@ -656,18 +656,113 @@ export async function buscarItensParaEditar(pedidoId: string): Promise<ItemPedid
   })
 }
 
-export async function editarVenda(
-  pedidoId: string,
-  itens: Array<{
-    produto_id: string
-    quantidade: number
-    preco_unitario: number
-    total: number
-    embalagem_nome?: string
-    embalagem_unidades?: number
-  }>,
-) {
-  if (itens.length === 0) return { error: 'A venda precisa ter pelo menos 1 item' }
+export type PedidoParaEditar = {
+  itens: ItemPedido[]
+  cliente: {
+    id: string
+    nome: string
+    telefone: string | null
+    forma_pagamento_padrao: string
+    prazo_pagamento_dias: number | null
+    endereco: Record<string, string> | null
+  } | null
+  forma_pagamento: string
+  forma_pagamento_secundaria: string | null
+  valor_secundario: number
+  prazo_pagamento_dias: number
+  frete: number
+  desconto_total: number
+  tipo_fulfillment: string
+  entregador_id: string | null
+  endereco_entrega: Record<string, string> | null
+}
+
+export async function buscarPedidoParaEditar(pedidoId: string): Promise<PedidoParaEditar> {
+  const supabase = await createClient()
+  const { data: pedidoRaw } = await supabase
+    .from('pedidos')
+    .select(
+      'forma_pagamento, forma_pagamento_secundaria, valor_secundario, prazo_pagamento_dias, frete, desconto_total, tipo_fulfillment, entregador_id, endereco_entrega, clientes(id, nome, telefone, forma_pagamento_padrao, prazo_pagamento_dias, endereco)',
+    )
+    .eq('id', pedidoId)
+    .single()
+
+  type Rel<T> = T | T[] | null
+  const umaRel = <T,>(rel: Rel<T>): T | null => (Array.isArray(rel) ? (rel[0] ?? null) : rel)
+  type PedidoRaw = {
+    forma_pagamento: string
+    forma_pagamento_secundaria: string | null
+    valor_secundario: number
+    prazo_pagamento_dias: number
+    frete: number
+    desconto_total: number
+    tipo_fulfillment: string
+    entregador_id: string | null
+    endereco_entrega: Record<string, string> | null
+    clientes: Rel<{
+      id: string
+      nome: string
+      telefone: string | null
+      forma_pagamento_padrao: string
+      prazo_pagamento_dias: number | null
+      endereco: Record<string, string> | null
+    }>
+  }
+  const p = pedidoRaw as unknown as PedidoRaw
+
+  const itens = await buscarItensDoPedido(pedidoId)
+
+  return {
+    itens,
+    cliente: umaRel(p.clientes),
+    forma_pagamento: p.forma_pagamento,
+    forma_pagamento_secundaria: p.forma_pagamento_secundaria,
+    valor_secundario: Number(p.valor_secundario ?? 0),
+    prazo_pagamento_dias: p.prazo_pagamento_dias,
+    frete: Number(p.frete ?? 0),
+    desconto_total: Number(p.desconto_total ?? 0),
+    tipo_fulfillment: p.tipo_fulfillment,
+    entregador_id: p.entregador_id,
+    endereco_entrega: p.endereco_entrega,
+  }
+}
+
+const EdicaoVendaSchema = z.object({
+  itens: z.array(ItemSchema).min(1, 'Adicione pelo menos 1 item'),
+  cliente_id: z.string().uuid().nullable().optional(),
+  forma_pagamento: z.enum(['dinheiro', 'pix', 'cartao_debito', 'cartao_credito', 'fiado']),
+  forma_pagamento_secundaria: z.enum(['dinheiro', 'pix', 'cartao_debito', 'cartao_credito', 'fiado']).optional(),
+  valor_secundario: z.number().min(0).optional(),
+  prazo_dias: z.number().int().min(1).max(180).optional(),
+  frete: z.number().min(0).default(0),
+  desconto: z.number().min(0).default(0),
+  tipo_fulfillment: z.enum(['balcao', 'entrega', 'retirada']).default('balcao'),
+  entregador_id: z.string().uuid().nullable().optional(),
+  endereco_entrega: z
+    .object({
+      rua: z.string().optional(),
+      numero: z.string().optional(),
+      bairro: z.string().optional(),
+      cidade: z.string().optional(),
+    })
+    .optional(),
+})
+
+export async function editarVenda(pedidoId: string, data: unknown) {
+  const parsed = EdicaoVendaSchema.safeParse(data)
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+  const { itens, forma_pagamento, tipo_fulfillment, frete, desconto } = parsed.data
+
+  const formaSecundaria = parsed.data.forma_pagamento_secundaria ?? null
+  const valorSecundario = formaSecundaria ? (parsed.data.valor_secundario ?? 0) : 0
+  if (formaSecundaria) {
+    if (formaSecundaria === forma_pagamento) {
+      return { error: 'As duas formas de pagamento precisam ser diferentes' }
+    }
+    if (valorSecundario <= 0) {
+      return { error: 'Informe o valor da segunda forma de pagamento' }
+    }
+  }
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -677,19 +772,17 @@ export async function editarVenda(
 
   const { data: pedidoRaw, error: errPedido } = await serviceClient
     .from('pedidos')
-    .select('id, local_id, status, data_pedido, concluido_em, tipo_fulfillment, frete, desconto_total, forma_pagamento')
+    .select('id, numero_pedido, local_id, status, data_pedido, concluido_em, tipo_fulfillment')
     .eq('id', pedidoId)
     .single()
   type PedidoRow = {
     id: string
+    numero_pedido: number
     local_id: string
     status: string
     data_pedido: string
     concluido_em: string | null
     tipo_fulfillment: string
-    frete: number
-    desconto_total: number
-    forma_pagamento: string
   }
   const pedido = pedidoRaw as PedidoRow | null
   if (errPedido || !pedido) return { error: errPedido?.message ?? 'Venda não encontrada' }
@@ -697,6 +790,25 @@ export async function editarVenda(
   const fechado = await caixaFechadoHoje(pedido.local_id)
   if (!podeEditarPedido(pedido, fechado)) {
     return { error: 'Essa venda não pode mais ser editada (fora do dia, caixa fechado ou já concluída)' }
+  }
+
+  const subtotal = +itens.reduce((acc, i) => acc + i.total, 0).toFixed(2)
+  if (desconto > subtotal) {
+    return { error: 'Desconto maior que o valor da mercadoria.' }
+  }
+  const novoTotal = +(subtotal + frete - desconto).toFixed(2)
+  if (valorSecundario >= novoTotal && formaSecundaria) {
+    return { error: 'O valor da segunda forma não pode ser maior ou igual ao total da venda' }
+  }
+
+  const pernaFiado =
+    forma_pagamento === 'fiado'
+      ? { valor: novoTotal - valorSecundario }
+      : formaSecundaria === 'fiado'
+        ? { valor: valorSecundario }
+        : null
+  if (pernaFiado && !parsed.data.cliente_id) {
+    return { error: 'Selecione um cliente para venda fiado' }
   }
 
   const { data: itensAntigosRaw, error: errItensAntigos } = await serviceClient
@@ -773,41 +885,87 @@ export async function editarVenda(
   )
   if (errInsert) return { error: errInsert.message }
 
-  const subtotal = +itens.reduce((acc, i) => acc + i.total, 0).toFixed(2)
-  const novoTotal = +(subtotal + pedido.frete - pedido.desconto_total).toFixed(2)
+  // Reconcilia contas_receber com a nova situacao de fiado (pode ter
+  // deixado de existir, passado a existir, ou so mudado de valor).
+  const { data: contaRaw } = await serviceClient
+    .from('contas_receber')
+    .select('id, valor_pago')
+    .eq('pedido_id', pedidoId)
+    .maybeSingle()
+  const conta = contaRaw as { id: string; valor_pago: number } | null
 
-  if (pedido.forma_pagamento === 'fiado') {
-    const { data: contaRaw } = await serviceClient
-      .from('contas_receber')
-      .select('id, valor_pago')
-      .eq('pedido_id', pedidoId)
-      .maybeSingle()
-    const conta = contaRaw as { id: string; valor_pago: number } | null
+  if (pernaFiado) {
     if (conta) {
-      if (novoTotal < conta.valor_pago) {
+      if (pernaFiado.valor < conta.valor_pago) {
         return {
-          error: `Não é possível reduzir o total abaixo do que já foi pago (R$ ${conta.valor_pago.toFixed(2).replace('.', ',')})`,
+          error: `Não é possível reduzir o fiado abaixo do que já foi pago (R$ ${conta.valor_pago.toFixed(2).replace('.', ',')})`,
         }
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (serviceClient.from('contas_receber') as any)
-        .update({
-          valor: novoTotal,
-          status: conta.valor_pago >= novoTotal ? 'pago' : 'aberto',
-        })
+        .update({ valor: pernaFiado.valor, status: conta.valor_pago >= pernaFiado.valor ? 'pago' : 'aberto' })
         .eq('id', conta.id)
+    } else {
+      const hoje = hojeBrasil()
+      const prazoDias = parsed.data.prazo_dias ?? 7
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: errReceber } = await (serviceClient.from('contas_receber') as any).insert({
+        pedido_id: pedidoId,
+        cliente_id: parsed.data.cliente_id,
+        descricao: `Venda #${String(pedido.numero_pedido).padStart(4, '0')}`,
+        valor: pernaFiado.valor,
+        valor_pago: 0,
+        status: 'aberto',
+        data_emissao: hoje,
+        data_vencimento: addDias(hoje, prazoDias),
+        forma_pagamento: 'fiado',
+      })
+      if (errReceber) return { error: errReceber.message }
     }
+  } else if (conta) {
+    if (conta.valor_pago > 0) {
+      return {
+        error: `Essa venda já tem R$ ${conta.valor_pago.toFixed(2).replace('.', ',')} recebidos como fiado — não dá pra tirar o fiado sem estornar o recebimento primeiro.`,
+      }
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (serviceClient.from('contas_receber') as any).update({ status: 'cancelado' }).eq('id', conta.id)
   }
 
+  // Tipo mudou de/para balcao: concluido_em segue a mesma regra da criacao
+  // (balcao ja fecha na hora; entrega/retirada volta a aguardar).
+  const concluidoEm =
+    tipo_fulfillment === 'balcao'
+      ? new Date().toISOString()
+      : pedido.tipo_fulfillment === 'balcao'
+        ? null
+        : pedido.concluido_em
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: errTotal } = await (serviceClient.from('pedidos') as any)
-    .update({ subtotal, total: novoTotal })
+  const { error: errUpdate } = await (serviceClient.from('pedidos') as any)
+    .update({
+      subtotal,
+      total: novoTotal,
+      cliente_id: parsed.data.cliente_id ?? null,
+      forma_pagamento,
+      forma_pagamento_secundaria: formaSecundaria,
+      valor_secundario: formaSecundaria ? valorSecundario : 0,
+      frete,
+      desconto_total: desconto,
+      tipo_fulfillment,
+      entregador_id: tipo_fulfillment === 'entrega' ? parsed.data.entregador_id : null,
+      endereco_entrega: parsed.data.endereco_entrega ?? null,
+      concluido_em: concluidoEm,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', pedidoId)
-  if (errTotal) return { error: errTotal.message }
+  if (errUpdate) return { error: errUpdate.message }
 
   revalidatePath(`/pedidos/${pedidoId}`)
   revalidatePath('/pedidos')
   revalidatePath('/dashboard')
+  revalidatePath('/financeiro/a-receber')
+  revalidatePath('/caixa')
   return { success: true as const }
 }
 

@@ -1,7 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
-import { caixaFechadoHoje, buscarItensParaEditar } from '@/lib/actions/pedidos'
+import { caixaFechadoHoje, buscarPedidoParaEditar } from '@/lib/actions/pedidos'
 import { podeEditarPedido } from '@/lib/pedido-labels'
+import { listarEntregadoresElegiveis } from '@/lib/actions/cargos'
 import { EditarVendaForm } from '@/components/pedido/EditarVendaForm'
 
 export default async function EditarVendaPage({
@@ -32,14 +33,18 @@ export default async function EditarVendaPage({
   const fechado = await caixaFechadoHoje(pedido.local_id)
   if (!podeEditarPedido(pedido, fechado)) notFound()
 
-  const itens = await buscarItensParaEditar(id)
+  const [dados, equipe] = await Promise.all([
+    buscarPedidoParaEditar(id),
+    listarEntregadoresElegiveis(pedido.local_id),
+  ])
 
   return (
     <div className="mx-auto max-w-3xl">
       <EditarVendaForm
         pedidoId={id}
         numeroPedido={pedido.numero_pedido}
-        itensIniciais={itens}
+        dados={dados}
+        equipe={equipe}
       />
     </div>
   )
