@@ -36,7 +36,14 @@ function enderecoPartes(e: Endereco): { linha1: string; linha2: string } {
   }
 }
 
-export function CardEntrega({ entrega }: { entrega: EntregaResumo }) {
+export function CardEntrega({
+  entrega,
+  acoes,
+}: {
+  entrega: EntregaResumo
+  /** Quando passado, substitui o bloco padrao de FulfillmentAcoes no rodape. */
+  acoes?: React.ReactNode
+}) {
   const numeroFmt = `#${String(entrega.numero_pedido).padStart(4, '0')}`
   const telefone = entrega.cliente?.telefone ?? null
   const telDigitos = telefone?.replace(/\D/g, '') ?? ''
@@ -149,14 +156,16 @@ export function CardEntrega({ entrega }: { entrega: EntregaResumo }) {
 
         {/* Proximo passo do fluxo em destaque */}
         <div className="mt-3">
-          <FulfillmentAcoes
-            pedidoId={entrega.id}
-            tipoFulfillment="entrega"
-            pago={entrega.pago}
-            concluidoEm={null}
-            saiuEntregaEm={entrega.saiu_entrega_em}
-            empilhado
-          />
+          {acoes ?? (
+            <FulfillmentAcoes
+              pedidoId={entrega.id}
+              tipoFulfillment="entrega"
+              pago={entrega.pago}
+              concluidoEm={null}
+              saiuEntregaEm={entrega.saiu_entrega_em}
+              empilhado
+            />
+          )}
         </div>
       </div>
     </div>

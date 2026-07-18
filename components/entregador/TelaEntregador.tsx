@@ -1,11 +1,12 @@
 import { PackageCheck } from 'lucide-react'
-import { listarMinhasEntregas } from '@/lib/actions/pedidos'
+import { listarMinhasEntregas, listarEntregasDisponiveis } from '@/lib/actions/pedidos'
 import { getLocalAtivo } from '@/lib/local'
 import { getNomePerfil } from '@/lib/permissoes'
 import { meuTurnoAtivo } from '@/lib/actions/turnos'
 import { meuTempoMedioEntrega } from '@/lib/actions/relatorio-entregadores'
 import { EstadoVazio } from '@/components/ui-kit/EstadoVazio'
 import { CardEntrega, type EntregaResumo } from './CardEntrega'
+import { BotaoAceitarEntrega } from './BotaoAceitarEntrega'
 import { BotaoSair } from './BotaoSair'
 import { TurnoCard } from './TurnoCard'
 
@@ -63,14 +64,16 @@ type EntregaRaw = {
 // Tela unica do cargo Entregador: so as entregas designadas a ele, sem
 // sidebar/topbar de admin. Renderizada por /dashboard quando ehEntregador().
 export async function TelaEntregador() {
-  const [entregasRaw, local, nome, turnoAtivo, tempoMedioMin] = await Promise.all([
+  const [entregasRaw, disponiveisRaw, local, nome, turnoAtivo, tempoMedioMin] = await Promise.all([
     listarMinhasEntregas(),
+    listarEntregasDisponiveis(),
     getLocalAtivo(),
     getNomePerfil(),
     meuTurnoAtivo(),
     meuTempoMedioEntrega(),
   ])
   const entregas = entregasRaw as unknown as EntregaRaw[]
+  const disponiveis = disponiveisRaw as unknown as EntregaRaw[]
   const logo = logoPartes(local.nome)
   const emRota = entregas.filter((e) => e.saiu_entrega_em).length
   const aguardando = entregas.length - emRota
@@ -119,6 +122,35 @@ export async function TelaEntregador() {
             </div>
           )}
         </div>
+
+        {disponiveis.length > 0 && (
+          <div className="mt-5">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+              Disponíveis pra aceitar
+            </p>
+            <div className="mt-2 space-y-4">
+              {disponiveis.map((e) => (
+                <CardEntrega
+                  key={e.id}
+                  entrega={
+                    {
+                      id: e.id,
+                      numero_pedido: e.numero_pedido,
+                      total: e.total,
+                      forma_pagamento: e.forma_pagamento,
+                      pago: e.pago,
+                      saiu_entrega_em: e.saiu_entrega_em,
+                      cliente: umaRel(e.clientes),
+                      endereco_entrega: e.endereco_entrega,
+                      localNome: local.nome,
+                    } satisfies EntregaResumo
+                  }
+                  acoes={<BotaoAceitarEntrega pedidoId={e.id} />}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         <TurnoCard turnoInicial={turnoAtivo} tempoMedioMin={tempoMedioMin} />
 
