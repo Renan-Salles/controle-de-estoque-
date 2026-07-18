@@ -1,6 +1,7 @@
 'use server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getCargoUsuario } from '@/lib/permissoes'
+import { getLocalAtivoId } from '@/lib/local'
 import { revalidatePath } from 'next/cache'
 import type { Cargo } from '@/lib/nav-catalogo'
 
@@ -35,6 +36,23 @@ export async function listarUsuariosComCargo(): Promise<UsuarioComCargo[]> {
     .from('profiles')
     .select('id, nome, email, status, cargo_id, telefone')
     .order('created_at')
+  return (data ?? []) as unknown as UsuarioComCargo[]
+}
+
+// Pra escolher "quem vai entregar" numa venda: só gente ativa que pode
+// atender o local dessa venda (local_id nulo = sem restrição, mesma regra
+// de getLocalAtivo/rotaPermitida). listarUsuariosComCargo() acima é usada
+// sem esse filtro na tela de Equipe (admin precisa ver todo mundo, dos
+// dois locais, pra gerenciar) -- não dá pra reusar ela aqui.
+export async function listarEntregadoresElegiveis(): Promise<UsuarioComCargo[]> {
+  const localId = await getLocalAtivoId()
+  const s = await createServiceClient()
+  const { data } = await s
+    .from('profiles')
+    .select('id, nome, email, status, cargo_id, telefone, local_id')
+    .eq('status', 'ativo')
+    .or(`local_id.is.null,local_id.eq.${localId}`)
+    .order('nome')
   return (data ?? []) as unknown as UsuarioComCargo[]
 }
 

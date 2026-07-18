@@ -38,7 +38,7 @@ import { getDadosPix } from '@/lib/actions/configuracoes'
 import { taxaPorBairro } from '@/lib/actions/taxas'
 import { QrPix } from '@/components/pedido/QrPix'
 import { buscarMaisVendidos, type MaisVendido } from '@/lib/actions/produtos'
-import { listarUsuariosComCargo, type UsuarioComCargo } from '@/lib/actions/cargos'
+import { listarEntregadoresElegiveis, type UsuarioComCargo } from '@/lib/actions/cargos'
 import { formatarReal, formatarData, addDias, hojeBrasil } from '@/lib/formatos'
 import { rotuloPagamento } from '@/lib/pedido-labels'
 import { Money } from '@/components/ui-kit/Money'
@@ -297,12 +297,12 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
     }
   }, [])
 
-  // Equipe ativa, pra escolher quem vai entregar.
+  // Equipe ativa do local atual, pra escolher quem vai entregar.
   useEffect(() => {
     let ativo = true
-    listarUsuariosComCargo()
+    listarEntregadoresElegiveis()
       .then((lista) => {
-        if (ativo) setEquipe(lista.filter((u) => u.status === 'ativo'))
+        if (ativo) setEquipe(lista)
       })
       .catch(() => {
         if (ativo) setEquipe([])
