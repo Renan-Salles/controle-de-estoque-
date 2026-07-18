@@ -76,23 +76,20 @@ export function formatarDuracaoEntrega(
   return resto > 0 ? `${h}h ${resto}min` : `${h}h`
 }
 
-// So edita venda concluida HOJE, ainda nao entregue/retirada, com o
-// caixa do dia ainda aberto. Depois disso so cancelar (BotaoCancelar).
-// Balcao ganha concluido_em na hora (nao ha entrega/retirada pra esperar),
-// entao o vazio de concluido_em so vale como trava pra entrega/retirada.
+// So edita venda concluida HOJE, com o caixa do dia ainda aberto. Depois
+// disso so cancelar (BotaoCancelar). Entregue/retirado tambem pode editar
+// (ex.: cliente pediu mais um item depois que ja recebeu a entrega) --
+// so o dia+caixa importam, nao o status de entrega.
 export function podeEditarPedido(
   p: {
     status: string
     data_pedido: string
-    concluido_em: string | null
-    tipo_fulfillment: string
   },
   caixaFechado: boolean,
 ): boolean {
   const hoje = hojeBrasil()
   return (
     p.status === 'concluida' &&
-    (p.tipo_fulfillment === 'balcao' || !p.concluido_em) &&
     p.data_pedido.startsWith(hoje) &&
     !caixaFechado
   )

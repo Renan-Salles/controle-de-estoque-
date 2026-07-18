@@ -142,7 +142,7 @@ export function ListaItensPedido({
                       onClick={() =>
                         onAlterarQtdFormas(item.produto_id, Math.max(1, item.qtdFormas - 1))
                       }
-                      className="u-motion flex size-8 items-center justify-center rounded-l-lg text-text-muted hover:bg-surface-2 hover:text-text active:scale-95 disabled:opacity-40"
+                      className="u-motion flex size-8 touch-manipulation items-center justify-center rounded-l-lg text-text-muted hover:bg-surface-2 hover:text-text active:scale-95 disabled:opacity-40"
                       disabled={item.qtdFormas <= 1}
                       aria-label="Diminuir quantidade"
                     >
@@ -161,7 +161,7 @@ export function ListaItensPedido({
                     <button
                       type="button"
                       onClick={() => onAlterarQtdFormas(item.produto_id, item.qtdFormas + 1)}
-                      className="u-motion flex size-8 items-center justify-center rounded-r-lg text-text-muted hover:bg-surface-2 hover:text-text active:scale-95"
+                      className="u-motion flex size-8 touch-manipulation items-center justify-center rounded-r-lg text-text-muted hover:bg-surface-2 hover:text-text active:scale-95"
                       aria-label="Aumentar quantidade"
                     >
                       <Plus className="size-3.5" strokeWidth={2} />
