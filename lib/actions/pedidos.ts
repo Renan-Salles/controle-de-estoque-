@@ -661,7 +661,7 @@ export async function editarVenda(
 
   const { data: pedidoRaw, error: errPedido } = await serviceClient
     .from('pedidos')
-    .select('id, local_id, status, data_pedido, concluido_em, frete, desconto_total, forma_pagamento')
+    .select('id, local_id, status, data_pedido, concluido_em, tipo_fulfillment, frete, desconto_total, forma_pagamento')
     .eq('id', pedidoId)
     .single()
   type PedidoRow = {
@@ -670,6 +670,7 @@ export async function editarVenda(
     status: string
     data_pedido: string
     concluido_em: string | null
+    tipo_fulfillment: string
     frete: number
     desconto_total: number
     forma_pagamento: string
@@ -801,6 +802,7 @@ export type PedidoRecente = {
   total: number
   data_pedido: string
   concluido_em: string | null
+  tipo_fulfillment: string
   cliente_nome: string | null
 }
 
@@ -809,7 +811,7 @@ export async function listarPedidosRecentes(limite = 5): Promise<PedidoRecente[]
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('pedidos')
-    .select('id, numero_pedido, status, total, data_pedido, concluido_em, clientes(nome)')
+    .select('id, numero_pedido, status, total, data_pedido, concluido_em, tipo_fulfillment, clientes(nome)')
     .eq('local_id', localId)
     .order('data_pedido', { ascending: false })
     .limit(limite)

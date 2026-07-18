@@ -13,7 +13,7 @@ export default async function EditarVendaPage({
   const supabase = await createClient()
   const { data: pedidoRaw } = await supabase
     .from('pedidos')
-    .select('id, numero_pedido, local_id, status, data_pedido, concluido_em')
+    .select('id, numero_pedido, local_id, status, data_pedido, concluido_em, tipo_fulfillment')
     .eq('id', id)
     .single()
 
@@ -24,6 +24,7 @@ export default async function EditarVendaPage({
     status: string
     data_pedido: string
     concluido_em: string | null
+    tipo_fulfillment: string
   }
   const pedido = pedidoRaw as PedidoBasico | null
   if (!pedido) notFound()
