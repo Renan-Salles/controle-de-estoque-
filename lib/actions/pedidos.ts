@@ -807,3 +807,34 @@ export async function editarVenda(
   revalidatePath('/dashboard')
   return { success: true as const }
 }
+
+export type PedidoRecente = {
+  id: string
+  numero_pedido: number
+  status: string
+  total: number
+  data_pedido: string
+  concluido_em: string | null
+  cliente_nome: string | null
+}
+
+export async function listarPedidosRecentes(limite = 5): Promise<PedidoRecente[]> {
+  const localId = await getLocalAtivoId()
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('pedidos')
+    .select('id, numero_pedido, status, total, data_pedido, concluido_em, clientes(nome)')
+    .eq('local_id', localId)
+    .order('data_pedido', { ascending: false })
+    .limit(limite)
+  if (error) throw error
+
+  type Rel<T> = T | T[] | null
+  const umaRel = <T,>(rel: Rel<T>): T | null => (Array.isArray(rel) ? (rel[0] ?? null) : rel)
+  type Raw = Omit<PedidoRecente, 'cliente_nome'> & { clientes: Rel<{ nome: string }> }
+
+  return ((data ?? []) as unknown as Raw[]).map((p) => ({
+    ...p,
+    cliente_nome: umaRel(p.clientes)?.nome ?? null,
+  }))
+}

@@ -21,11 +21,12 @@ import { GraficoVendas, type PontoVenda } from '@/components/dashboard/GraficoVe
 import { getDashStats } from '@/lib/actions/dashboard'
 import { getDre } from '@/lib/actions/dre'
 import { buscarResumoFiado } from '@/lib/actions/financeiro'
-import { contarPedidosPendentes } from '@/lib/actions/pedidos'
+import { contarPedidosPendentes, listarPedidosRecentes, podeEditarPedido, caixaFechadoHoje } from '@/lib/actions/pedidos'
 import { getMeta } from '@/lib/actions/metas'
 import { formatarReal, hojeBrasil, mesAtualBrasil, addDias } from '@/lib/formatos'
 import { ehEntregador } from '@/lib/permissoes'
 import { TelaEntregador } from '@/components/entregador/TelaEntregador'
+import { PedidosRecentes } from '@/components/dashboard/PedidosRecentes'
 
 export default async function DashboardPage() {
   // Cargo Entregador tem a propria tela no lugar do dashboard: /dashboard e
@@ -55,6 +56,8 @@ export default async function DashboardPage() {
     resumoFiado,
     qtdPendentes,
     metaMes,
+    pedidosRecentes,
+    fechado,
   ] = await Promise.all([
     supabase.from('pedidos').select('total').gte('data_pedido', `${hoje}T00:00:00`).eq('status', 'concluida').eq('local_id', localId) as unknown as Promise<{ data: RowTotal[] }>,
     supabase.from('v_posicao_estoque').select('id').in('status_estoque', ['critico', 'ruptura']).eq('local_id', localId) as unknown as Promise<{ data: RowId[] }>,
@@ -64,7 +67,13 @@ export default async function DashboardPage() {
     buscarResumoFiado(),
     contarPedidosPendentes(),
     getMeta(),
+    listarPedidosRecentes(),
+    caixaFechadoHoje(localId),
   ])
+
+  const editaveis = new Set(
+    pedidosRecentes.filter((p) => podeEditarPedido(p, fechado)).map((p) => p.id),
+  )
 
   const receitaHoje = (pedidosHoje ?? []).reduce((acc, p) => acc + (p.total ?? 0), 0)
   const receitaMes = (pedidosMes ?? []).reduce((acc, p) => acc + (p.total ?? 0), 0)
@@ -424,6 +433,8 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+
+      <PedidosRecentes pedidos={pedidosRecentes} editaveis={editaveis} />
     </div>
   )
 }
