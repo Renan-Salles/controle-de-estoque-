@@ -9,7 +9,7 @@ import { BotaoCancelar } from '@/components/movimentacao/BotaoCancelar'
 import { FulfillmentAcoes } from '@/components/movimentacao/FulfillmentAcoes'
 import { getCargoUsuario } from '@/lib/permissoes'
 import { listarEntregadoresElegiveis } from '@/lib/actions/cargos'
-import { podeEditarPedido, caixaFechadoHoje } from '@/lib/actions/pedidos'
+import { caixaFechadoHoje } from '@/lib/actions/pedidos'
 import { AtribuirEntregadorForm } from '@/components/pedido/AtribuirEntregadorForm'
 import {
   Tabela,
@@ -21,7 +21,7 @@ import {
 } from '@/components/ui-kit/tabela'
 import { Money } from '@/components/ui-kit/Money'
 import { formatarData, formatarDataHora } from '@/lib/formatos'
-import { rotuloPagamento, formatarDuracaoEntrega } from '@/lib/pedido-labels'
+import { rotuloPagamento, formatarDuracaoEntrega, podeEditarPedido } from '@/lib/pedido-labels'
 
 type VendaComRelacoes = {
   id: string

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
-import { podeEditarPedido, caixaFechadoHoje, buscarItensParaEditar } from '@/lib/actions/pedidos'
+import { caixaFechadoHoje, buscarItensParaEditar } from '@/lib/actions/pedidos'
+import { podeEditarPedido } from '@/lib/pedido-labels'
 import { EditarVendaForm } from '@/components/pedido/EditarVendaForm'
 
 export default async function EditarVendaPage({

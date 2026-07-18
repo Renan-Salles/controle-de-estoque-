@@ -3,6 +3,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getLocalAtivoId } from '@/lib/local'
 import { getCargoUsuario } from '@/lib/permissoes'
 import { addDias, hojeBrasil } from '@/lib/formatos'
+import { podeEditarPedido } from '@/lib/pedido-labels'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import type { ItemPedido, FormaVenda } from '@/types'
@@ -557,21 +558,6 @@ export async function caixaFechadoHoje(localId: string): Promise<boolean> {
     .eq('data', hoje)
     .maybeSingle()
   return !!data
-}
-
-// So edita venda concluida HOJE, ainda nao entregue/retirada, com o
-// caixa do dia ainda aberto. Depois disso so cancelar (BotaoCancelar).
-export function podeEditarPedido(
-  p: { status: string; data_pedido: string; concluido_em: string | null },
-  caixaFechado: boolean,
-): boolean {
-  const hoje = hojeBrasil()
-  return (
-    p.status === 'concluida' &&
-    !p.concluido_em &&
-    p.data_pedido.startsWith(hoje) &&
-    !caixaFechado
-  )
 }
 
 export async function buscarItensParaEditar(pedidoId: string): Promise<ItemPedido[]> {

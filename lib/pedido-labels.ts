@@ -3,6 +3,7 @@
 // Fiado vira uma linha em contas_receber, controlada à parte (lib/actions/financeiro.ts).
 
 import type { StatusPillTipo } from '@/components/ui-kit/StatusPill'
+import { hojeBrasil } from '@/lib/formatos'
 
 export type StatusPedido = 'concluida' | 'cancelada'
 
@@ -73,4 +74,19 @@ export function formatarDuracaoEntrega(
   const h = Math.floor(min / 60)
   const resto = min % 60
   return resto > 0 ? `${h}h ${resto}min` : `${h}h`
+}
+
+// So edita venda concluida HOJE, ainda nao entregue/retirada, com o
+// caixa do dia ainda aberto. Depois disso so cancelar (BotaoCancelar).
+export function podeEditarPedido(
+  p: { status: string; data_pedido: string; concluido_em: string | null },
+  caixaFechado: boolean,
+): boolean {
+  const hoje = hojeBrasil()
+  return (
+    p.status === 'concluida' &&
+    !p.concluido_em &&
+    p.data_pedido.startsWith(hoje) &&
+    !caixaFechado
+  )
 }
