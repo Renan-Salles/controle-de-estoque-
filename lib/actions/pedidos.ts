@@ -5,6 +5,7 @@ import { getCargoUsuario } from '@/lib/permissoes'
 import { addDias, hojeBrasil } from '@/lib/formatos'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import type { ItemPedido, FormaVenda } from '@/types'
 
 export type { UsuarioComCargo } from '@/lib/actions/cargos'
 
@@ -544,4 +545,265 @@ export async function atribuirEntregadorManual(pedidoId: string, entregadorId: s
   if (!count) return { error: 'Essa entrega já tem um entregador atribuído' }
   revalidatePath(`/pedidos/${pedidoId}`)
   return { success: true }
+}
+
+export async function caixaFechadoHoje(localId: string): Promise<boolean> {
+  const supabase = await createClient()
+  const hoje = hojeBrasil()
+  const { data } = await supabase
+    .from('caixa_fechamentos')
+    .select('id')
+    .eq('local_id', localId)
+    .eq('data', hoje)
+    .maybeSingle()
+  return !!data
+}
+
+// So edita venda concluida HOJE, ainda nao entregue/retirada, com o
+// caixa do dia ainda aberto. Depois disso so cancelar (BotaoCancelar).
+export function podeEditarPedido(
+  p: { status: string; data_pedido: string; concluido_em: string | null },
+  caixaFechado: boolean,
+): boolean {
+  const hoje = hojeBrasil()
+  return (
+    p.status === 'concluida' &&
+    !p.concluido_em &&
+    p.data_pedido.startsWith(hoje) &&
+    !caixaFechado
+  )
+}
+
+export async function buscarItensParaEditar(pedidoId: string): Promise<ItemPedido[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('pedido_itens')
+    .select(
+      'produto_id, quantidade_pedida, preco_unitario, total, embalagem_nome, embalagem_unidades, produtos(nome, categorias(nome), preco_venda_padrao, produto_embalagens(id, nome, unidades, preco, padrao), estoque(saldo_atual))',
+    )
+    .eq('pedido_id', pedidoId)
+  if (error) throw error
+
+  type Rel<T> = T | T[] | null
+  const umaRel = <T,>(rel: Rel<T>): T | null => (Array.isArray(rel) ? (rel[0] ?? null) : rel)
+
+  type ItemRaw = {
+    produto_id: string
+    quantidade_pedida: number
+    preco_unitario: number
+    total: number
+    embalagem_nome: string | null
+    embalagem_unidades: number | null
+    produtos: {
+      nome: string
+      categorias: Rel<{ nome: string }>
+      preco_venda_padrao: number
+      produto_embalagens: FormaVenda[] | null
+      estoque: Rel<{ saldo_atual: number }>
+    } | null
+  }
+
+  return ((data ?? []) as unknown as ItemRaw[]).map((item): ItemPedido => {
+    const produto = item.produtos
+    const formasCadastradas =
+      produto?.produto_embalagens && produto.produto_embalagens.length > 0
+        ? [...produto.produto_embalagens].sort(
+            (a, b) => Number(b.padrao) - Number(a.padrao) || a.unidades - b.unidades,
+          )
+        : [
+            {
+              id: `fallback-${item.produto_id}`,
+              nome: 'Unidade',
+              unidades: 1,
+              preco: produto?.preco_venda_padrao ?? item.preco_unitario,
+              padrao: true,
+            },
+          ]
+
+    const formaExistente = formasCadastradas.find(
+      (f) => f.nome === item.embalagem_nome && f.unidades === (item.embalagem_unidades ?? 1),
+    )
+    const unidades = item.embalagem_unidades ?? 1
+    const formas = formaExistente
+      ? formasCadastradas
+      : [
+          ...formasCadastradas,
+          {
+            id: `custom-${item.produto_id}`,
+            nome: item.embalagem_nome ?? 'Unidade',
+            unidades,
+            preco: +(item.preco_unitario * unidades).toFixed(2),
+            padrao: false,
+          },
+        ]
+    const formaId = formaExistente?.id ?? `custom-${item.produto_id}`
+
+    return {
+      produto_id: item.produto_id,
+      nome: produto?.nome ?? 'Produto',
+      categoria: umaRel(produto?.categorias ?? null)?.nome ?? '',
+      preco_unitario: item.preco_unitario,
+      quantidade: item.quantidade_pedida,
+      total: item.total,
+      saldo_atual: umaRel(produto?.estoque ?? null)?.saldo_atual ?? 0,
+      formas,
+      formaId,
+      qtdFormas: item.quantidade_pedida / unidades,
+      precoForma: +(item.preco_unitario * unidades).toFixed(2),
+    }
+  })
+}
+
+export async function editarVenda(
+  pedidoId: string,
+  itens: Array<{
+    produto_id: string
+    quantidade: number
+    preco_unitario: number
+    total: number
+    embalagem_nome?: string
+    embalagem_unidades?: number
+  }>,
+) {
+  if (itens.length === 0) return { error: 'A venda precisa ter pelo menos 1 item' }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Não autenticado' }
+
+  const serviceClient = await createServiceClient()
+
+  const { data: pedidoRaw, error: errPedido } = await serviceClient
+    .from('pedidos')
+    .select('id, local_id, status, data_pedido, concluido_em, frete, desconto_total, forma_pagamento')
+    .eq('id', pedidoId)
+    .single()
+  type PedidoRow = {
+    id: string
+    local_id: string
+    status: string
+    data_pedido: string
+    concluido_em: string | null
+    frete: number
+    desconto_total: number
+    forma_pagamento: string
+  }
+  const pedido = pedidoRaw as PedidoRow | null
+  if (errPedido || !pedido) return { error: errPedido?.message ?? 'Venda não encontrada' }
+
+  const fechado = await caixaFechadoHoje(pedido.local_id)
+  if (!podeEditarPedido(pedido, fechado)) {
+    return { error: 'Essa venda não pode mais ser editada (fora do dia, caixa fechado ou já concluída)' }
+  }
+
+  const { data: itensAntigosRaw, error: errItensAntigos } = await serviceClient
+    .from('pedido_itens')
+    .select('produto_id, quantidade_pedida')
+    .eq('pedido_id', pedidoId)
+  if (errItensAntigos) return { error: errItensAntigos.message }
+  const itensAntigos = (itensAntigosRaw ?? []) as { produto_id: string; quantidade_pedida: number }[]
+
+  const qtdAntiga = new Map<string, number>()
+  for (const i of itensAntigos) qtdAntiga.set(i.produto_id, i.quantidade_pedida)
+  const qtdNova = new Map<string, number>()
+  for (const i of itens) qtdNova.set(i.produto_id, (qtdNova.get(i.produto_id) ?? 0) + i.quantidade)
+
+  const produtoIds = new Set([...qtdAntiga.keys(), ...qtdNova.keys()])
+  const deltas = new Map<string, number>()
+  for (const produtoId of produtoIds) {
+    const delta = (qtdNova.get(produtoId) ?? 0) - (qtdAntiga.get(produtoId) ?? 0)
+    if (delta !== 0) deltas.set(produtoId, delta)
+  }
+
+  // Pre-checagem de estoque: todo produto que precisa de MAIS unidades
+  // (delta > 0) tem que ter saldo suficiente antes de mexer em qualquer coisa.
+  for (const [produtoId, delta] of deltas) {
+    if (delta <= 0) continue
+    const { data: est } = await serviceClient
+      .from('estoque')
+      .select('saldo_atual, produtos(nome)')
+      .eq('produto_id', produtoId)
+      .single()
+    const saldo = (est as { saldo_atual: number } | null)?.saldo_atual ?? 0
+    if (saldo < delta) {
+      const rel = (est as { produtos: { nome: string } | { nome: string }[] | null } | null)?.produtos
+      const nome = (Array.isArray(rel) ? rel[0] : rel)?.nome ?? 'produto'
+      return { error: `Estoque insuficiente de ${nome}: tem ${saldo}, precisa de mais ${delta}.` }
+    }
+  }
+
+  for (const [produtoId, delta] of deltas) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: ajusteRaw, error: errAjuste } = await (serviceClient as any).rpc('ajustar_estoque', {
+      p_produto_id: produtoId,
+      p_delta: -delta,
+    })
+    if (errAjuste) return { error: `Falha ao ajustar estoque: ${errAjuste.message}` }
+    const ajuste = (ajusteRaw as { saldo_novo: number; custo_medio: number }[] | null)?.[0]
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (serviceClient.from('movimentacoes_estoque') as any).insert({
+      produto_id: produtoId,
+      tipo: delta > 0 ? 'saida_venda' : 'devolucao_cliente',
+      quantidade: -delta,
+      custo_unitario: ajuste?.custo_medio ?? 0,
+      saldo_apos: ajuste?.saldo_novo ?? 0,
+      referencia_tipo: 'pedido',
+      referencia_id: pedidoId,
+      usuario_id: user.id,
+      observacao: 'Edição da venda',
+    })
+  }
+
+  await serviceClient.from('pedido_itens').delete().eq('pedido_id', pedidoId)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: errInsert } = await (serviceClient.from('pedido_itens') as any).insert(
+    itens.map((i) => ({
+      pedido_id: pedidoId,
+      produto_id: i.produto_id,
+      quantidade_pedida: i.quantidade,
+      preco_unitario: i.preco_unitario,
+      total: i.total,
+      embalagem_nome: i.embalagem_nome ?? null,
+      embalagem_unidades: i.embalagem_unidades ?? null,
+    })),
+  )
+  if (errInsert) return { error: errInsert.message }
+
+  const subtotal = +itens.reduce((acc, i) => acc + i.total, 0).toFixed(2)
+  const novoTotal = +(subtotal + pedido.frete - pedido.desconto_total).toFixed(2)
+
+  if (pedido.forma_pagamento === 'fiado') {
+    const { data: contaRaw } = await serviceClient
+      .from('contas_receber')
+      .select('id, valor_pago')
+      .eq('pedido_id', pedidoId)
+      .maybeSingle()
+    const conta = contaRaw as { id: string; valor_pago: number } | null
+    if (conta) {
+      if (novoTotal < conta.valor_pago) {
+        return {
+          error: `Não é possível reduzir o total abaixo do que já foi pago (R$ ${conta.valor_pago.toFixed(2).replace('.', ',')})`,
+        }
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (serviceClient.from('contas_receber') as any)
+        .update({
+          valor: novoTotal,
+          status: conta.valor_pago >= novoTotal ? 'pago' : 'aberto',
+        })
+        .eq('id', conta.id)
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: errTotal } = await (serviceClient.from('pedidos') as any)
+    .update({ subtotal, total: novoTotal })
+    .eq('id', pedidoId)
+  if (errTotal) return { error: errTotal.message }
+
+  revalidatePath(`/pedidos/${pedidoId}`)
+  revalidatePath('/pedidos')
+  revalidatePath('/dashboard')
+  return { success: true as const }
 }
