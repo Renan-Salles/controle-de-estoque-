@@ -44,14 +44,14 @@ export async function listarUsuariosComCargo(): Promise<UsuarioComCargo[]> {
 // de getLocalAtivo/rotaPermitida). listarUsuariosComCargo() acima é usada
 // sem esse filtro na tela de Equipe (admin precisa ver todo mundo, dos
 // dois locais, pra gerenciar) -- não dá pra reusar ela aqui.
-export async function listarEntregadoresElegiveis(): Promise<UsuarioComCargo[]> {
-  const localId = await getLocalAtivoId()
+export async function listarEntregadoresElegiveis(localId?: string): Promise<UsuarioComCargo[]> {
+  const local = localId ?? (await getLocalAtivoId())
   const s = await createServiceClient()
   const { data } = await s
     .from('profiles')
     .select('id, nome, email, status, cargo_id, telefone, local_id')
     .eq('status', 'ativo')
-    .or(`local_id.is.null,local_id.eq.${localId}`)
+    .or(`local_id.is.null,local_id.eq.${local}`)
     .order('nome')
   return (data ?? []) as unknown as UsuarioComCargo[]
 }

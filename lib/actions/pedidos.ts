@@ -1,9 +1,12 @@
 'use server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getLocalAtivoId } from '@/lib/local'
+import { getCargoUsuario } from '@/lib/permissoes'
 import { addDias, hojeBrasil } from '@/lib/formatos'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+
+export type { UsuarioComCargo } from '@/lib/actions/cargos'
 
 const ItemSchema = z.object({
   produto_id: z.string().uuid(),
@@ -521,4 +524,24 @@ export async function listarEntregasDisponiveis() {
     .order('data_pedido', { ascending: false })
   if (error) throw error
   return data ?? []
+}
+
+// Escape manual: admin/funcionario atribui um entregador direto, sem
+// passar pela fila (ex.: fila travada, entrega urgente). So funciona
+// enquanto ninguem aceitou ainda (mesma defesa de corrida da funcao SQL).
+export async function atribuirEntregadorManual(pedidoId: string, entregadorId: string) {
+  const cargo = await getCargoUsuario()
+  if (!cargo?.admin && cargo?.nome !== 'Funcionario') {
+    return { error: 'Sem permissão' }
+  }
+  const s = await createServiceClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error, count } = await (s.from('pedidos') as any)
+    .update({ entregador_id: entregadorId }, { count: 'exact' })
+    .eq('id', pedidoId)
+    .is('entregador_id', null)
+  if (error) return { error: error.message }
+  if (!count) return { error: 'Essa entrega já tem um entregador atribuído' }
+  revalidatePath(`/pedidos/${pedidoId}`)
+  return { success: true }
 }

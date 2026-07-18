@@ -7,6 +7,9 @@ import { StatusPill } from '@/components/ui-kit/StatusPill'
 import { BotaoVoltar } from '@/components/ui-kit/BotaoVoltar'
 import { BotaoCancelar } from '@/components/movimentacao/BotaoCancelar'
 import { FulfillmentAcoes } from '@/components/movimentacao/FulfillmentAcoes'
+import { getCargoUsuario } from '@/lib/permissoes'
+import { listarEntregadoresElegiveis } from '@/lib/actions/cargos'
+import { AtribuirEntregadorForm } from '@/components/pedido/AtribuirEntregadorForm'
 import {
   Tabela,
   TabelaHead,
@@ -22,6 +25,7 @@ import { rotuloPagamento, formatarDuracaoEntrega } from '@/lib/pedido-labels'
 type VendaComRelacoes = {
   id: string
   numero_pedido: number
+  local_id: string
   status: string
   total: number
   subtotal: number
@@ -88,13 +92,20 @@ export default async function VendaDetailPage({
   const { data: vendaRaw } = await supabase
     .from('pedidos')
     .select(
-      `id, numero_pedido, status, total, subtotal, data_pedido, forma_pagamento, valor_pago_agora, forma_pagamento_parcial, prazo_pagamento_dias, data_vencimento, observacoes, tipo_fulfillment, frete, pago, concluido_em, saiu_entrega_em, endereco_entrega, entregador:profiles!pedidos_entregador_id_fkey(nome, telefone), clientes(nome, telefone, endereco), pedido_itens(quantidade_pedida, preco_unitario, total, embalagem_nome, embalagem_unidades, produtos(nome, embalagem))`,
+      `id, numero_pedido, local_id, status, total, subtotal, data_pedido, forma_pagamento, valor_pago_agora, forma_pagamento_parcial, prazo_pagamento_dias, data_vencimento, observacoes, tipo_fulfillment, frete, pago, concluido_em, saiu_entrega_em, endereco_entrega, entregador:profiles!pedidos_entregador_id_fkey(nome, telefone), clientes(nome, telefone, endereco), pedido_itens(quantidade_pedida, preco_unitario, total, embalagem_nome, embalagem_unidades, produtos(nome, embalagem))`,
     )
     .eq('id', id)
     .single()
 
   if (!vendaRaw) notFound()
   const venda = vendaRaw as unknown as VendaComRelacoes
+
+  const podeAtribuir =
+    venda.tipo_fulfillment === 'entrega' && !venda.entregador && venda.status !== 'cancelada'
+  const [cargo, entregadoresElegiveis] = podeAtribuir
+    ? await Promise.all([getCargoUsuario(), listarEntregadoresElegiveis(venda.local_id)])
+    : [null, []]
+  const mostraAtribuir = podeAtribuir && (cargo?.admin || cargo?.nome === 'Funcionario')
 
   const numeroFmt = `#${String(venda.numero_pedido).padStart(4, '0')}`
   const cancelada = venda.status === 'cancelada'
@@ -190,10 +201,14 @@ export default async function VendaDetailPage({
           <div className="grid grid-cols-1 gap-y-2 text-sm sm:grid-cols-2">
             {venda.tipo_fulfillment === 'entrega' && (
               <div className="flex items-center gap-2">
-                <span>
-                  <span className="text-text-muted">Entregador: </span>
-                  {venda.entregador?.nome ?? '-'}
-                </span>
+                {mostraAtribuir ? (
+                  <AtribuirEntregadorForm pedidoId={venda.id} entregadores={entregadoresElegiveis} />
+                ) : (
+                  <span>
+                    <span className="text-text-muted">Entregador: </span>
+                    {venda.entregador?.nome ?? '-'}
+                  </span>
+                )}
                 {linkAvisarEntregador && (
                   <a
                     href={linkAvisarEntregador}
