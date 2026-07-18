@@ -293,18 +293,19 @@ export default async function VendaDetailPage({
           icone={CreditCard}
           rotulo="Pagamento"
           valor={
-            venda.forma_pagamento === 'fiado' && Number(venda.valor_secundario) > 0 ? (
+            venda.forma_pagamento_secundaria ? (
               <>
-                {rotuloPagamento(venda.forma_pagamento_secundaria ?? '')} (pago agora):{' '}
-                <Money valor={venda.valor_secundario} /> · Fiado:{' '}
-                <Money valor={venda.total - Number(venda.valor_secundario)} />
+                {rotuloPagamento(venda.forma_pagamento)}:{' '}
+                <Money valor={venda.total - Number(venda.valor_secundario)} /> ·{' '}
+                {rotuloPagamento(venda.forma_pagamento_secundaria)}:{' '}
+                <Money valor={venda.valor_secundario} />
               </>
             ) : (
               rotuloPagamento(venda.forma_pagamento)
             )
           }
         />
-        {venda.forma_pagamento === 'fiado' && venda.data_vencimento && (
+        {(venda.forma_pagamento === 'fiado' || venda.forma_pagamento_secundaria === 'fiado') && venda.data_vencimento && (
           <LinhaDado
             icone={Clock}
             rotulo="Vencimento"

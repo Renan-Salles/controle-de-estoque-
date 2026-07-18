@@ -2,6 +2,7 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getLocalAtivoId } from '@/lib/local'
 import { addDias, hojeBrasil, mesAtualBrasil } from '@/lib/formatos'
+import { somarPorForma, type LinhaPagamento } from '@/lib/pedido-labels'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -64,22 +65,9 @@ export async function buscarFormasPagamento(periodo: 'mes' | 'tudo' = 'mes') {
   const { data, error } = await query
   if (error) throw error
 
-  type Linha = {
-    forma_pagamento: string
-    total: number
-    valor_secundario: number | null
-    forma_pagamento_secundaria: string | null
-  }
-  const rows = (data ?? []) as Linha[]
+  const rows = (data ?? []) as LinhaPagamento[]
   const formas = ['dinheiro', 'pix', 'cartao_debito', 'cartao_credito'] as const
-  const resumo = formas.map((f) => {
-    const dela = rows.filter((r) => r.forma_pagamento === f)
-    const parciais = rows.filter((r) => r.forma_pagamento === 'fiado' && r.forma_pagamento_secundaria === f)
-    const valor =
-      dela.reduce((a, r) => a + Number(r.total ?? 0), 0) +
-      parciais.reduce((a, r) => a + Number(r.valor_secundario ?? 0), 0)
-    return { forma: f, valor, quantidade: dela.length + parciais.length }
-  })
+  const resumo = somarPorForma(rows, formas)
   const totalGeral = resumo.reduce((a, r) => a + r.valor, 0)
   const totalVendas = rows.length
 

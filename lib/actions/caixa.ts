@@ -2,6 +2,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getLocalAtivoId } from '@/lib/local'
 import { hojeBrasil } from '@/lib/formatos'
+import { somarPorForma } from '@/lib/pedido-labels'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -39,25 +40,21 @@ export async function resumoDoDia(): Promise<ResumoDia> {
     forma_pagamento_secundaria: string | null
   }
   const rows = (data ?? []) as Linha[]
+  const pagas = rows.filter((r) => r.pago)
 
-  // Vendas totalmente a vista e pagas (comportamento de sempre) + a fatia
-  // paga na hora de vendas fiado parciais (forma_pagamento_secundaria), que
-  // entram no caixa mesmo com forma_pagamento = 'fiado' e pago = false.
-  const soma = (forma: string) =>
-    rows.filter((r) => r.pago && r.forma_pagamento === forma).reduce((a, r) => a + Number(r.total ?? 0), 0) +
-    rows
-      .filter((r) => r.forma_pagamento === 'fiado' && r.forma_pagamento_secundaria === forma)
-      .reduce((a, r) => a + Number(r.valor_secundario ?? 0), 0)
-
-  const totalVendas = rows.filter((r) => r.pago).length
+  // somarPorForma ja trata o split: cada pedido entra com a fatia certa em
+  // cada forma, e a perna fiado nunca soma em dinheiro/pix/cartao_* (nao e
+  // dinheiro em caixa).
+  const resumo = somarPorForma(pagas, ['dinheiro', 'pix', 'cartao_debito', 'cartao_credito'])
+  const porForma = (f: string) => resumo.find((r) => r.forma === f)?.valor ?? 0
 
   return {
     data: hoje,
-    dinheiro: soma('dinheiro'),
-    pix: soma('pix'),
-    debito: soma('cartao_debito'),
-    credito: soma('cartao_credito'),
-    totalVendas,
+    dinheiro: porForma('dinheiro'),
+    pix: porForma('pix'),
+    debito: porForma('cartao_debito'),
+    credito: porForma('cartao_credito'),
+    totalVendas: pagas.length,
   }
 }
 

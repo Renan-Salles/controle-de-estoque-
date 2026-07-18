@@ -143,11 +143,11 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
   const [equipe, setEquipe] = useState<UsuarioComCargo[]>([])
   const [desconto, setDesconto] = useState('')
   const [recebido, setRecebido] = useState('')
-  const [pagouParte, setPagouParte] = useState(false)
-  const [valorPagoAgora, setValorPagoAgora] = useState('')
-  const [formaPagamentoParcial, setFormaPagamentoParcial] = useState<
-    'dinheiro' | 'pix' | 'cartao_debito' | 'cartao_credito'
-  >('dinheiro')
+  const [dividirPagamento, setDividirPagamento] = useState(false)
+  const [valorSecundario, setValorSecundario] = useState('')
+  const [formaPagamentoSecundaria, setFormaPagamentoSecundaria] = useState<
+    'dinheiro' | 'pix' | 'cartao_debito' | 'cartao_credito' | 'fiado'
+  >('pix')
   const [enderecoRua, setEnderecoRua] = useState('')
   const [enderecoNumero, setEnderecoNumero] = useState('')
   const [enderecoBairro, setEnderecoBairro] = useState('')
@@ -188,6 +188,14 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
       toast.error('Selecione um cliente para venda fiado')
       return
     }
+    if (dividirPagamento && formaPagamentoSecundaria === 'fiado' && !cliente) {
+      toast.error('Selecione um cliente para venda fiado')
+      return
+    }
+    if (dividirPagamento && formaPagamentoSecundaria === formaPagamento) {
+      toast.error('As duas formas de pagamento precisam ser diferentes')
+      return
+    }
     setRegistrando(true)
     const resultado = await registrarVenda({
       cliente_id: cliente?.id ?? null,
@@ -213,10 +221,8 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
       desconto: descontoNum,
       valor_recebido:
         formaPagamento === 'dinheiro' && recebidoNum > 0 ? recebidoNum : undefined,
-      valor_secundario:
-        formaPagamento === 'fiado' && pagouParte ? Number(valorPagoAgora) || 0 : undefined,
-      forma_pagamento_secundaria:
-        formaPagamento === 'fiado' && pagouParte ? formaPagamentoParcial : undefined,
+      valor_secundario: dividirPagamento ? Number(valorSecundario) || 0 : undefined,
+      forma_pagamento_secundaria: dividirPagamento ? formaPagamentoSecundaria : undefined,
       endereco_entrega:
         tipoFulfillment === 'entrega' && !cliente
           ? {
@@ -242,7 +248,7 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
         setMostrarCupom(true)
       }
     })
-  }, [cliente, itens, formaPagamento, prazoDias, observacoes, tipoFulfillment, entregadorId, freteNum, jaPago, descontoNum, recebidoNum, pagouParte, valorPagoAgora, formaPagamentoParcial, enderecoRua, enderecoNumero, enderecoBairro, enderecoCidade])
+  }, [cliente, itens, formaPagamento, prazoDias, observacoes, tipoFulfillment, entregadorId, freteNum, jaPago, descontoNum, recebidoNum, dividirPagamento, valorSecundario, formaPagamentoSecundaria, enderecoRua, enderecoNumero, enderecoBairro, enderecoCidade])
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -396,10 +402,9 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
     setItens((prev) => prev.filter((i) => i.produto_id !== produtoId))
   }, [])
 
-  const podeRegistrar =
-    itens.length > 0 &&
-    !registrando &&
-    !(formaPagamento === 'fiado' && !cliente)
+  const clienteObrigatorio =
+    (formaPagamento === 'fiado' || (dividirPagamento && formaPagamentoSecundaria === 'fiado')) && !cliente
+  const podeRegistrar = itens.length > 0 && !registrando && !clienteObrigatorio
 
   function novaVenda() {
     setVendaRegistrada(null)
@@ -416,9 +421,9 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
     setJaPago(false)
     setDesconto('')
     setRecebido('')
-    setPagouParte(false)
-    setValorPagoAgora('')
-    setFormaPagamentoParcial('dinheiro')
+    setDividirPagamento(false)
+    setValorSecundario('')
+    setFormaPagamentoSecundaria('pix')
     setEnderecoRua('')
     setEnderecoNumero('')
     setEnderecoBairro('')
@@ -955,58 +960,60 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
                     Vence em{' '}
                     {formatarData(addDias(hojeBrasil(), Number(prazoDias) || 0))}
                   </p>
-
-                  <label className="mt-2 flex items-center gap-2 text-sm text-text">
-                    <input
-                      type="checkbox"
-                      checked={pagouParte}
-                      onChange={(e) => setPagouParte(e.target.checked)}
-                      className="size-4 rounded border-border"
-                    />
-                    Cliente já pagou uma parte?
-                  </label>
-
-                  {pagouParte && (
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className="inline-flex h-9 flex-1 items-center rounded-lg border border-border bg-surface pl-2">
-                          <span className="font-mono text-xs text-text-muted">R$</span>
-                          <input
-                            type="number"
-                            min={0}
-                            max={total}
-                            step="0.01"
-                            value={valorPagoAgora}
-                            onChange={(e) => setValorPagoAgora(e.target.value)}
-                            placeholder="0,00"
-                            className="h-9 w-full bg-transparent px-2 text-sm text-text outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                            aria-label="Valor pago agora"
-                          />
-                        </div>
-                        <Select
-                          value={formaPagamentoParcial}
-                          onValueChange={(v) => v && setFormaPagamentoParcial(v as typeof formaPagamentoParcial)}
-                        >
-                          <SelectTrigger className="w-40">
-                            <SelectValue>{(v: string) => rotuloPagamento(v)}</SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                            <SelectItem value="pix">Pix</SelectItem>
-                            <SelectItem value="cartao_debito">Cartão débito</SelectItem>
-                            <SelectItem value="cartao_credito">Cartão crédito</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <p className="text-xs text-text-muted">
-                        Vai ficar fiado:{' '}
-                        {formatarReal(Math.max(total - (Number(valorPagoAgora) || 0), 0))}, vencimento em{' '}
-                        {formatarData(addDias(hojeBrasil(), Number(prazoDias) || 0))}
-                      </p>
-                    </div>
-                  )}
                 </>
               )}
+            </div>
+          )}
+
+          <label className="mt-2 flex items-center gap-2 text-sm text-text">
+            <input
+              type="checkbox"
+              checked={dividirPagamento}
+              onChange={(e) => setDividirPagamento(e.target.checked)}
+              className="size-4 rounded border-border"
+            />
+            Dividir em duas formas de pagamento?
+          </label>
+
+          {dividirPagamento && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <div className="inline-flex h-9 flex-1 items-center rounded-lg border border-border bg-surface pl-2">
+                  <span className="font-mono text-xs text-text-muted">R$</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={total}
+                    step="0.01"
+                    value={valorSecundario}
+                    onChange={(e) => setValorSecundario(e.target.value)}
+                    placeholder="0,00"
+                    className="h-9 w-full bg-transparent px-2 text-sm text-text outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    aria-label="Valor da segunda forma"
+                  />
+                </div>
+                <Select
+                  value={formaPagamentoSecundaria}
+                  onValueChange={(v) => v && setFormaPagamentoSecundaria(v as typeof formaPagamentoSecundaria)}
+                >
+                  <SelectTrigger className="w-40">
+                    <SelectValue>{(v: string) => rotuloPagamento(v)}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                    <SelectItem value="pix">Pix</SelectItem>
+                    <SelectItem value="cartao_debito">Cartão débito</SelectItem>
+                    <SelectItem value="cartao_credito">Cartão crédito</SelectItem>
+                    <SelectItem value="fiado">Fiado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-xs text-text-muted">
+                Resta pagar em {rotuloPagamento(formaPagamento)}:{' '}
+                {formatarReal(Math.max(total - (Number(valorSecundario) || 0), 0))}
+                {(formaPagamento === 'fiado' || formaPagamentoSecundaria === 'fiado') &&
+                  ` · vencimento em ${formatarData(addDias(hojeBrasil(), Number(prazoDias) || 0))}`}
+              </p>
             </div>
           )}
 

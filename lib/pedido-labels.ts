@@ -97,3 +97,44 @@ export function podeEditarPedido(
     !caixaFechado
   )
 }
+
+export type LinhaPagamento = {
+  forma_pagamento: string
+  total: number
+  forma_pagamento_secundaria: string | null
+  valor_secundario: number | null
+}
+
+// Distribui o total de cada pedido entre as formas informadas. Uma venda
+// dividida entra com uma fatia em cada forma das duas pernas; a perna
+// fiado nunca soma em dinheiro/pix/cartao_* (nao e dinheiro em caixa).
+export function somarPorForma(
+  rows: LinhaPagamento[],
+  formas: readonly string[],
+): { forma: string; valor: number; quantidade: number }[] {
+  return formas.map((f) => {
+    const principal = rows.filter(
+      (r) => r.forma_pagamento === f && r.forma_pagamento_secundaria !== f,
+    )
+    const secundaria = rows.filter((r) => r.forma_pagamento_secundaria === f)
+    const valor =
+      principal.reduce((a, r) => {
+        const valorPrincipal =
+          r.forma_pagamento_secundaria != null
+            ? r.total - (r.valor_secundario ?? 0)
+            : r.total
+        return a + valorPrincipal
+      }, 0) + secundaria.reduce((a, r) => a + (r.valor_secundario ?? 0), 0)
+    return { forma: f, valor, quantidade: principal.length + secundaria.length }
+  })
+}
+
+// Rotulo combinado pra exibicao (cupom, detalhe do pedido): "Dinheiro" se
+// nao ha split, "Dinheiro + Pix" se ha.
+export function rotuloPagamentoVenda(venda: {
+  forma_pagamento: string
+  forma_pagamento_secundaria: string | null
+}): string {
+  if (!venda.forma_pagamento_secundaria) return rotuloPagamento(venda.forma_pagamento)
+  return `${rotuloPagamento(venda.forma_pagamento)} + ${rotuloPagamento(venda.forma_pagamento_secundaria)}`
+}

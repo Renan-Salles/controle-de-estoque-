@@ -45,7 +45,7 @@ const VendaSchema = z.object({
   // Pagamento dividido em 2 formas (generalizado na Task 2 — por enquanto
   // so faz sentido quando forma_pagamento = 'fiado', igual antes).
   valor_secundario: z.number().min(0).optional(),
-  forma_pagamento_secundaria: z.enum(['dinheiro', 'pix', 'cartao_debito', 'cartao_credito']).optional(),
+  forma_pagamento_secundaria: z.enum(['dinheiro', 'pix', 'cartao_debito', 'cartao_credito', 'fiado']).optional(),
   // Endereco de entrega em texto livre (sub-projeto 3, ja incluido aqui
   // porque e o mesmo objeto de payload).
   endereco_entrega: z
@@ -63,13 +63,6 @@ const VendaSchema = z.object({
 export async function registrarVenda(data: unknown) {
   const parsed = VendaSchema.safeParse(data)
   if (!parsed.success) return { error: parsed.error.issues[0].message }
-  if (parsed.data.forma_pagamento === 'fiado' && !parsed.data.cliente_id) {
-    return { error: 'Selecione um cliente para venda fiado' }
-  }
-  const valorSecundario = parsed.data.forma_pagamento === 'fiado' ? (parsed.data.valor_secundario ?? 0) : 0
-  if (valorSecundario > 0 && !parsed.data.forma_pagamento_secundaria) {
-    return { error: 'Escolha em qual forma o valor pago agora entrou' }
-  }
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -83,13 +76,34 @@ export async function registrarVenda(data: unknown) {
     return { error: 'Desconto maior que o valor da mercadoria.' }
   }
   const total = +(subtotal + frete - desconto).toFixed(2)
-  if (valorSecundario > total) {
-    return { error: 'Valor pago agora não pode ser maior que o total da venda' }
+
+  const formaSecundaria = parsed.data.forma_pagamento_secundaria ?? null
+  const valorSecundario = formaSecundaria ? (parsed.data.valor_secundario ?? 0) : 0
+  if (formaSecundaria) {
+    if (formaSecundaria === forma_pagamento) {
+      return { error: 'As duas formas de pagamento precisam ser diferentes' }
+    }
+    if (valorSecundario <= 0) {
+      return { error: 'Informe o valor da segunda forma de pagamento' }
+    }
+    if (valorSecundario >= total) {
+      return { error: 'O valor da segunda forma não pode ser maior ou igual ao total da venda' }
+    }
+  }
+
+  const pernaFiado =
+    forma_pagamento === 'fiado'
+      ? { valor: total - valorSecundario }
+      : formaSecundaria === 'fiado'
+        ? { valor: valorSecundario }
+        : null
+  if (pernaFiado && !parsed.data.cliente_id) {
+    return { error: 'Selecione um cliente para venda fiado' }
   }
 
   // Limite de credito: fiado so passa se (divida aberta + esta venda) couber
   // no limite do cliente. Limite 0/nulo = sem trava (comportamento de hoje).
-  if (forma_pagamento === 'fiado' && parsed.data.cliente_id) {
+  if (pernaFiado && parsed.data.cliente_id) {
     const { data: cli } = await serviceClient
       .from('clientes')
       .select('nome, limite_credito')
@@ -104,7 +118,7 @@ export async function registrarVenda(data: unknown) {
         .eq('status', 'aberto')
       const divida = ((abertas ?? []) as { valor: number; valor_pago: number }[])
         .reduce((a, c) => a + Number(c.valor ?? 0) - Number(c.valor_pago ?? 0), 0)
-      if (divida + total > limite) {
+      if (divida + pernaFiado.valor > limite) {
         const nome = (cli as { nome?: string } | null)?.nome ?? 'Cliente'
         return {
           error: `Fiado recusado: ${nome} já deve R$ ${divida.toFixed(2).replace('.', ',')} e o limite é R$ ${limite.toFixed(2).replace('.', ',')}. Receba o que está aberto ou aumente o limite no cadastro.`,
@@ -115,8 +129,8 @@ export async function registrarVenda(data: unknown) {
   const pago = tipo_fulfillment === 'balcao' ? true : (parsed.data.pago ?? false)
   const concluidoEm = tipo_fulfillment === 'balcao' ? new Date().toISOString() : null
   const hoje = hojeBrasil()
-  const prazoDias = forma_pagamento === 'fiado' ? (parsed.data.prazo_dias ?? 7) : 0
-  const dataVencimento = forma_pagamento === 'fiado' ? addDias(hoje, prazoDias) : hoje
+  const prazoDias = pernaFiado ? (parsed.data.prazo_dias ?? 7) : 0
+  const dataVencimento = pernaFiado ? addDias(hoje, prazoDias) : hoje
 
   // Valida o estoque de TODOS os itens antes de criar a venda: não deixa o
   // saldo ficar negativo (vender mais do que tem deixaria o estoque mentindo).
@@ -161,8 +175,8 @@ export async function registrarVenda(data: unknown) {
         forma_pagamento === 'dinheiro' && parsed.data.valor_recebido != null && parsed.data.valor_recebido > 0
           ? parsed.data.valor_recebido
           : null,
-      valor_secundario: valorSecundario,
-      forma_pagamento_secundaria: valorSecundario > 0 ? parsed.data.forma_pagamento_secundaria : null,
+      valor_secundario: formaSecundaria ? valorSecundario : 0,
+      forma_pagamento_secundaria: formaSecundaria,
       endereco_entrega:
         tipo_fulfillment === 'entrega' && !parsed.data.cliente_id && parsed.data.endereco_entrega
           ? parsed.data.endereco_entrega
@@ -189,15 +203,15 @@ export async function registrarVenda(data: unknown) {
   )
   if (errItens) return { error: errItens.message }
 
-  if (forma_pagamento === 'fiado') {
-    const restante = +(total - valorSecundario).toFixed(2)
+  if (pernaFiado) {
+    const restante = +pernaFiado.valor.toFixed(2)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error: errReceber } = await (serviceClient.from('contas_receber') as any).insert({
       pedido_id: venda.id,
       cliente_id: parsed.data.cliente_id,
       descricao: `Venda #${String(venda.numero_pedido).padStart(4, '0')}`,
-      valor: total,
-      valor_pago: valorSecundario,
+      valor: restante,
+      valor_pago: 0,
       status: restante <= 0 ? 'pago' : 'aberto',
       data_emissao: hoje,
       data_pagamento: restante <= 0 ? hoje : null,

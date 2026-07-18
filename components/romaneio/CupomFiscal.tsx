@@ -215,14 +215,14 @@ export function CupomFiscal({ data }: { data: CupomData }) {
 
       {/* Pagamento */}
       <div style={{ fontSize: '14px' }}>
-        {data.forma_pagamento === 'fiado' && Number(data.valor_secundario ?? 0) > 0 ? (
+        {data.forma_pagamento_secundaria ? (
           <>
             <div>
-              Pago agora: {formatarReal(Number(data.valor_secundario))} (
-              {rotuloPagamento(data.forma_pagamento_secundaria ?? '')})
+              {rotuloPagamento(data.forma_pagamento)}: {formatarReal(data.total - Number(data.valor_secundario ?? 0))}
             </div>
             <div>
-              Fiado: {formatarReal(data.total - Number(data.valor_secundario))} ({prazo})
+              {rotuloPagamento(data.forma_pagamento_secundaria)}: {formatarReal(Number(data.valor_secundario ?? 0))}
+              {(data.forma_pagamento === 'fiado' || data.forma_pagamento_secundaria === 'fiado') && ` (${prazo})`}
             </div>
           </>
         ) : (
