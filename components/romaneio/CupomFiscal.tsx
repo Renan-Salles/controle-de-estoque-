@@ -9,8 +9,8 @@ export interface CupomData {
   desconto_total?: number | null
   frete?: number | null
   valor_recebido?: number | null
-  valor_pago_agora?: number | null
-  forma_pagamento_parcial?: string | null
+  valor_secundario?: number | null
+  forma_pagamento_secundaria?: string | null
   forma_pagamento: string
   prazo_pagamento_dias?: number | null
   observacoes?: string | null
@@ -215,14 +215,14 @@ export function CupomFiscal({ data }: { data: CupomData }) {
 
       {/* Pagamento */}
       <div style={{ fontSize: '14px' }}>
-        {data.forma_pagamento === 'fiado' && Number(data.valor_pago_agora ?? 0) > 0 ? (
+        {data.forma_pagamento === 'fiado' && Number(data.valor_secundario ?? 0) > 0 ? (
           <>
             <div>
-              Pago agora: {formatarReal(Number(data.valor_pago_agora))} (
-              {rotuloPagamento(data.forma_pagamento_parcial ?? '')})
+              Pago agora: {formatarReal(Number(data.valor_secundario))} (
+              {rotuloPagamento(data.forma_pagamento_secundaria ?? '')})
             </div>
             <div>
-              Fiado: {formatarReal(data.total - Number(data.valor_pago_agora))} ({prazo})
+              Fiado: {formatarReal(data.total - Number(data.valor_secundario))} ({prazo})
             </div>
           </>
         ) : (

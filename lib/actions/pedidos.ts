@@ -42,8 +42,10 @@ const VendaSchema = z.object({
   // Fiado parcial: quanto ja entrou na hora (numa forma a vista) e em qual
   // forma. So faz sentido quando forma_pagamento = 'fiado'; validado abaixo
   // porque depende de outro campo do mesmo objeto.
-  valor_pago_agora: z.number().min(0).optional(),
-  forma_pagamento_parcial: z.enum(['dinheiro', 'pix', 'cartao_debito', 'cartao_credito']).optional(),
+  // Pagamento dividido em 2 formas (generalizado na Task 2 — por enquanto
+  // so faz sentido quando forma_pagamento = 'fiado', igual antes).
+  valor_secundario: z.number().min(0).optional(),
+  forma_pagamento_secundaria: z.enum(['dinheiro', 'pix', 'cartao_debito', 'cartao_credito']).optional(),
   // Endereco de entrega em texto livre (sub-projeto 3, ja incluido aqui
   // porque e o mesmo objeto de payload).
   endereco_entrega: z
@@ -64,8 +66,8 @@ export async function registrarVenda(data: unknown) {
   if (parsed.data.forma_pagamento === 'fiado' && !parsed.data.cliente_id) {
     return { error: 'Selecione um cliente para venda fiado' }
   }
-  const valorPagoAgora = parsed.data.forma_pagamento === 'fiado' ? (parsed.data.valor_pago_agora ?? 0) : 0
-  if (valorPagoAgora > 0 && !parsed.data.forma_pagamento_parcial) {
+  const valorSecundario = parsed.data.forma_pagamento === 'fiado' ? (parsed.data.valor_secundario ?? 0) : 0
+  if (valorSecundario > 0 && !parsed.data.forma_pagamento_secundaria) {
     return { error: 'Escolha em qual forma o valor pago agora entrou' }
   }
 
@@ -81,7 +83,7 @@ export async function registrarVenda(data: unknown) {
     return { error: 'Desconto maior que o valor da mercadoria.' }
   }
   const total = +(subtotal + frete - desconto).toFixed(2)
-  if (valorPagoAgora > total) {
+  if (valorSecundario > total) {
     return { error: 'Valor pago agora não pode ser maior que o total da venda' }
   }
 
@@ -159,8 +161,8 @@ export async function registrarVenda(data: unknown) {
         forma_pagamento === 'dinheiro' && parsed.data.valor_recebido != null && parsed.data.valor_recebido > 0
           ? parsed.data.valor_recebido
           : null,
-      valor_pago_agora: valorPagoAgora,
-      forma_pagamento_parcial: valorPagoAgora > 0 ? parsed.data.forma_pagamento_parcial : null,
+      valor_secundario: valorSecundario,
+      forma_pagamento_secundaria: valorSecundario > 0 ? parsed.data.forma_pagamento_secundaria : null,
       endereco_entrega:
         tipo_fulfillment === 'entrega' && !parsed.data.cliente_id && parsed.data.endereco_entrega
           ? parsed.data.endereco_entrega
@@ -188,14 +190,14 @@ export async function registrarVenda(data: unknown) {
   if (errItens) return { error: errItens.message }
 
   if (forma_pagamento === 'fiado') {
-    const restante = +(total - valorPagoAgora).toFixed(2)
+    const restante = +(total - valorSecundario).toFixed(2)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error: errReceber } = await (serviceClient.from('contas_receber') as any).insert({
       pedido_id: venda.id,
       cliente_id: parsed.data.cliente_id,
       descricao: `Venda #${String(venda.numero_pedido).padStart(4, '0')}`,
       valor: total,
-      valor_pago: valorPagoAgora,
+      valor_pago: valorSecundario,
       status: restante <= 0 ? 'pago' : 'aberto',
       data_emissao: hoje,
       data_pagamento: restante <= 0 ? hoje : null,
@@ -250,7 +252,7 @@ export async function buscarPedidoParaCupom(id: string) {
   const { data } = await supabase
     .from('pedidos')
     .select(`
-      numero_pedido, data_pedido, total, subtotal, desconto_total, frete, valor_recebido, forma_pagamento, prazo_pagamento_dias, observacoes, valor_pago_agora, forma_pagamento_parcial,
+      numero_pedido, data_pedido, total, subtotal, desconto_total, frete, valor_recebido, forma_pagamento, prazo_pagamento_dias, observacoes, valor_secundario, forma_pagamento_secundaria,
       locais(nome),
       clientes(nome, telefone, endereco),
       pedido_itens(quantidade_pedida, preco_unitario, total, embalagem_nome, embalagem_unidades, produtos(nome, embalagem))

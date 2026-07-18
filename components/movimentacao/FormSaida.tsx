@@ -213,9 +213,9 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
       desconto: descontoNum,
       valor_recebido:
         formaPagamento === 'dinheiro' && recebidoNum > 0 ? recebidoNum : undefined,
-      valor_pago_agora:
+      valor_secundario:
         formaPagamento === 'fiado' && pagouParte ? Number(valorPagoAgora) || 0 : undefined,
-      forma_pagamento_parcial:
+      forma_pagamento_secundaria:
         formaPagamento === 'fiado' && pagouParte ? formaPagamentoParcial : undefined,
       endereco_entrega:
         tipoFulfillment === 'entrega' && !cliente

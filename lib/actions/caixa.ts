@@ -24,7 +24,7 @@ export async function resumoDoDia(): Promise<ResumoDia> {
 
   const { data, error } = await supabase
     .from('pedidos')
-    .select('forma_pagamento, total, pago, valor_pago_agora, forma_pagamento_parcial')
+    .select('forma_pagamento, total, pago, valor_secundario, forma_pagamento_secundaria')
     .eq('local_id', localId)
     .eq('status', 'concluida')
     .gte('data_pedido', `${hoje}T00:00:00-03:00`)
@@ -35,19 +35,19 @@ export async function resumoDoDia(): Promise<ResumoDia> {
     forma_pagamento: string
     total: number
     pago: boolean
-    valor_pago_agora: number | null
-    forma_pagamento_parcial: string | null
+    valor_secundario: number | null
+    forma_pagamento_secundaria: string | null
   }
   const rows = (data ?? []) as Linha[]
 
   // Vendas totalmente a vista e pagas (comportamento de sempre) + a fatia
-  // paga na hora de vendas fiado parciais (forma_pagamento_parcial), que
+  // paga na hora de vendas fiado parciais (forma_pagamento_secundaria), que
   // entram no caixa mesmo com forma_pagamento = 'fiado' e pago = false.
   const soma = (forma: string) =>
     rows.filter((r) => r.pago && r.forma_pagamento === forma).reduce((a, r) => a + Number(r.total ?? 0), 0) +
     rows
-      .filter((r) => r.forma_pagamento === 'fiado' && r.forma_pagamento_parcial === forma)
-      .reduce((a, r) => a + Number(r.valor_pago_agora ?? 0), 0)
+      .filter((r) => r.forma_pagamento === 'fiado' && r.forma_pagamento_secundaria === forma)
+      .reduce((a, r) => a + Number(r.valor_secundario ?? 0), 0)
 
   const totalVendas = rows.filter((r) => r.pago).length
 

@@ -32,8 +32,8 @@ type VendaComRelacoes = {
   subtotal: number
   data_pedido: string
   forma_pagamento: string
-  valor_pago_agora: number
-  forma_pagamento_parcial: string | null
+  valor_secundario: number
+  forma_pagamento_secundaria: string | null
   prazo_pagamento_dias: number
   data_vencimento: string | null
   observacoes: string | null
@@ -93,7 +93,7 @@ export default async function VendaDetailPage({
   const { data: vendaRaw } = await supabase
     .from('pedidos')
     .select(
-      `id, numero_pedido, local_id, status, total, subtotal, data_pedido, forma_pagamento, valor_pago_agora, forma_pagamento_parcial, prazo_pagamento_dias, data_vencimento, observacoes, tipo_fulfillment, frete, pago, concluido_em, saiu_entrega_em, endereco_entrega, entregador:profiles!pedidos_entregador_id_fkey(nome, telefone), clientes(nome, telefone, endereco), pedido_itens(quantidade_pedida, preco_unitario, total, embalagem_nome, embalagem_unidades, produtos(nome, embalagem))`,
+      `id, numero_pedido, local_id, status, total, subtotal, data_pedido, forma_pagamento, valor_secundario, forma_pagamento_secundaria, prazo_pagamento_dias, data_vencimento, observacoes, tipo_fulfillment, frete, pago, concluido_em, saiu_entrega_em, endereco_entrega, entregador:profiles!pedidos_entregador_id_fkey(nome, telefone), clientes(nome, telefone, endereco), pedido_itens(quantidade_pedida, preco_unitario, total, embalagem_nome, embalagem_unidades, produtos(nome, embalagem))`,
     )
     .eq('id', id)
     .single()
@@ -293,11 +293,11 @@ export default async function VendaDetailPage({
           icone={CreditCard}
           rotulo="Pagamento"
           valor={
-            venda.forma_pagamento === 'fiado' && Number(venda.valor_pago_agora) > 0 ? (
+            venda.forma_pagamento === 'fiado' && Number(venda.valor_secundario) > 0 ? (
               <>
-                {rotuloPagamento(venda.forma_pagamento_parcial ?? '')} (pago agora):{' '}
-                <Money valor={venda.valor_pago_agora} /> · Fiado:{' '}
-                <Money valor={venda.total - Number(venda.valor_pago_agora)} />
+                {rotuloPagamento(venda.forma_pagamento_secundaria ?? '')} (pago agora):{' '}
+                <Money valor={venda.valor_secundario} /> · Fiado:{' '}
+                <Money valor={venda.total - Number(venda.valor_secundario)} />
               </>
             ) : (
               rotuloPagamento(venda.forma_pagamento)
