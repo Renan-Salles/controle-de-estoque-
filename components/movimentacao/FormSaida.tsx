@@ -32,42 +32,28 @@ import {
   type ClienteResumo,
 } from '@/components/pedido/BuscaCliente'
 import { ListaItensPedido } from '@/components/pedido/ListaItensPedido'
+import {
+  SeletorPagamento,
+  PAGAMENTO_INICIAL,
+  type ValorPagamento,
+} from '@/components/pedido/SeletorPagamento'
+import {
+  CamposEntrega,
+  ENTREGA_INICIAL,
+  type ValorEntrega,
+} from '@/components/pedido/CamposEntrega'
 import { registrarVenda, buscarPedidoParaCupom } from '@/lib/actions/pedidos'
 import { buscarClientePorId } from '@/lib/actions/clientes'
 import { getDadosPix } from '@/lib/actions/configuracoes'
-import { taxaPorBairro } from '@/lib/actions/taxas'
 import { QrPix } from '@/components/pedido/QrPix'
 import { buscarMaisVendidos, type MaisVendido } from '@/lib/actions/produtos'
 import { listarEntregadoresElegiveis, type UsuarioComCargo } from '@/lib/actions/cargos'
-import { formatarReal, formatarData, addDias, hojeBrasil } from '@/lib/formatos'
+import { formatarReal } from '@/lib/formatos'
 import { rotuloPagamento } from '@/lib/pedido-labels'
 import { Money } from '@/components/ui-kit/Money'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { CupomFiscal, type CupomData } from '@/components/romaneio/CupomFiscal'
-import { cn } from '@/lib/utils'
 import type { ItemPedido } from '@/types'
-
-type FormaPagamentoVenda =
-  | 'dinheiro'
-  | 'pix'
-  | 'cartao_debito'
-  | 'cartao_credito'
-  | 'fiado'
-
-type TipoFulfillment = 'balcao' | 'entrega' | 'retirada'
-
-const TIPOS_FULFILLMENT: Array<{ valor: TipoFulfillment; label: string }> = [
-  { valor: 'balcao', label: 'Balcão' },
-  { valor: 'entrega', label: 'Entrega' },
-  { valor: 'retirada', label: 'Retirar depois' },
-]
 
 // Recalcula quantidade/preco_unitario/total (sempre em unidade base, é o que
 // vai pro backend) a partir da forma de venda escolhida + qtd + preço da forma.
@@ -97,13 +83,9 @@ type ComandaEspera = {
   hora: string
   cliente: ClienteResumo | null
   itens: ItemPedido[]
-  formaPagamento: FormaPagamentoVenda
-  prazoDias: string
+  pagamento: ValorPagamento
+  entrega: ValorEntrega
   observacoes: string
-  tipoFulfillment: TipoFulfillment
-  entregadorId: string
-  frete: string
-  jaPago: boolean
   desconto: string
   total: number
 }
@@ -118,15 +100,15 @@ function lerEspera(): ComandaEspera[] {
   }
 }
 
-// SAIDA (venda). Reusa BuscaCliente/BuscaProduto/ListaItensPedido.
+// SAIDA (venda). Reusa BuscaCliente/BuscaProduto/ListaItensPedido/
+// SeletorPagamento/CamposEntrega.
 // Cliente OPCIONAL (venda de balcao), exceto quando fiado: ai e obrigatorio
 // para saber de quem cobrar, e o prazo (dias) e escolhido aqui na hora.
 export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = {}) {
   const [cliente, setCliente] = useState<ClienteResumo | null>(null)
   const [itens, setItens] = useState<ItemPedido[]>([])
-  const [formaPagamento, setFormaPagamento] =
-    useState<FormaPagamentoVenda>('dinheiro')
-  const [prazoDias, setPrazoDias] = useState('7')
+  const [pagamento, setPagamento] = useState<ValorPagamento>(PAGAMENTO_INICIAL)
+  const [entrega, setEntrega] = useState<ValorEntrega>(ENTREGA_INICIAL)
   const [observacoes, setObservacoes] = useState('')
   const [registrando, setRegistrando] = useState(false)
   const [maisVendidos, setMaisVendidos] = useState<MaisVendido[]>([])
@@ -136,22 +118,8 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
   const [mostrarCupom, setMostrarCupom] = useState(false)
   const [, startCupomTransition] = useTransition()
   const cupomRef = useRef<HTMLDivElement>(null)
-  const [tipoFulfillment, setTipoFulfillment] = useState<TipoFulfillment>('balcao')
-  const [entregadorId, setEntregadorId] = useState('')
-  const [frete, setFrete] = useState('')
-  const [jaPago, setJaPago] = useState(false)
   const [equipe, setEquipe] = useState<UsuarioComCargo[]>([])
   const [desconto, setDesconto] = useState('')
-  const [recebido, setRecebido] = useState('')
-  const [dividirPagamento, setDividirPagamento] = useState(false)
-  const [valorSecundario, setValorSecundario] = useState('')
-  const [formaPagamentoSecundaria, setFormaPagamentoSecundaria] = useState<
-    'dinheiro' | 'pix' | 'cartao_debito' | 'cartao_credito' | 'fiado'
-  >('pix')
-  const [enderecoRua, setEnderecoRua] = useState('')
-  const [enderecoNumero, setEnderecoNumero] = useState('')
-  const [enderecoBairro, setEnderecoBairro] = useState('')
-  const [enderecoCidade, setEnderecoCidade] = useState('')
   const [emEspera, setEmEspera] = useState<ComandaEspera[]>([])
   const [esperaAberta, setEsperaAberta] = useState(false)
   const [dadosPix, setDadosPix] = useState<{ chave: string; nome: string; cidade: string } | null>(null)
@@ -168,12 +136,10 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
     () => itens.reduce((acc, i) => acc + i.total, 0),
     [itens],
   )
-  const freteNum = tipoFulfillment === 'entrega' ? (Number(frete) || 0) : 0
+  const freteNum = entrega.tipoFulfillment === 'entrega' ? (Number(entrega.frete) || 0) : 0
   // Desconto vale sobre a mercadoria, nunca mais que o subtotal.
   const descontoNum = Math.min(Math.max(Number(desconto) || 0, 0), subtotal)
   const total = +(subtotal + freteNum - descontoNum).toFixed(2)
-  const recebidoNum = Number(recebido) || 0
-  const troco = recebidoNum > 0 ? +(recebidoNum - total).toFixed(2) : null
   const totalItens = useMemo(
     () => itens.reduce((acc, i) => acc + i.quantidade, 0),
     [itens],
@@ -184,23 +150,24 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
       toast.error('Adicione pelo menos 1 produto')
       return
     }
-    if (formaPagamento === 'fiado' && !cliente) {
+    if (pagamento.formaPagamento === 'fiado' && !cliente) {
       toast.error('Selecione um cliente para venda fiado')
       return
     }
-    if (dividirPagamento && formaPagamentoSecundaria === 'fiado' && !cliente) {
+    if (pagamento.dividir && pagamento.formaPagamentoSecundaria === 'fiado' && !cliente) {
       toast.error('Selecione um cliente para venda fiado')
       return
     }
-    if (dividirPagamento && formaPagamentoSecundaria === formaPagamento) {
+    if (pagamento.dividir && pagamento.formaPagamentoSecundaria === pagamento.formaPagamento) {
       toast.error('As duas formas de pagamento precisam ser diferentes')
       return
     }
     setRegistrando(true)
+    const recebidoNum = Number(pagamento.recebido) || 0
     const resultado = await registrarVenda({
       cliente_id: cliente?.id ?? null,
-      forma_pagamento: formaPagamento,
-      prazo_dias: formaPagamento === 'fiado' ? Number(prazoDias) || 7 : undefined,
+      forma_pagamento: pagamento.formaPagamento,
+      prazo_dias: pagamento.formaPagamento === 'fiado' ? Number(pagamento.prazoDias) || 7 : undefined,
       observacoes,
       canal: 'balcao',
       itens: itens.map((i) => {
@@ -214,22 +181,22 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
           embalagem_unidades: forma?.unidades,
         }
       }),
-      tipo_fulfillment: tipoFulfillment,
-      entregador_id: tipoFulfillment === 'entrega' && entregadorId ? entregadorId : null,
+      tipo_fulfillment: entrega.tipoFulfillment,
+      entregador_id: entrega.tipoFulfillment === 'entrega' && entrega.entregadorId ? entrega.entregadorId : null,
       frete: freteNum,
-      pago: tipoFulfillment === 'balcao' ? undefined : jaPago,
+      pago: entrega.tipoFulfillment === 'balcao' ? undefined : entrega.jaPago,
       desconto: descontoNum,
       valor_recebido:
-        formaPagamento === 'dinheiro' && recebidoNum > 0 ? recebidoNum : undefined,
-      valor_secundario: dividirPagamento ? Number(valorSecundario) || 0 : undefined,
-      forma_pagamento_secundaria: dividirPagamento ? formaPagamentoSecundaria : undefined,
+        pagamento.formaPagamento === 'dinheiro' && recebidoNum > 0 ? recebidoNum : undefined,
+      valor_secundario: pagamento.dividir ? Number(pagamento.valorSecundario) || 0 : undefined,
+      forma_pagamento_secundaria: pagamento.dividir ? pagamento.formaPagamentoSecundaria : undefined,
       endereco_entrega:
-        tipoFulfillment === 'entrega' && !cliente
+        entrega.tipoFulfillment === 'entrega' && !cliente
           ? {
-              rua: enderecoRua || undefined,
-              numero: enderecoNumero || undefined,
-              bairro: enderecoBairro || undefined,
-              cidade: enderecoCidade || undefined,
+              rua: entrega.enderecoRua || undefined,
+              numero: entrega.enderecoNumero || undefined,
+              bairro: entrega.enderecoBairro || undefined,
+              cidade: entrega.enderecoCidade || undefined,
             }
           : undefined,
     })
@@ -248,7 +215,7 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
         setMostrarCupom(true)
       }
     })
-  }, [cliente, itens, formaPagamento, prazoDias, observacoes, tipoFulfillment, entregadorId, freteNum, jaPago, descontoNum, recebidoNum, dividirPagamento, valorSecundario, formaPagamentoSecundaria, enderecoRua, enderecoNumero, enderecoBairro, enderecoCidade])
+  }, [cliente, itens, pagamento, observacoes, entrega, freteNum, descontoNum])
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -403,7 +370,8 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
   }, [])
 
   const clienteObrigatorio =
-    (formaPagamento === 'fiado' || (dividirPagamento && formaPagamentoSecundaria === 'fiado')) && !cliente
+    (pagamento.formaPagamento === 'fiado' || (pagamento.dividir && pagamento.formaPagamentoSecundaria === 'fiado')) &&
+    !cliente
   const podeRegistrar = itens.length > 0 && !registrando && !clienteObrigatorio
 
   function novaVenda() {
@@ -412,22 +380,10 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
     setMostrarCupom(false)
     setCliente(null)
     setItens([])
-    setFormaPagamento('dinheiro')
-    setPrazoDias('7')
+    setPagamento(PAGAMENTO_INICIAL)
+    setEntrega(ENTREGA_INICIAL)
     setObservacoes('')
-    setTipoFulfillment('balcao')
-    setEntregadorId('')
-    setFrete('')
-    setJaPago(false)
     setDesconto('')
-    setRecebido('')
-    setDividirPagamento(false)
-    setValorSecundario('')
-    setFormaPagamentoSecundaria('pix')
-    setEnderecoRua('')
-    setEnderecoNumero('')
-    setEnderecoBairro('')
-    setEnderecoCidade('')
   }
 
   function persistirEspera(lista: ComandaEspera[]) {
@@ -448,13 +404,9 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
       hora: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
       cliente,
       itens,
-      formaPagamento,
-      prazoDias,
+      pagamento,
+      entrega,
       observacoes,
-      tipoFulfillment,
-      entregadorId,
-      frete,
-      jaPago,
       desconto,
       total,
     }
@@ -468,15 +420,10 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
     if (!c) return
     setCliente(c.cliente)
     setItens(c.itens)
-    setFormaPagamento(c.formaPagamento)
-    setPrazoDias(c.prazoDias)
+    setPagamento({ ...c.pagamento, recebido: '' })
+    setEntrega(c.entrega)
     setObservacoes(c.observacoes)
-    setTipoFulfillment(c.tipoFulfillment)
-    setEntregadorId(c.entregadorId)
-    setFrete(c.frete)
-    setJaPago(c.jaPago)
     setDesconto(c.desconto)
-    setRecebido('')
     persistirEspera(emEspera.filter((e) => e.id !== id))
     setEsperaAberta(false)
   }
@@ -488,45 +435,8 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
   // Ao trocar cliente ou marcar fiado, sugere o prazo cadastrado no cliente.
   function selecionarCliente(c: ClienteResumo) {
     setCliente(c)
-    if (formaPagamento === 'fiado' && c.prazo_pagamento_dias) {
-      setPrazoDias(String(c.prazo_pagamento_dias))
-    }
-    // Entrega com bairro cadastrado: sugere o frete pela taxa do bairro
-    // (so quando o campo ainda esta vazio -- nunca sobrescreve o digitado).
-    sugerirFrete(c)
-  }
-
-  function sugerirFrete(c: ClienteResumo | null) {
-    const bairro = c?.endereco?.bairro
-    if (!bairro) return
-    taxaPorBairro(bairro)
-      .then((taxa) => {
-        if (taxa != null) {
-          setFrete((atual) => (atual === '' ? String(taxa) : atual))
-          toast.info(`Frete de ${bairro}: ${formatarReal(taxa)} (ajuste se precisar)`)
-        }
-      })
-      .catch(() => {})
-  }
-
-  // Mesma logica de sugerirFrete, mas a partir do bairro digitado a mao (sem
-  // cliente cadastrado) em vez do endereco de um ClienteResumo.
-  function sugerirFreteBairro(bairro: string) {
-    if (!bairro.trim()) return
-    taxaPorBairro(bairro)
-      .then((taxa) => {
-        if (taxa != null) {
-          setFrete((atual) => (atual === '' ? String(taxa) : atual))
-          toast.info(`Frete de ${bairro}: ${formatarReal(taxa)} (ajuste se precisar)`)
-        }
-      })
-      .catch(() => {})
-  }
-
-  function selecionarFormaPagamento(v: FormaPagamentoVenda) {
-    setFormaPagamento(v)
-    if (v === 'fiado' && cliente?.prazo_pagamento_dias) {
-      setPrazoDias(String(cliente.prazo_pagamento_dias))
+    if (pagamento.formaPagamento === 'fiado' && c.prazo_pagamento_dias) {
+      setPagamento((p) => ({ ...p, prazoDias: String(c.prazo_pagamento_dias) }))
     }
   }
 
@@ -621,7 +531,7 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
           )}
 
           {/* QR Pix: venda em pix com chave cadastrada nas configuracoes */}
-          {formaPagamento === 'pix' && dadosPix && (
+          {pagamento.formaPagamento === 'pix' && dadosPix && (
             <div className="no-print">
               <QrPix
                 chave={dadosPix.chave}
@@ -660,7 +570,7 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
       <section className="flex min-w-0 flex-col gap-5">
         <div className="flex flex-col gap-2">
           <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
-            Cliente {formaPagamento === 'fiado' ? '(obrigatório p/ fiado)' : '(opcional)'}
+            Cliente {pagamento.formaPagamento === 'fiado' ? '(obrigatório p/ fiado)' : '(opcional)'}
           </label>
           <BuscaCliente selecionado={cliente} onSelecionar={selecionarCliente} />
           <p className="text-xs text-text-muted">
@@ -668,121 +578,7 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
           </p>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
-            Tipo
-          </label>
-          <div className="grid grid-cols-3 gap-1.5 rounded-lg border border-border bg-surface p-1">
-            {TIPOS_FULFILLMENT.map((t) => (
-              <button
-                key={t.valor}
-                type="button"
-                onClick={() => {
-                  setTipoFulfillment(t.valor)
-                  if (t.valor === 'entrega') sugerirFrete(cliente)
-                }}
-                className={cn(
-                  'u-motion rounded-md px-3 py-1.5 text-sm font-medium',
-                  tipoFulfillment === t.valor
-                    ? 'bg-brand text-primary-foreground'
-                    : 'text-text-muted hover:bg-surface-2 hover:text-text',
-                )}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {tipoFulfillment === 'entrega' && (
-          <div className="flex flex-col gap-2">
-            <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
-              Quem vai entregar
-            </label>
-            <Select value={entregadorId} onValueChange={(v) => v && setEntregadorId(v)}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Selecione...">
-                  {(v: string) => equipe.find((u) => u.id === v)?.nome ?? v}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {equipe.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        {tipoFulfillment === 'entrega' && (
-          <div className="flex flex-col gap-2">
-            <label
-              htmlFor="frete"
-              className="text-[11px] font-semibold uppercase tracking-wider text-text-muted"
-            >
-              Frete (R$)
-            </label>
-            <input
-              id="frete"
-              type="number"
-              step="0.01"
-              min="0"
-              value={frete}
-              onChange={(e) => setFrete(e.target.value)}
-              placeholder="0,00"
-              className="h-10 rounded-md border border-border bg-surface px-3 text-sm text-text outline-none focus:border-brand focus:ring-2 focus:ring-brand/30"
-            />
-          </div>
-        )}
-
-        {tipoFulfillment === 'entrega' && !cliente && (
-          <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-2/40 p-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
-              Endereço de entrega
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                value={enderecoRua}
-                onChange={(e) => setEnderecoRua(e.target.value)}
-                placeholder="Rua"
-                className="col-span-2 h-9 rounded-md border border-border bg-surface px-3 text-sm text-text outline-none focus:border-brand"
-              />
-              <input
-                value={enderecoNumero}
-                onChange={(e) => setEnderecoNumero(e.target.value)}
-                placeholder="Número"
-                className="h-9 rounded-md border border-border bg-surface px-3 text-sm text-text outline-none focus:border-brand"
-              />
-              <input
-                value={enderecoBairro}
-                onChange={(e) => setEnderecoBairro(e.target.value)}
-                onBlur={() => sugerirFreteBairro(enderecoBairro)}
-                placeholder="Bairro"
-                className="h-9 rounded-md border border-border bg-surface px-3 text-sm text-text outline-none focus:border-brand"
-              />
-              <input
-                value={enderecoCidade}
-                onChange={(e) => setEnderecoCidade(e.target.value)}
-                placeholder="Cidade"
-                className="col-span-2 h-9 rounded-md border border-border bg-surface px-3 text-sm text-text outline-none focus:border-brand"
-              />
-            </div>
-          </div>
-        )}
-
-        {(tipoFulfillment === 'entrega' || tipoFulfillment === 'retirada') && (
-          <label className="flex items-center gap-2 text-sm text-text">
-            <input
-              type="checkbox"
-              checked={jaPago}
-              onChange={(e) => setJaPago(e.target.checked)}
-              className="size-4 rounded border-border"
-            />
-            Já foi pago
-          </label>
-        )}
+        <CamposEntrega cliente={cliente} equipe={equipe} value={entrega} onChange={setEntrega} />
 
         <div className="flex flex-col gap-2">
           <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
@@ -915,107 +711,7 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
         </div>
 
         <div className="border-t border-border bg-surface px-4 pb-4 pt-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
-              Forma de pagamento
-            </label>
-            <Select
-              value={formaPagamento}
-              onValueChange={(v) =>
-                v && selecionarFormaPagamento(v as FormaPagamentoVenda)
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue>{(v: string) => rotuloPagamento(v)}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                <SelectItem value="pix">Pix</SelectItem>
-                <SelectItem value="cartao_debito">Cartão débito</SelectItem>
-                <SelectItem value="cartao_credito">Cartão crédito</SelectItem>
-                <SelectItem value="fiado">Fiado</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {formaPagamento === 'fiado' && (
-            <div className="mt-3 flex flex-col gap-2 rounded-lg border border-warn/30 bg-warn/[0.06] p-3">
-              {!cliente ? (
-                <p className="text-xs font-medium text-warn">
-                  Selecione um cliente acima para venda fiado.
-                </p>
-              ) : (
-                <>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
-                    Prazo para pagamento (dias)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={prazoDias}
-                    onChange={(e) => setPrazoDias(e.target.value)}
-                    className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-ring/50"
-                  />
-                  <p className="text-xs text-text-muted">
-                    Vence em{' '}
-                    {formatarData(addDias(hojeBrasil(), Number(prazoDias) || 0))}
-                  </p>
-                </>
-              )}
-            </div>
-          )}
-
-          <label className="mt-2 flex items-center gap-2 text-sm text-text">
-            <input
-              type="checkbox"
-              checked={dividirPagamento}
-              onChange={(e) => setDividirPagamento(e.target.checked)}
-              className="size-4 rounded border-border"
-            />
-            Dividir em duas formas de pagamento?
-          </label>
-
-          {dividirPagamento && (
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <div className="inline-flex h-9 flex-1 items-center rounded-lg border border-border bg-surface pl-2">
-                  <span className="font-mono text-xs text-text-muted">R$</span>
-                  <input
-                    type="number"
-                    min={0}
-                    max={total}
-                    step="0.01"
-                    value={valorSecundario}
-                    onChange={(e) => setValorSecundario(e.target.value)}
-                    placeholder="0,00"
-                    className="h-9 w-full bg-transparent px-2 text-sm text-text outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    aria-label="Valor da segunda forma"
-                  />
-                </div>
-                <Select
-                  value={formaPagamentoSecundaria}
-                  onValueChange={(v) => v && setFormaPagamentoSecundaria(v as typeof formaPagamentoSecundaria)}
-                >
-                  <SelectTrigger className="w-40">
-                    <SelectValue>{(v: string) => rotuloPagamento(v)}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                    <SelectItem value="pix">Pix</SelectItem>
-                    <SelectItem value="cartao_debito">Cartão débito</SelectItem>
-                    <SelectItem value="cartao_credito">Cartão crédito</SelectItem>
-                    <SelectItem value="fiado">Fiado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <p className="text-xs text-text-muted">
-                Resta pagar em {rotuloPagamento(formaPagamento)}:{' '}
-                {formatarReal(Math.max(total - (Number(valorSecundario) || 0), 0))}
-                {(formaPagamento === 'fiado' || formaPagamentoSecundaria === 'fiado') &&
-                  ` · vencimento em ${formatarData(addDias(hojeBrasil(), Number(prazoDias) || 0))}`}
-              </p>
-            </div>
-          )}
+          <SeletorPagamento cliente={cliente} total={total} value={pagamento} onChange={setPagamento} />
 
           <div className="mt-4 flex items-baseline justify-between">
             <span className="text-sm text-text-muted">Subtotal</span>
@@ -1051,39 +747,6 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
             <span className="text-base font-semibold text-text">Total</span>
             <Money valor={total} destaque className="text-2xl font-semibold" />
           </div>
-
-          {/* Troco: so venda em dinheiro */}
-          {formaPagamento === 'dinheiro' && itens.length > 0 && (
-            <div className="mt-2 flex items-center justify-between gap-3 rounded-lg bg-surface-2/60 px-3 py-2">
-              <div className="inline-flex h-8 items-center gap-2">
-                <span className="text-sm text-text-muted">Recebido</span>
-                <div className="inline-flex h-8 items-center rounded-lg border border-border bg-bg pl-2">
-                  <span className="font-mono text-xs text-text-muted">R$</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    inputMode="decimal"
-                    value={recebido}
-                    placeholder="0,00"
-                    onChange={(e) => setRecebido(e.target.value)}
-                    className="h-8 w-20 bg-transparent px-2 text-right font-mono text-sm tabular-nums text-text outline-none placeholder:text-text-muted/50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    aria-label="Valor recebido em dinheiro"
-                  />
-                </div>
-              </div>
-              {troco != null && (
-                <span
-                  className={cn(
-                    'font-mono text-sm font-bold tabular-nums',
-                    troco >= 0 ? 'text-ok' : 'text-err',
-                  )}
-                >
-                  {troco >= 0 ? `Troco ${formatarReal(troco)}` : `Falta ${formatarReal(-troco)}`}
-                </span>
-              )}
-            </div>
-          )}
 
           <button
             type="button"
@@ -1132,7 +795,7 @@ export function FormSaida({ clienteIdInicial }: { clienteIdInicial?: string } = 
                       {c.cliente?.nome ?? 'Venda de balcão'}
                     </p>
                     <p className="mt-0.5 text-xs text-text-muted">
-                      {c.hora} · {c.itens.length} {c.itens.length === 1 ? 'item' : 'itens'} · {rotuloPagamento(c.formaPagamento)}
+                      {c.hora} · {c.itens.length} {c.itens.length === 1 ? 'item' : 'itens'} · {rotuloPagamento(c.pagamento.formaPagamento)}
                     </p>
                   </div>
                   <Money valor={c.total} destaque className="shrink-0 text-base font-semibold" />
