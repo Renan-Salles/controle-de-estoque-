@@ -25,17 +25,24 @@ import { contarPedidosPendentes, listarPedidosRecentes, caixaFechadoHoje } from 
 import { podeEditarPedido } from '@/lib/pedido-labels'
 import { getMeta } from '@/lib/actions/metas'
 import { formatarReal, hojeBrasil, mesAtualBrasil, addDias } from '@/lib/formatos'
-import { ehEntregador } from '@/lib/permissoes'
+import { getCargoUsuario } from '@/lib/permissoes'
 import { TelaEntregador } from '@/components/entregador/TelaEntregador'
 import { PedidosRecentes } from '@/components/dashboard/PedidosRecentes'
 
 export default async function DashboardPage() {
+  const cargo = await getCargoUsuario()
+
   // Cargo Entregador tem a propria tela no lugar do dashboard: /dashboard e
   // o destino seguro pra onde todo cargo cai, entao roteia aqui em vez de
   // mexer no redirect de auth (que tem gotcha documentado no CLAUDE.md).
-  if (await ehEntregador()) {
+  if (cargo?.nome === 'Entregador') {
     return <TelaEntregador />
   }
+
+  // Mesma regra de fail-open que rotaPermitida ja usa: cargo nulo ou
+  // admin=true ve tudo. So cargos nao-admin (Funcionario, futuros cargos)
+  // perdem os blocos de lucro/faturamento/caixa.
+  const podeVerFinanceiro = !cargo || cargo.admin
 
   const supabase = await createClient()
   const local = await getLocalAtivo()
@@ -64,10 +71,10 @@ export default async function DashboardPage() {
     supabase.from('v_posicao_estoque').select('id').in('status_estoque', ['critico', 'ruptura']).eq('local_id', localId) as unknown as Promise<{ data: RowId[] }>,
     supabase.from('pedidos').select('data_pedido, total').gte('data_pedido', `${inicioMes}T00:00:00`).eq('status', 'concluida').eq('local_id', localId).order('data_pedido') as unknown as Promise<{ data: RowPedidoMes[] }>,
     getDashStats(),
-    getDre(),
-    buscarResumoFiado(),
+    podeVerFinanceiro ? getDre() : Promise.resolve(null),
+    podeVerFinanceiro ? buscarResumoFiado() : Promise.resolve(null),
     contarPedidosPendentes(),
-    getMeta(),
+    podeVerFinanceiro ? getMeta() : Promise.resolve(null),
     listarPedidosRecentes(),
     caixaFechadoHoje(localId),
   ])
@@ -111,58 +118,65 @@ export default async function DashboardPage() {
     tom: 'brand' | 'critico' | 'ok'
   }
 
-  const kpis: Kpi[] = [
-    {
-      label: 'Vendas hoje',
-      valor: String(qtdPedidosHoje),
-      sub: 'receita do dia',
-      money: receitaHoje,
-      moneyDestaque: true,
-      icon: ShoppingCart,
-      tom: 'brand',
-    },
-    {
-      label: 'Receita do mês',
-      valor: '',
-      money: receitaMes,
-      moneyDestaque: true,
-      sub: 'vendas concluídas no mês',
-      icon: CalendarRange,
-      tom: 'brand',
-    },
-    {
-      label: 'Estoque crítico',
-      valor: String(qtdCriticos),
-      sub: qtdCriticos > 0 ? 'produtos abaixo do mínimo' : 'tudo dentro do mínimo',
-      icon: Package,
-      tom: qtdCriticos > 0 ? 'critico' : 'brand',
-    },
-    {
-      label: 'Ticket médio do dia',
-      valor: '',
-      money: ticketMedioHoje,
-      moneyDestaque: true,
-      sub: qtdPedidosHoje > 0 ? 'por venda concluída hoje' : 'sem vendas hoje',
-      icon: Receipt,
-      tom: 'brand',
-    },
-    {
-      label: 'Lucro do mês',
-      valor: '',
-      money: dre.lucro_liquido,
-      moneyDestaque: dre.lucro_liquido >= 0,
-      sub: `margem ${dre.lucro_liquido_pct.toFixed(1)}%`,
-      icon: TrendingUp,
-      tom: dre.lucro_liquido >= 0 ? 'ok' : 'critico',
-    },
-    {
-      label: 'Cliente destaque',
-      valor: stats.clienteVip ?? '-',
-      sub: stats.clienteVip ? formatarReal(stats.ticketMedio) + ' ticket médio' : 'sem vendas no mês',
-      icon: Star,
-      tom: 'brand',
-    },
-  ]
+  const kpis: Kpi[] = []
+  if (podeVerFinanceiro) {
+    kpis.push(
+      {
+        label: 'Vendas hoje',
+        valor: String(qtdPedidosHoje),
+        sub: 'receita do dia',
+        money: receitaHoje,
+        moneyDestaque: true,
+        icon: ShoppingCart,
+        tom: 'brand',
+      },
+      {
+        label: 'Receita do mês',
+        valor: '',
+        money: receitaMes,
+        moneyDestaque: true,
+        sub: 'vendas concluídas no mês',
+        icon: CalendarRange,
+        tom: 'brand',
+      },
+    )
+  }
+  kpis.push({
+    label: 'Estoque crítico',
+    valor: String(qtdCriticos),
+    sub: qtdCriticos > 0 ? 'produtos abaixo do mínimo' : 'tudo dentro do mínimo',
+    icon: Package,
+    tom: qtdCriticos > 0 ? 'critico' : 'brand',
+  })
+  if (podeVerFinanceiro && dre) {
+    kpis.push(
+      {
+        label: 'Ticket médio do dia',
+        valor: '',
+        money: ticketMedioHoje,
+        moneyDestaque: true,
+        sub: qtdPedidosHoje > 0 ? 'por venda concluída hoje' : 'sem vendas hoje',
+        icon: Receipt,
+        tom: 'brand',
+      },
+      {
+        label: 'Lucro do mês',
+        valor: '',
+        money: dre.lucro_liquido,
+        moneyDestaque: dre.lucro_liquido >= 0,
+        sub: `margem ${dre.lucro_liquido_pct.toFixed(1)}%`,
+        icon: TrendingUp,
+        tom: dre.lucro_liquido >= 0 ? 'ok' : 'critico',
+      },
+      {
+        label: 'Cliente destaque',
+        valor: stats.clienteVip ?? '-',
+        sub: stats.clienteVip ? formatarReal(stats.ticketMedio) + ' ticket médio' : 'sem vendas no mês',
+        icon: Star,
+        tom: 'brand',
+      },
+    )
+  }
 
   const tomCor: Record<Kpi['tom'], string> = {
     brand: 'text-brand',
@@ -273,7 +287,7 @@ export default async function DashboardPage() {
       )}
 
       {/* Aviso de fiado vencido ou vencendo nos próximos 3 dias */}
-      {(resumoFiado.qtdVencidas > 0 || resumoFiado.qtdVencendo > 0) && (
+      {resumoFiado && (resumoFiado.qtdVencidas > 0 || resumoFiado.qtdVencendo > 0) && (
         <Link
           href="/financeiro/a-receber"
           className={`u-motion u-fade-in group mb-5 flex items-center gap-3 rounded-lg border px-4 py-3 ${
@@ -380,29 +394,32 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* Gráfico (2/3) + acesso rápido (1/3) */}
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="u-stagger rounded-xl border border-border bg-surface p-5 lg:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-semibold tracking-tight text-text">
-                Vendas
-              </h2>
-              <p className="text-[11px] uppercase tracking-wider text-text-muted">
-                Últimos 7 dias
-              </p>
+      {/* Gráfico (2/3) + acesso rápido (1/3), ou só acesso rápido quando
+          não pode ver financeiro (grid de 1 coluna nesse caso). */}
+      <div className={podeVerFinanceiro ? 'mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3' : 'mt-6'}>
+        {podeVerFinanceiro && (
+          <div className="u-stagger rounded-xl border border-border bg-surface p-5 lg:col-span-2">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold tracking-tight text-text">
+                  Vendas
+                </h2>
+                <p className="text-[11px] uppercase tracking-wider text-text-muted">
+                  Últimos 7 dias
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[11px] uppercase tracking-wider text-text-muted">
+                  Total do mês
+                </p>
+                <Money valor={receitaMes} destaque className="text-sm font-semibold" />
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-[11px] uppercase tracking-wider text-text-muted">
-                Total do mês
-              </p>
-              <Money valor={receitaMes} destaque className="text-sm font-semibold" />
-            </div>
+            <GraficoVendas dados={dadosGrafico} />
           </div>
-          <GraficoVendas dados={dadosGrafico} />
-        </div>
+        )}
 
-        <div className="u-stagger rounded-xl border border-border bg-surface p-5">
+        <div className={`u-stagger rounded-xl border border-border bg-surface p-5 ${podeVerFinanceiro ? '' : 'max-w-md'}`}>
           <h2 className="mb-1 text-sm font-semibold tracking-tight text-text">
             Acesso rápido
           </h2>
@@ -410,27 +427,29 @@ export default async function DashboardPage() {
             Atalhos do dia
           </p>
           <div className="-mx-2 divide-y divide-border/60">
-            {atalhos.map((a) => (
-              <Link
-                key={a.href}
-                href={a.href}
-                className="u-motion group flex items-center gap-3 rounded-lg px-2 py-3 hover:bg-surface-2"
-              >
-                <span
-                  className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${a.destaque ? 'bg-ok/10 text-ok' : 'bg-brand/10 text-brand'}`}
+            {atalhos
+              .filter((a) => podeVerFinanceiro || !a.href.startsWith('/financeiro'))
+              .map((a) => (
+                <Link
+                  key={a.href}
+                  href={a.href}
+                  className="u-motion group flex items-center gap-3 rounded-lg px-2 py-3 hover:bg-surface-2"
                 >
-                  <a.icon className="size-4" strokeWidth={1.5} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-text">{a.titulo}</p>
-                  <p className="truncate text-[13px] text-text-muted">{a.desc}</p>
-                </div>
-                <ArrowUpRight
-                  className="size-4 shrink-0 text-text-muted u-motion group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-text"
-                  strokeWidth={1.5}
-                />
-              </Link>
-            ))}
+                  <span
+                    className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${a.destaque ? 'bg-ok/10 text-ok' : 'bg-brand/10 text-brand'}`}
+                  >
+                    <a.icon className="size-4" strokeWidth={1.5} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-text">{a.titulo}</p>
+                    <p className="truncate text-[13px] text-text-muted">{a.desc}</p>
+                  </div>
+                  <ArrowUpRight
+                    className="size-4 shrink-0 text-text-muted u-motion group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-text"
+                    strokeWidth={1.5}
+                  />
+                </Link>
+              ))}
           </div>
         </div>
       </div>
