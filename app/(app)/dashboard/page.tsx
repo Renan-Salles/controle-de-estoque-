@@ -352,7 +352,7 @@ export default async function DashboardPage() {
       )}
 
       {/* KPIs — único lugar com cards (elevação justificada). Stagger via CSS. */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className={podeVerFinanceiro ? 'grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4' : 'grid grid-cols-1 gap-4 sm:max-w-xs'}>
         {kpis.map((k, i) => (
           <div
             key={k.label}
