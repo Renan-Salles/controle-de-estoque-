@@ -14,12 +14,15 @@ import { FormFechamento } from '@/components/caixa/FormFechamento'
 import { listarFechamentos, fechamentoDeHoje } from '@/lib/actions/caixa'
 import { formatarData, formatarReal } from '@/lib/formatos'
 import { cn } from '@/lib/utils'
+import { getCargoUsuario } from '@/lib/permissoes'
 
 export default async function CaixaPage() {
-  const [fechamentos, deHoje] = await Promise.all([
+  const [fechamentos, deHoje, cargo] = await Promise.all([
     listarFechamentos(30),
     fechamentoDeHoje(),
+    getCargoUsuario(),
   ])
+  const podeVerEsperado = !cargo || cargo.admin
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-5">
@@ -38,41 +41,46 @@ export default async function CaixaPage() {
           descricao="O primeiro fechamento de caixa aparece aqui."
         />
       ) : (
-        <Tabela minWidth={560}>
+        <Tabela minWidth={podeVerEsperado ? 560 : 360}>
           <TabelaHead>
             <tr>
               <TabelaHeadCell>Data</TabelaHeadCell>
-              <TabelaHeadCell alinhar="direita">Esperado</TabelaHeadCell>
+              {podeVerEsperado && <TabelaHeadCell alinhar="direita">Esperado</TabelaHeadCell>}
               <TabelaHeadCell alinhar="direita">Contado</TabelaHeadCell>
-              <TabelaHeadCell alinhar="direita">Diferença</TabelaHeadCell>
+              {podeVerEsperado && <TabelaHeadCell alinhar="direita">Diferença</TabelaHeadCell>}
               <TabelaHeadCell>Por</TabelaHeadCell>
             </tr>
           </TabelaHead>
           <TabelaBody>
             {fechamentos.map((f) => {
-              const ok = Math.abs(f.diferenca) < 0.005
+              const temEsperado = 'diferenca' in f
+              const ok = temEsperado && Math.abs(f.diferenca) < 0.005
               return (
                 <TabelaRow key={f.id}>
                   <TabelaCell mono className="text-text-muted">
                     {formatarData(f.data)}
                   </TabelaCell>
-                  <TabelaCell alinhar="direita">
-                    <Money valor={f.esperado_dinheiro} />
-                  </TabelaCell>
+                  {podeVerEsperado && temEsperado && (
+                    <TabelaCell alinhar="direita">
+                      <Money valor={f.esperado_dinheiro} />
+                    </TabelaCell>
+                  )}
                   <TabelaCell alinhar="direita">
                     <Money valor={f.dinheiro_contado} />
                   </TabelaCell>
-                  <TabelaCell alinhar="direita">
-                    <span
-                      className={cn(
-                        'font-mono text-sm font-semibold tabular-nums',
-                        ok ? 'text-ok' : f.diferenca > 0 ? 'text-info' : 'text-err',
-                      )}
-                    >
-                      {f.diferenca > 0 ? '+' : ''}
-                      {formatarReal(f.diferenca)}
-                    </span>
-                  </TabelaCell>
+                  {podeVerEsperado && temEsperado && (
+                    <TabelaCell alinhar="direita">
+                      <span
+                        className={cn(
+                          'font-mono text-sm font-semibold tabular-nums',
+                          ok ? 'text-ok' : f.diferenca > 0 ? 'text-info' : 'text-err',
+                        )}
+                      >
+                        {f.diferenca > 0 ? '+' : ''}
+                        {formatarReal(f.diferenca)}
+                      </span>
+                    </TabelaCell>
+                  )}
                   <TabelaCell className="text-text-muted">
                     {f.fechado_por_nome ?? '-'}
                   </TabelaCell>

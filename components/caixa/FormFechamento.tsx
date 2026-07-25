@@ -8,15 +8,17 @@ import { Money } from '@/components/ui-kit/Money'
 import { formatarReal } from '@/lib/formatos'
 import { cn } from '@/lib/utils'
 
-type Comparativo = {
-  dinheiro: number
-  pix: number
-  debito: number
-  credito: number
-  totalVendas: number
-  dinheiro_contado: number
-  diferenca: number
-}
+type Comparativo =
+  | { totalVendas: number; dinheiro_contado: number }
+  | {
+      totalVendas: number
+      dinheiro_contado: number
+      dinheiro: number
+      pix: number
+      debito: number
+      credito: number
+      diferenca: number
+    }
 
 // Fluxo AS CEGAS: quem conta nao ve o esperado antes de confirmar -- so
 // depois de gravado o sistema abre o comparativo. Evita "ajustar" a contagem.
@@ -47,6 +49,21 @@ export function FormFechamento({ jaFechouHoje }: { jaFechouHoje: boolean }) {
   }
 
   if (resultado) {
+    if (!('diferenca' in resultado)) {
+      return (
+        <div className="rounded-xl border border-border bg-surface p-5">
+          <h2 className="text-sm font-semibold text-text">Caixa fechado</h2>
+          <p className="mt-0.5 text-xs text-text-muted">
+            {resultado.totalVendas} {resultado.totalVendas === 1 ? 'venda paga' : 'vendas pagas'} hoje
+          </p>
+          <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3 text-sm">
+            <span className="text-text-muted">Dinheiro contado</span>
+            <Money valor={resultado.dinheiro_contado} />
+          </div>
+        </div>
+      )
+    }
+
     const ok = Math.abs(resultado.diferenca) < 0.005
     return (
       <div className="rounded-xl border border-border bg-surface p-5">

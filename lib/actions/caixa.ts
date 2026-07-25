@@ -5,6 +5,7 @@ import { hojeBrasil } from '@/lib/formatos'
 import { somarPorForma } from '@/lib/pedido-labels'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { getCargoUsuario } from '@/lib/permissoes'
 
 export type ResumoDia = {
   data: string
@@ -96,33 +97,52 @@ export async function fecharCaixa(input: unknown) {
   if (error) return { error: error.message }
 
   revalidatePath('/caixa')
+  const cargo = await getCargoUsuario()
+  const podeVerEsperado = !cargo || cargo.admin
   return {
     success: true as const,
-    comparativo: {
-      ...resumo,
-      dinheiro_contado: parsed.data.dinheiro_contado,
-      diferenca,
-    },
+    comparativo: podeVerEsperado
+      ? {
+          totalVendas: resumo.totalVendas,
+          dinheiro_contado: parsed.data.dinheiro_contado,
+          dinheiro: resumo.dinheiro,
+          pix: resumo.pix,
+          debito: resumo.debito,
+          credito: resumo.credito,
+          diferenca,
+        }
+      : {
+          totalVendas: resumo.totalVendas,
+          dinheiro_contado: parsed.data.dinheiro_contado,
+        },
   }
 }
 
-export type Fechamento = {
+type FechamentoBase = {
   id: string
   data: string
   dinheiro_contado: number
-  esperado_dinheiro: number
-  esperado_pix: number
-  esperado_debito: number
-  esperado_credito: number
-  diferenca: number
   observacoes: string | null
   created_at: string
   fechado_por_nome: string | null
 }
 
+export type Fechamento =
+  | FechamentoBase
+  | (FechamentoBase & {
+      esperado_dinheiro: number
+      esperado_pix: number
+      esperado_debito: number
+      esperado_credito: number
+      diferenca: number
+    })
+
 export async function listarFechamentos(limite = 30): Promise<Fechamento[]> {
   const localId = await getLocalAtivoId()
   const supabase = await createClient()
+  const cargo = await getCargoUsuario()
+  const podeVerEsperado = !cargo || cargo.admin
+
   const { data, error } = await supabase
     .from('caixa_fechamentos')
     .select('id, data, dinheiro_contado, esperado_dinheiro, esperado_pix, esperado_debito, esperado_credito, diferenca, observacoes, created_at, profiles(nome)')
@@ -130,10 +150,39 @@ export async function listarFechamentos(limite = 30): Promise<Fechamento[]> {
     .order('data', { ascending: false })
     .limit(limite)
   if (error) throw new Error(error.message)
-  type Raw = Omit<Fechamento, 'fechado_por_nome'> & { profiles: { nome: string } | { nome: string }[] | null }
+
+  type Raw = {
+    id: string
+    data: string
+    dinheiro_contado: number
+    esperado_dinheiro: number
+    esperado_pix: number
+    esperado_debito: number
+    esperado_credito: number
+    diferenca: number
+    observacoes: string | null
+    created_at: string
+    profiles: { nome: string } | { nome: string }[] | null
+  }
   return ((data ?? []) as unknown as Raw[]).map((f) => {
     const rel = Array.isArray(f.profiles) ? f.profiles[0] : f.profiles
-    return { ...f, fechado_por_nome: rel?.nome ?? null }
+    const base: FechamentoBase = {
+      id: f.id,
+      data: f.data,
+      dinheiro_contado: f.dinheiro_contado,
+      observacoes: f.observacoes,
+      created_at: f.created_at,
+      fechado_por_nome: rel?.nome ?? null,
+    }
+    if (!podeVerEsperado) return base
+    return {
+      ...base,
+      esperado_dinheiro: f.esperado_dinheiro,
+      esperado_pix: f.esperado_pix,
+      esperado_debito: f.esperado_debito,
+      esperado_credito: f.esperado_credito,
+      diferenca: f.diferenca,
+    }
   })
 }
 
