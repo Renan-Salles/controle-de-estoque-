@@ -2,6 +2,7 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getLocalAtivoId } from '@/lib/local'
 import { getCargoUsuario } from '@/lib/permissoes'
+import { redigirCustoEstoque } from '@/lib/estoque-redacao'
 import { revalidatePath } from 'next/cache'
 
 export async function buscarPosicaoEstoque(filtro?: 'todos' | 'critico' | 'ruptura') {
@@ -16,19 +17,10 @@ export async function buscarPosicaoEstoque(filtro?: 'todos' | 'critico' | 'ruptu
   if (error) throw error
   const linhas = data ?? []
 
-  // custo_medio/valor_total sao custo de produto e valor agregado de
-  // estoque -- so admin ve (mesmo principio das outras telas dessa
-  // feature). Ausente, nao zero, pra nao passar a impressao de "custo
-  // zero"/"sem valor em estoque" pra quem so nao tem permissao de ver.
   const cargo = await getCargoUsuario()
   const podeVerFinanceiro = !cargo || cargo.admin
-  if (podeVerFinanceiro) return linhas
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return linhas.map((l: any) => {
-    const { custo_medio: _custoMedio, valor_total: _valorTotal, ...resto } = l
-    return resto
-  })
+  return redigirCustoEstoque(linhas as any[], podeVerFinanceiro)
 }
 
 export async function darEntrada(data: {
@@ -163,6 +155,8 @@ export async function ajustarEstoque(data: {
 export async function buscarReposicao() {
   const localId = await getLocalAtivoId()
   const supabase = await createClient()
+  const cargo = await getCargoUsuario()
+  const podeVerFinanceiro = !cargo || cargo.admin
   const desde = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString()
 
   const [{ data, error }, { data: vendidosRaw, error: errVend }] = await Promise.all([
@@ -217,7 +211,7 @@ export async function buscarReposicao() {
     .filter((p) => p.sugestao_compra > 0 || p.motivo !== 'giro')
     .sort((a, b) => (a.saldo_atual ?? 0) - (b.saldo_atual ?? 0))
 
-  return acabando
+  return redigirCustoEstoque(acabando, podeVerFinanceiro)
 }
 
 export type ItemVencendo = {

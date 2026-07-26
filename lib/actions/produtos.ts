@@ -1,6 +1,8 @@
 'use server'
 import { createClient } from '@/lib/supabase/server'
 import { getLocalAtivoId } from '@/lib/local'
+import { getCargoUsuario } from '@/lib/permissoes'
+import { redigirCustoEstoque } from '@/lib/estoque-redacao'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -256,7 +258,10 @@ export async function buscarPosicaoProdutos(termo?: string) {
     error: { message: string } | null
   }
   if (error) throw new Error(error.message)
-  return data ?? []
+
+  const cargo = await getCargoUsuario()
+  const podeVerFinanceiro = !cargo || cargo.admin
+  return redigirCustoEstoque(data ?? [], podeVerFinanceiro)
 }
 
 // Atalho do PDV: top ~8 produtos mais vendidos do local ativo nos ultimos 30 dias.
