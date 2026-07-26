@@ -14,8 +14,10 @@ export interface PosicaoEstoque {
   volume_ml: number | null
   saldo_atual: number
   estoque_minimo: number
-  custo_medio: number
-  valor_total: number
+  // Ausentes (nao 0) pra quem nao e admin -- buscarPosicaoEstoque() tira
+  // esses dois campos da resposta pra quem nao pode ver dado financeiro.
+  custo_medio?: number
+  valor_total?: number
   status_estoque: StatusEstoque
   preco_venda_padrao: number
 }

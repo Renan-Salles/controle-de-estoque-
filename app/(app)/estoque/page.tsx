@@ -162,6 +162,12 @@ export default function EstoquePage() {
     return { totalSkus, valorTotal, criticos }
   }, [completo])
 
+  // Componente client, sem acesso a getCargoUsuario() -- infere pela forma
+  // do dado, mesmo padrão de 'diferenca' in f em caixa/page.tsx.
+  // buscarPosicaoEstoque() tira custo_medio/valor_total da resposta pra
+  // quem não é admin, entao esses campos vem ausentes (nao 0) nesse caso.
+  const podeVerFinanceiro = completo.length === 0 || completo[0].custo_medio !== undefined
+
   function abrirEntrada(p: PosicaoEstoque) {
     setProdutoSelecionado(p)
     setQuantidade('')
@@ -254,12 +260,14 @@ export default function EstoquePage() {
               {formatarNumero(resumo.totalSkus)}
             </p>
           </div>
-          <div className="rounded-lg border border-border bg-surface px-3 py-2 text-right">
-            <p className="text-[11px] uppercase tracking-wider text-text-muted">
-              Valor em estoque
-            </p>
-            <Money valor={resumo.valorTotal} destaque className="text-sm font-semibold" />
-          </div>
+          {podeVerFinanceiro && (
+            <div className="rounded-lg border border-border bg-surface px-3 py-2 text-right">
+              <p className="text-[11px] uppercase tracking-wider text-text-muted">
+                Valor em estoque
+              </p>
+              <Money valor={resumo.valorTotal} destaque className="text-sm font-semibold" />
+            </div>
+          )}
           <Link
             href="/estoque/perdas"
             className="u-motion u-press inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-text hover:border-err/50 hover:text-err"
@@ -359,8 +367,8 @@ export default function EstoquePage() {
               <TabelaHeadCell>Categoria</TabelaHeadCell>
               <TabelaHeadCell alinhar="direita">Saldo</TabelaHeadCell>
               <TabelaHeadCell alinhar="direita">Mínimo</TabelaHeadCell>
-              <TabelaHeadCell alinhar="direita">Custo médio</TabelaHeadCell>
-              <TabelaHeadCell alinhar="direita">Valor total</TabelaHeadCell>
+              {podeVerFinanceiro && <TabelaHeadCell alinhar="direita">Custo médio</TabelaHeadCell>}
+              {podeVerFinanceiro && <TabelaHeadCell alinhar="direita">Valor total</TabelaHeadCell>}
               <TabelaHeadCell alinhar="centro">Status</TabelaHeadCell>
               <TabelaHeadCell alinhar="direita"></TabelaHeadCell>
             </tr>
@@ -381,12 +389,16 @@ export default function EstoquePage() {
                 <TabelaCell alinhar="direita" className="text-text-muted">
                   {formatarNumero(p.estoque_minimo)}
                 </TabelaCell>
-                <TabelaCell alinhar="direita">
-                  <Money valor={p.custo_medio} />
-                </TabelaCell>
-                <TabelaCell alinhar="direita">
-                  <Money valor={p.valor_total} />
-                </TabelaCell>
+                {podeVerFinanceiro && (
+                  <TabelaCell alinhar="direita">
+                    <Money valor={p.custo_medio} />
+                  </TabelaCell>
+                )}
+                {podeVerFinanceiro && (
+                  <TabelaCell alinhar="direita">
+                    <Money valor={p.valor_total} />
+                  </TabelaCell>
+                )}
                 <TabelaCell alinhar="centro">
                   <StatusPill status={p.status_estoque} />
                 </TabelaCell>
@@ -438,8 +450,12 @@ export default function EstoquePage() {
               campos={[
                 { label: 'Saldo', valor: formatarNumero(p.saldo_atual) },
                 { label: 'Mínimo', valor: formatarNumero(p.estoque_minimo) },
-                { label: 'Custo médio', valor: <Money valor={p.custo_medio} /> },
-                { label: 'Valor total', valor: <Money valor={p.valor_total} /> },
+                ...(podeVerFinanceiro
+                  ? [
+                      { label: 'Custo médio', valor: <Money valor={p.custo_medio} /> },
+                      { label: 'Valor total', valor: <Money valor={p.valor_total} /> },
+                    ]
+                  : []),
               ]}
               acoes={
                 <>
