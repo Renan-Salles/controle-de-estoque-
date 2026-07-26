@@ -78,22 +78,26 @@ export async function fecharCaixa(input: unknown) {
   const resumo = await resumoDoDia()
   const diferenca = +(parsed.data.dinheiro_contado - resumo.dinheiro).toFixed(2)
 
+  // Upsert direto na tabela (INSERT ... ON CONFLICT DO UPDATE) quebra com
+  // RLS pra quem nao e admin desde que SELECT virou is_admin()-only
+  // (2026-07-26-caixa-fechamentos-select-so-admin.sql): o Postgres precisa
+  // de visibilidade de SELECT pra sondar o indice unico do ON CONFLICT,
+  // mesmo sem conflito real -- confirmado ao vivo (ver
+  // .superpowers/sdd/final-review-fixes-report.md, Grupo A). fechar_caixa()
+  // e security definer (2026-07-26-fechar-caixa-rpc.sql): roda como dona da
+  // tabela, ignorando RLS, checando pode_acessar_local() por dentro.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase.from('caixa_fechamentos') as any).upsert(
-    {
-      local_id: localId,
-      data: resumo.data,
-      dinheiro_contado: parsed.data.dinheiro_contado,
-      esperado_dinheiro: resumo.dinheiro,
-      esperado_pix: resumo.pix,
-      esperado_debito: resumo.debito,
-      esperado_credito: resumo.credito,
-      diferenca,
-      observacoes: parsed.data.observacoes?.trim() || null,
-      fechado_por: user.id,
-    },
-    { onConflict: 'local_id,data' },
-  )
+  const { error } = await (supabase as any).rpc('fechar_caixa', {
+    p_local_id: localId,
+    p_data: resumo.data,
+    p_dinheiro_contado: parsed.data.dinheiro_contado,
+    p_esperado_dinheiro: resumo.dinheiro,
+    p_esperado_pix: resumo.pix,
+    p_esperado_debito: resumo.debito,
+    p_esperado_credito: resumo.credito,
+    p_diferenca: diferenca,
+    p_observacoes: parsed.data.observacoes?.trim() || null,
+  })
   if (error) return { error: error.message }
 
   revalidatePath('/caixa')
@@ -143,6 +147,35 @@ export async function listarFechamentos(limite = 30): Promise<Fechamento[]> {
   const cargo = await getCargoUsuario()
   const podeVerEsperado = !cargo || cargo.admin
 
+  // Nao-admin: a policy de SELECT da tabela base agora e is_admin()-only
+  // (2026-07-26-caixa-fechamentos-select-so-admin.sql) -- consultar a tabela
+  // direto devolveria 0 linhas. A RPC listar_fechamentos_publico (security
+  // definer) devolve so as colunas seguras, ja com o nome de quem fechou.
+  if (!podeVerEsperado) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any).rpc('listar_fechamentos_publico', {
+      p_local_id: localId,
+      p_limite: limite,
+    })
+    if (error) throw new Error(error.message)
+    type RawPublico = {
+      id: string
+      data: string
+      dinheiro_contado: number
+      observacoes: string | null
+      fechado_por_nome: string | null
+      created_at: string
+    }
+    return ((data ?? []) as RawPublico[]).map((f) => ({
+      id: f.id,
+      data: f.data,
+      dinheiro_contado: f.dinheiro_contado,
+      observacoes: f.observacoes,
+      created_at: f.created_at,
+      fechado_por_nome: f.fechado_por_nome,
+    }))
+  }
+
   const { data, error } = await supabase
     .from('caixa_fechamentos')
     .select('id, data, dinheiro_contado, esperado_dinheiro, esperado_pix, esperado_debito, esperado_credito, diferenca, observacoes, created_at, profiles(nome)')
@@ -166,17 +199,13 @@ export async function listarFechamentos(limite = 30): Promise<Fechamento[]> {
   }
   return ((data ?? []) as unknown as Raw[]).map((f) => {
     const rel = Array.isArray(f.profiles) ? f.profiles[0] : f.profiles
-    const base: FechamentoBase = {
+    return {
       id: f.id,
       data: f.data,
       dinheiro_contado: f.dinheiro_contado,
       observacoes: f.observacoes,
       created_at: f.created_at,
       fechado_por_nome: rel?.nome ?? null,
-    }
-    if (!podeVerEsperado) return base
-    return {
-      ...base,
       esperado_dinheiro: f.esperado_dinheiro,
       esperado_pix: f.esperado_pix,
       esperado_debito: f.esperado_debito,
