@@ -8,6 +8,7 @@ import { BotaoImprimir } from '@/components/cliente/BotaoImprimir'
 import { formatarReal, formatarData, hojeBrasil } from '@/lib/formatos'
 import { buscarStatsCliente, buscarHistoricoCliente } from '@/lib/actions/clientes-stats'
 import { classificarCliente } from '@/lib/utils/clientes'
+import { getCargoUsuario } from '@/lib/permissoes'
 
 const BADGE: Record<string, { cls: string; label: string; icon?: boolean }> = {
   vip:     { cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', label: 'VIP', icon: true },
@@ -28,7 +29,7 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const c = raw as any
-  const [stats, historico, fiadoRaw] = await Promise.all([
+  const [stats, historico, fiadoRaw, cargo] = await Promise.all([
     buscarStatsCliente(id),
     buscarHistoricoCliente(id, 30),
     supabase
@@ -37,7 +38,14 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
       .eq('cliente_id', id)
       .in('status', ['aberto', 'parcial'])
       .order('data_vencimento'),
+    getCargoUsuario(),
   ])
+  // Mesma formula fail-open usada em todo o resto dessa feature: cargo nulo
+  // ou admin=true ve os agregados R$ de desempenho (Total gasto, Ticket
+  // medio). Compras/Ultima compra/Favorito/Fiado em aberto sao operacionais
+  // (contagem, data, nome, divida especifica desse cliente) e continuam
+  // visiveis pra todo mundo.
+  const podeVerFinanceiro = !cargo || cargo.admin
   const fiados = (fiadoRaw.data ?? []) as {
     id: string
     descricao: string | null
@@ -56,6 +64,23 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
   const waLink = tel ? `https://wa.me/55${tel.replace(/\D/g, '')}` : null
   const end = c.endereco ?? {}
   const endStr = [end.rua, end.numero, end.bairro, end.cidade].filter(Boolean).join(', ')
+
+  // Total gasto/Ticket medio sao agregado R$ de desempenho -- so admin ve,
+  // mesmo principio do dashboard (mesmo padrao de montagem via .push()
+  // condicional). Compras (contagem) e Ultima compra (data) sao
+  // operacionais, ficam pra todo mundo.
+  const statsCards: { label: string; valor: string }[] = []
+  if (podeVerFinanceiro) {
+    statsCards.push({ label: 'Total gasto', valor: formatarReal(stats.valor_total) })
+  }
+  statsCards.push({ label: 'Compras', valor: String(stats.total_compras) })
+  if (podeVerFinanceiro) {
+    statsCards.push({ label: 'Ticket médio', valor: formatarReal(stats.ticket_medio) })
+  }
+  statsCards.push({
+    label: 'Última compra',
+    valor: stats.ultima_compra ? formatarData(stats.ultima_compra) : '-',
+  })
 
   return (
     <div className="px-6 py-5">
@@ -97,13 +122,14 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
         )}
       </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          { label: 'Total gasto', valor: formatarReal(stats.valor_total) },
-          { label: 'Compras', valor: String(stats.total_compras) },
-          { label: 'Ticket médio', valor: formatarReal(stats.ticket_medio) },
-          { label: 'Última compra', valor: stats.ultima_compra ? formatarData(stats.ultima_compra) : '-' },
-        ].map((s) => (
+      <div
+        className={
+          podeVerFinanceiro
+            ? 'mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4'
+            : 'mb-6 grid grid-cols-2 gap-3 sm:max-w-md'
+        }
+      >
+        {statsCards.map((s) => (
           <div key={s.label} className="rounded-lg border border-border bg-surface p-4">
             <p className="text-xs text-text-muted">{s.label}</p>
             <p className="mt-1 text-lg font-semibold tabular-nums text-text">{s.valor}</p>
