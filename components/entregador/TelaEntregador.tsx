@@ -62,7 +62,8 @@ type EntregaRaw = {
 }
 
 // Tela unica do cargo Entregador: so as entregas designadas a ele, sem
-// sidebar/topbar de admin. Renderizada por /dashboard quando ehEntregador().
+// sidebar/topbar de admin. Renderizada por /dashboard quando
+// cargo?.nome === 'Entregador'.
 export async function TelaEntregador() {
   const [entregasRaw, disponiveisRaw, local, nome, turnoAtivo, tempoMedioMin] = await Promise.all([
     listarMinhasEntregas(),
