@@ -1,5 +1,7 @@
 ﻿import { Suspense } from 'react'
+import { ShieldAlert } from 'lucide-react'
 import { PageHeader } from '@/components/ui-kit/PageHeader'
+import { EstadoVazio } from '@/components/ui-kit/EstadoVazio'
 import {
   Tabela,
   TabelaHead,
@@ -49,6 +51,25 @@ export default async function ResultadoPage({
   const mesAtual = mes ?? mesAtualBrasil()
   const labelMes = new Date(mesAtual + '-15').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
 
+  // calcular_dre/calcular_dre_serie so devolvem null pro gate de cargo
+  // (nao-admin). Essa rota ja e admin-only (rotaPermitida no layout), entao
+  // isso na pratica nunca acontece pra quem chegou ate aqui -- mas o tipo
+  // agora e DreData | null (Grupo C da revisao final), e um estado de erro
+  // honesto e melhor que travar a pagina ou fingir numero zerado.
+  if (!dre) {
+    return (
+      <div className="px-6 py-5">
+        <PageHeader titulo="Resultado" subtitulo="Demonstrativo de resultado do mês." />
+        <EstadoVazio
+          icone={ShieldAlert}
+          titulo="Sem acesso a este relatório"
+          descricao="Fale com um administrador se acha que isso é um erro."
+        />
+      </div>
+    )
+  }
+  const meses = serie ?? []
+
   return (
     <div className="px-6 py-5">
       <PageHeader titulo="Resultado" subtitulo="Demonstrativo de resultado do mês." />
@@ -93,7 +114,7 @@ export default async function ResultadoPage({
               </tr>
             </TabelaHead>
             <TabelaBody>
-              {serie.map((m) => (
+              {meses.map((m) => (
                 <TabelaRow key={m.mes}>
                   <TabelaCell className="font-medium">{mesCurto(m.mes)}</TabelaCell>
                   <TabelaCell alinhar="direita">{formatarReal(m.receita_bruta)}</TabelaCell>

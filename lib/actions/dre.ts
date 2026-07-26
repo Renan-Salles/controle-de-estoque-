@@ -20,7 +20,13 @@ export type DreMes = DreData & { mes: string }
 // Serie dos ultimos N meses numa query so (calcular_dre_serie, fuso
 // Brasilia). Custos fixos: o cadastro nao tem historico, entao o total
 // atual vale pra todos os meses (aproximacao documentada na spec).
-export async function getDreSerie(meses = 6): Promise<DreMes[]> {
+//
+// calcular_dre_serie sempre devolve p_meses linhas via a CTE "meses"
+// (coalescendo pra 0 quando nao houve venda no mes) quando quem chama e
+// admin -- so o early return do gate de cargo (nao-admin) devolve 0 linhas.
+// Um array vazio aqui so acontece pelo gate, nunca por "mes real sem
+// vendas" -- entao null e a leitura correta nesse caso (nao "mes zerado").
+export async function getDreSerie(meses = 6): Promise<DreMes[] | null> {
   const localId = await getLocalAtivoId()
   const supabase = await createClient()
 
@@ -31,9 +37,12 @@ export async function getDreSerie(meses = 6): Promise<DreMes[]> {
   })
   if (error) throw new Error(error.message)
 
-  const custosFixos = await getTotalCustosFixosMes()
   type Linha = { mes: string; receita: number; cmv: number; perdas: number }
-  return ((data ?? []) as Linha[]).map((l) => {
+  const linhas = (data ?? []) as Linha[]
+  if (linhas.length === 0) return null
+
+  const custosFixos = await getTotalCustosFixosMes()
+  return linhas.map((l) => {
     const receita = Number(l.receita ?? 0)
     const cmv = Number(l.cmv ?? 0)
     const perdas = Number(l.perdas ?? 0)
@@ -53,7 +62,13 @@ export async function getDreSerie(meses = 6): Promise<DreMes[]> {
   })
 }
 
-export async function getDre(mes?: string): Promise<DreData> {
+// calcular_dre devolve null quando quem chama nao e admin (gate de cargo
+// dentro da RPC). Antes isso virava "(data ?? {})" e computava um DreData
+// falso (lucro_liquido = -custosFixos etc.) -- um resultado com CARA de
+// real que o dashboard renderizaria como se fosse. Sem ser admin, ou no
+// caso extremo de fail-open com cargo nulo em que a RPC discorda, retorna
+// null de verdade em vez de inventar zero.
+export async function getDre(mes?: string): Promise<DreData | null> {
   const localId = await getLocalAtivoId()
   const supabase = await createClient()
   const mesFiltro = (mes ?? mesAtualBrasil()) + '-01'
@@ -63,8 +78,9 @@ export async function getDre(mes?: string): Promise<DreData> {
     p_local_id: localId,
     p_mes: mesFiltro,
   })
+  if (!data) return null
 
-  const raw = (data ?? {}) as {
+  const raw = data as {
     receita_bruta?: number
     cmv?: number
     margem_bruta?: number
