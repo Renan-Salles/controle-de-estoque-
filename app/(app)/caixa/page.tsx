@@ -28,10 +28,14 @@ export default async function CaixaPage() {
     <div className="mx-auto max-w-3xl px-6 py-5">
       <PageHeader
         titulo="Caixa"
-        subtitulo="Fechamento diário: conte a gaveta e confira com o que o sistema esperava."
+        subtitulo={
+          podeVerEsperado
+            ? 'Fechamento diário: conte a gaveta e confira com o que o sistema esperava.'
+            : 'Fechamento diário: conte a gaveta e registre o que tem nela.'
+        }
       />
 
-      <FormFechamento jaFechouHoje={!!deHoje} />
+      <FormFechamento jaFechouHoje={!!deHoje} podeVerEsperado={podeVerEsperado} />
 
       <h2 className="mb-3 mt-8 text-sm font-semibold text-text">Fechamentos anteriores</h2>
       {fechamentos.length === 0 ? (

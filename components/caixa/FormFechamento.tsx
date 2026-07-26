@@ -22,7 +22,13 @@ type Comparativo =
 
 // Fluxo AS CEGAS: quem conta nao ve o esperado antes de confirmar -- so
 // depois de gravado o sistema abre o comparativo. Evita "ajustar" a contagem.
-export function FormFechamento({ jaFechouHoje }: { jaFechouHoje: boolean }) {
+export function FormFechamento({
+  jaFechouHoje,
+  podeVerEsperado,
+}: {
+  jaFechouHoje: boolean
+  podeVerEsperado: boolean
+}) {
   const router = useRouter()
   const [contado, setContado] = useState('')
   const [observacoes, setObservacoes] = useState('')
@@ -120,7 +126,9 @@ export function FormFechamento({ jaFechouHoje }: { jaFechouHoje: boolean }) {
         <div>
           <h2 className="text-sm font-semibold text-text">Fechar o caixa de hoje</h2>
           <p className="text-xs text-text-muted">
-            Conte o dinheiro da gaveta e digite abaixo. O esperado aparece depois de confirmar.
+            {podeVerEsperado
+              ? 'Conte o dinheiro da gaveta e digite abaixo. O esperado aparece depois de confirmar.'
+              : 'Conte o dinheiro da gaveta e digite abaixo.'}
           </p>
         </div>
       </div>
