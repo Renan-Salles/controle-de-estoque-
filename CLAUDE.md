@@ -187,6 +187,31 @@ chama (ex. convite, cargo), o padrão correto é uma **função Postgres
 `security definer`** (ver `criar_convite`/`resgatar_convite` na migration
 `2026-07-01-convites-equipe.sql`), não confiar em `createServiceClient()`.
 
+## Gotcha grave: função `security definer` nova nasce chamável por `anon`
+
+Toda função nova em `public` (mesmo criada via migration como `postgres`)
+sai do forno com `EXECUTE` liberado pra `anon` e `authenticated` — e
+`ALTER DEFAULT PRIVILEGES` **não** resolve isso de verdade nesse projeto
+(testado: mesmo com o default corrigido no catálogo, uma função nova
+ainda nasce com PUBLIC executável — o Supabase parece reconciliar/expor
+automaticamente objetos novos do schema public, fora do alcance de
+`pg_default_acl`). Já aconteceu 3 vezes durante o trabalho de
+2026-07-25/26 (`calcular_esperado_caixa`, e outras duas pré-existentes,
+`ajustar_estoque`/`stats_cliente`) — funções `security definer` chamáveis
+sem login nenhum, achadas só por revisão adversarial com teste ao vivo.
+
+**A única mitigação comprovada**: toda migration que cria uma função
+`security definer` nova precisa terminar com `grant execute on function
+... to authenticated;` explícito — e, se a função **não** for uma das
+exceções pré-login (`consultar_convite`/`resgatar_convite`), também
+`revoke execute on function ... from anon;` explícito (ou `from public`).
+Nunca assumir que "só dei grant pra authenticated" é suficiente sem essa
+revogação — o padrão observado é que o objeto pode nascer com PUBLIC/anon
+executável mesmo sem nenhum `grant` mencionando esses roles. Depois de
+criar, sempre confirmar com
+`select has_function_privilege('anon', 'public.nome_funcao(tipos)'::regprocedure, 'EXECUTE')`
+— deve dar `false`.
+
 ## Outro gotcha: `RETURN QUERY` do Postgres exige tipo exato
 
 Se uma função `plpgsql` declara `returns table (x text)` mas a query
