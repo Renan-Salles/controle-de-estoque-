@@ -564,15 +564,18 @@ export async function atribuirEntregadorManual(pedidoId: string, entregadorId: s
   return { success: true }
 }
 
+// SELECT em caixa_fechamentos e is_admin()-only (RLS) -- consultar a tabela
+// direto sempre devolvia 0 linhas pra nao-admin, entao isso SEMPRE
+// retornava false pra Funcionario/Entregador mesmo com o caixa fechado,
+// destravando edicao de venda concluida que devia estar bloqueada (achado
+// importante, ver .superpowers/sdd/final-review-fixes-round2-report.md).
+// caixa_fechado_em() e security definer e so devolve um boolean (nenhum
+// dado financeiro exposto), funciona igual pra admin e nao-admin.
 export async function caixaFechadoHoje(localId: string): Promise<boolean> {
   const supabase = await createClient()
   const hoje = hojeBrasil()
-  const { data } = await supabase
-    .from('caixa_fechamentos')
-    .select('id')
-    .eq('local_id', localId)
-    .eq('data', hoje)
-    .maybeSingle()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (supabase as any).rpc('caixa_fechado_em', { p_local_id: localId, p_data: hoje })
   return !!data
 }
 

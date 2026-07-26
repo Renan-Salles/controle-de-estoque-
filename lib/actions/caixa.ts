@@ -2,70 +2,41 @@
 import { createClient } from '@/lib/supabase/server'
 import { getLocalAtivoId } from '@/lib/local'
 import { hojeBrasil } from '@/lib/formatos'
-import { somarPorForma } from '@/lib/pedido-labels'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { getCargoUsuario } from '@/lib/permissoes'
-
-export type ResumoDia = {
-  data: string
-  dinheiro: number
-  pix: number
-  debito: number
-  credito: number
-  totalVendas: number
-}
-
-// Quanto entrou HOJE por forma de pagamento (vendas concluidas E pagas do
-// local ativo). Frete incluso de proposito: caixa e dinheiro que entrou de
-// verdade, nao faturamento de mercadoria.
-export async function resumoDoDia(): Promise<ResumoDia> {
-  const localId = await getLocalAtivoId()
-  const supabase = await createClient()
-  const hoje = hojeBrasil()
-
-  const { data, error } = await supabase
-    .from('pedidos')
-    .select('forma_pagamento, total, pago, valor_secundario, forma_pagamento_secundaria')
-    .eq('local_id', localId)
-    .eq('status', 'concluida')
-    .gte('data_pedido', `${hoje}T00:00:00-03:00`)
-    .lte('data_pedido', `${hoje}T23:59:59.999-03:00`)
-  if (error) throw new Error(error.message)
-
-  type Linha = {
-    forma_pagamento: string
-    total: number
-    pago: boolean
-    valor_secundario: number | null
-    forma_pagamento_secundaria: string | null
-  }
-  const rows = (data ?? []) as Linha[]
-  const pagas = rows.filter((r) => r.pago)
-
-  // somarPorForma ja trata o split: cada pedido entra com a fatia certa em
-  // cada forma, e a perna fiado nunca soma em dinheiro/pix/cartao_* (nao e
-  // dinheiro em caixa).
-  const resumo = somarPorForma(pagas, ['dinheiro', 'pix', 'cartao_debito', 'cartao_credito'])
-  const porForma = (f: string) => resumo.find((r) => r.forma === f)?.valor ?? 0
-
-  return {
-    data: hoje,
-    dinheiro: porForma('dinheiro'),
-    pix: porForma('pix'),
-    debito: porForma('cartao_debito'),
-    credito: porForma('cartao_credito'),
-    totalVendas: pagas.length,
-  }
-}
 
 const FecharSchema = z.object({
   dinheiro_contado: z.number().min(0),
   observacoes: z.string().optional(),
 })
 
+// Campos prefixados com "r_": nome de saida do RPC fechar_caixa (ver
+// 2026-07-26-fechar-caixa-recomputa-servidor.sql -- prefixo evita colisao
+// de nome entre OUT param e coluna de caixa_fechamentos dentro da funcao).
+type FecharCaixaRow = {
+  r_data: string
+  r_dinheiro_contado: number
+  r_esperado_dinheiro: number
+  r_esperado_pix: number
+  r_esperado_debito: number
+  r_esperado_credito: number
+  r_diferenca: number
+  r_total_vendas: number
+}
+
 // Fecha o caixa de hoje: grava o snapshot do esperado por forma + a
 // diferenca (contado - esperado em dinheiro). Upsert: refechar substitui.
+//
+// esperado_*/diferenca NAO sao mais calculados aqui em JS -- eram passados
+// pro RPC como parametros confiando no cliente, o que permitia forjar um
+// fechamento com qualquer numero via chamada direta a
+// POST /rest/v1/rpc/fechar_caixa (achado critico, ver
+// .superpowers/sdd/final-review-fixes-round2-report.md). fechar_caixa()
+// agora recalcula tudo no servidor a partir de public.pedidos e trava a
+// data em current_date do proprio banco -- so p_local_id/
+// p_dinheiro_contado/p_observacoes sao informados por quem chama (ver
+// 2026-07-26-fechar-caixa-recomputa-servidor.sql).
 export async function fecharCaixa(input: unknown) {
   const parsed = FecharSchema.safeParse(input)
   if (!parsed.success) return { error: parsed.error.issues[0].message }
@@ -75,30 +46,17 @@ export async function fecharCaixa(input: unknown) {
   if (!user) return { error: 'Não autenticado' }
 
   const localId = await getLocalAtivoId()
-  const resumo = await resumoDoDia()
-  const diferenca = +(parsed.data.dinheiro_contado - resumo.dinheiro).toFixed(2)
 
-  // Upsert direto na tabela (INSERT ... ON CONFLICT DO UPDATE) quebra com
-  // RLS pra quem nao e admin desde que SELECT virou is_admin()-only
-  // (2026-07-26-caixa-fechamentos-select-so-admin.sql): o Postgres precisa
-  // de visibilidade de SELECT pra sondar o indice unico do ON CONFLICT,
-  // mesmo sem conflito real -- confirmado ao vivo (ver
-  // .superpowers/sdd/final-review-fixes-report.md, Grupo A). fechar_caixa()
-  // e security definer (2026-07-26-fechar-caixa-rpc.sql): roda como dona da
-  // tabela, ignorando RLS, checando pode_acessar_local() por dentro.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any).rpc('fechar_caixa', {
+  const { data: rpcData, error } = await (supabase as any).rpc('fechar_caixa', {
     p_local_id: localId,
-    p_data: resumo.data,
     p_dinheiro_contado: parsed.data.dinheiro_contado,
-    p_esperado_dinheiro: resumo.dinheiro,
-    p_esperado_pix: resumo.pix,
-    p_esperado_debito: resumo.debito,
-    p_esperado_credito: resumo.credito,
-    p_diferenca: diferenca,
     p_observacoes: parsed.data.observacoes?.trim() || null,
   })
   if (error) return { error: error.message }
+
+  const linha = (rpcData as FecharCaixaRow[] | null)?.[0]
+  if (!linha) return { error: 'Falha ao fechar o caixa' }
 
   revalidatePath('/caixa')
   const cargo = await getCargoUsuario()
@@ -107,17 +65,17 @@ export async function fecharCaixa(input: unknown) {
     success: true as const,
     comparativo: podeVerEsperado
       ? {
-          totalVendas: resumo.totalVendas,
-          dinheiro_contado: parsed.data.dinheiro_contado,
-          dinheiro: resumo.dinheiro,
-          pix: resumo.pix,
-          debito: resumo.debito,
-          credito: resumo.credito,
-          diferenca,
+          totalVendas: linha.r_total_vendas,
+          dinheiro_contado: linha.r_dinheiro_contado,
+          dinheiro: linha.r_esperado_dinheiro,
+          pix: linha.r_esperado_pix,
+          debito: linha.r_esperado_debito,
+          credito: linha.r_esperado_credito,
+          diferenca: linha.r_diferenca,
         }
       : {
-          totalVendas: resumo.totalVendas,
-          dinheiro_contado: parsed.data.dinheiro_contado,
+          totalVendas: linha.r_total_vendas,
+          dinheiro_contado: linha.r_dinheiro_contado,
         },
   }
 }
