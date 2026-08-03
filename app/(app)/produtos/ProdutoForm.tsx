@@ -125,8 +125,8 @@ export function ProdutoForm({
         e.embalagens = 'Toda forma de venda precisa de um nome (ex: Fardo 12)'
         break
       }
-      if (!emb.unidades || Number(emb.unidades) < 2) {
-        e.embalagens = `"${emb.nome}": informe quantas unidades tem dentro (2 ou mais)`
+      if (!emb.unidades || Number(emb.unidades) < 1) {
+        e.embalagens = `"${emb.nome}": informe quantas unidades tem dentro (1 ou mais)`
         break
       }
       if (emb.preco === '' || Number(emb.preco) < 0) {
@@ -382,7 +382,7 @@ export function ProdutoForm({
                 <label className="text-[11px] font-medium text-text-muted">Unidades</label>
                 <Input
                   type="number"
-                  min={2}
+                  min={1}
                   inputMode="numeric"
                   value={emb.unidades}
                   onChange={(e) => setEmbalagem(i, 'unidades', e.target.value)}
